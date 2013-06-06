@@ -55,23 +55,40 @@ char *socket_to_string(struct sock *s) {
     return OUTPUT;
 }
 
- void open_socket(struct sock *s,int do_bind) {
-    if ((s->socket = socket(s->sa.in.sin_family,s->type,s->proto)) < 0)
-        SAYPX("socket[%s]",socket_to_string(s))
-    
-    if (do_bind == DO_BIND) {
+int open_socket(struct sock *s,int flags) {
+#define ERROR(fmt,arg...)       \
+do {                            \
+    if (flags & DO_NOT_EXIT) {  \
+        _ENO(fmt,##arg);        \
+    } else {                    \
+        SAYPX(fmt,##arg);       \
+    }                           \
+    ok = 0;                     \
+} while(0);
+
+    int ok = 1;
+    if ((s->socket = socket(s->sa.in.sin_family,s->type,s->proto)) < 0) 
+        ERROR("socket[%s]",socket_to_string(s));
+
+    if (flags & DO_BIND) {
         if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
-            SAYPX("bind[%s]",socket_to_string(s));
-    } else if(do_bind == DO_CONNECT) {
+            ERROR("bind[%s]",socket_to_string(s));
+    } 
+
+    if(flags & DO_CONNECT) {
         if (s->proto == IPPROTO_TCP) {
             if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
-                SAYPX("connect[%s]",socket_to_string(s));
+                ERROR("connect[%s]",socket_to_string(s));
 
-            struct timeval tv;
-            tv.tv_sec = 2;
-            tv.tv_usec = 0;
-            if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) < 0)
-                SAYPX("setsockopt[%s]",socket_to_string(s));
+            if (flags & DO_SET_TIMEOUT) {
+                struct timeval tv;
+                tv.tv_sec = 2;
+                tv.tv_usec = 0;
+                if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) < 0)
+                    ERROR("setsockopt[%s]",socket_to_string(s));
+            }
         }
     }
+    return ok;
+#undef ERROR
 }

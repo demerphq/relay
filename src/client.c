@@ -61,8 +61,11 @@ int main(int ac, char **av) {
                 SAYX(EXIT_SUCCESS,"death decided by chance");
             #endif
             *magic_place = 0x11111111;
-            if ((rc = recv(fd,DATA,sizeof(DATA),MSG_WAITALL)) <= 0)
-                SAYPX("recv");
+            if ((rc = recv(fd,DATA,sizeof(DATA),MSG_WAITALL)) <= 0) {
+                if (rc == 0) // shutdown
+                    exit(EXIT_SUCCESS);
+                SAYPX("recv: %d",rc);
+            }
             if (*magic_place != MAGIC)
                 SAYX(EXIT_FAILURE,"magic not found in the received packet %x recv: %d, data_size: %d",*magic_place,rc,data_size);
         #else

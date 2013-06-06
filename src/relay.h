@@ -39,6 +39,9 @@
 #define LOCK_DESTROY(x) pthread_mutex_destroy(x)
 #endif
 
+#ifndef SLEEP_AFTER_DISASTER
+#define SLEEP_AFTER_DISASTER 1
+#endif
 struct blob {
     unsigned int size;
     unsigned int pos;
@@ -78,13 +81,16 @@ struct worker {
     pthread_t tid;
     unsigned long long sent;
     volatile int abort;
+    volatile int exit;
     struct sock s_output;
 };
 #define THROTTLE_INTERVAL 1
 #define THROTTLE_DEBUG 0
-#define DO_NOTHING 0
-#define DO_BIND 1
-#define DO_CONNECT 2
+#define DO_NOTHING      0
+#define DO_BIND         1
+#define DO_CONNECT      2
+#define DO_NOT_EXIT     4
+#define DO_SET_TIMEOUT  8
 #define FORMAT(fmt,arg...) fmt " [%s():%s:%d @ %u]\n",##arg,__func__,__FILE__,__LINE__,(unsigned int) time(NULL)
 #define _E(fmt,arg...) fprintf(stderr,FORMAT(fmt,##arg))
 #define _D(fmt,arg...) printf(FORMAT(fmt,##arg))
@@ -95,7 +101,7 @@ struct worker {
 } while(0)
 
 #define SAYPX(fmt,arg...) SAYX(EXIT_FAILURE,fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
-
+#define _ENO(fmt,arg...) _E(fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 #define SEND(s,b) (((s)->type != SOCK_DGRAM) ? send((s)->socket,(b)->data, (b)->pos,MSG_NOSIGNAL) : \
                                              sendto((s)->socket,(b)->data, (b)->pos,MSG_NOSIGNAL,   \
                                                     (struct sockaddr*) &(s)->sa.in,(s)->addrlen))
@@ -134,7 +140,7 @@ void worker_init_static(int ac, char **av);
 /* util.c */
 void socketize(const char *arg,struct sock *s);
 char *socket_to_string(struct sock *s);
-void open_socket(struct sock *s,int do_bind);
+int open_socket(struct sock *s,int do_bind);
 
 /* throttle.c */
 void throttle_init_static(void);

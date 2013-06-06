@@ -41,9 +41,17 @@ void *worker_thread(void *arg) {
     struct queue *q = &self->queue;
     struct sock *s = &self->s_output;
     blob_t *b;
+
+again:
+    while(   self->abort
+          && !self->exit
+          && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
+        sleep(SLEEP_AFTER_DISASTER);
+    }
+
     self->abort = 0;
 
-    while(!self->abort) {
+    while(!self->abort && !self->exit) {
         /* hijack the queue's head, so we can send it slowly */
         LOCK(&q->lock);
         hijacked_queue.head = q->head;
@@ -60,7 +68,8 @@ void *worker_thread(void *arg) {
                 disaster_someone_else_try(self,&hijacked_queue);
                 disaster_someone_else_try(self,q);
                 UNLOCK(&q->lock);
-                break;
+                close(s->socket);
+                goto again;
             }
             hijacked_queue.head = b->next;
             b_throw_in_garbage(b);
@@ -116,20 +125,26 @@ void worker_wait(struct worker *worker) {
 
 struct worker * worker_init(char *arg) {
     struct worker *worker = malloc_or_die(sizeof(*worker));
+
+    worker->exit = 0;
+    worker->abort = 0;
+
     socketize(arg,&worker->s_output);
+    open_socket(&worker->s_output,DO_CONNECT);
+
     pthread_mutex_init(&worker->cond_lock, NULL);
     LOCK_INIT(&worker->queue.lock);
     pthread_cond_init(&worker->cond,NULL);
-    open_socket(&worker->s_output,DO_CONNECT);
     pthread_create(&worker->tid,NULL,worker_thread,worker);
+
     worker->queue.limit = MAX_QUEUE_SIZE;
     worker->queue.count = 0;
     return worker;
 }
 
 void worker_destroy(struct worker *worker) {
-    if (!worker->abort) {
-        worker->abort = 1;
+    if (!worker->exit) {
+        worker->exit = 1;
         worker_signal(worker);
         pthread_join(worker->tid,NULL);
     }
@@ -166,5 +181,5 @@ static INLINE void cork(struct sock *s,int flag) {
     if (s->proto != IPPROTO_TCP)
         return;
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
-        SAYPX("setsockopt");
+        _E("setsockopt: %s",strerror(errno));
 }
