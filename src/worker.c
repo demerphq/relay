@@ -62,7 +62,7 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _E("ABORT: send to %s failed, %s",socket_to_string(s),strerror(errno));
+                _ENO("ABORT: send to %s failed",socket_to_string(s));
                 self->abort = 1; // if we dont set it here we will deadlock
                 LOCK(&q->lock);
                 disaster_someone_else_try(self,&hijacked_queue);
