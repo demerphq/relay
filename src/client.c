@@ -53,7 +53,8 @@ int main(int ac, char **av) {
     DATA[sizeof(DATA) - 1] = '\n';
     #define MAGIC 0xDEADBEEF
     *magic_place = MAGIC;
-    while (do_max == 0 || i++ < do_max) {
+    while (do_max == 0 || i < do_max) {
+        i++;
         #ifdef USE_SERVER
             int rc;
             #ifdef RANDOM_DEATH
@@ -63,8 +64,8 @@ int main(int ac, char **av) {
             *magic_place = 0x11111111;
             if ((rc = recv(fd,DATA,sizeof(DATA),MSG_WAITALL)) <= 0) {
                 if (rc == 0) // shutdown
-                    exit(EXIT_SUCCESS);
-                SAYPX("recv: %d",rc);
+                    break;
+                SAYPX("recv");
             }
             if (*magic_place != MAGIC)
                 SAYX(EXIT_FAILURE,"magic not found in the received packet %x recv: %d, data_size: %d",*magic_place,rc,data_size);

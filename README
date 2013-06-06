@@ -2,7 +2,11 @@ simple(~500 lines) socket<->socket relay that listens on
 unix/udp and enqueues packets into several several workers, which sends them to
 their destination. It also uses TCP_CORK on 1 streaming tcp
 connection to send its data (if remote socket is tcp).
-
+install:
+    $ git clone https://github.com/jackdoe/relay
+    $ cd relay
+    $ make
+    $ # and then run ./bin/relay 
 usage:
 relay local_socket fallback_socket worker_socket worker_socket worker_socket ....
 
@@ -14,14 +18,14 @@ There enqueuement attempt on each worker's thread (in case someone's queue is fu
 or the worker is in aborted state) until the packet is enqueued. If all worker threads
 fail the packet is enqueued in the fallback worker's queue.
 
-Each thread does tries to send the packet, and if it fails it tries to requeue it
+Each thread tries to send the packet, and if it fails it tries to requeue it
 into other threads (except if this thread is the fallback, then we exit with error) and
-then it puts itself into abort state.
+then it puts itself into abort state, while it attempts to reconnect.
 
 listener socket can be only DGRAM udp/unix.
 
 packet \                         
-packet  |- relay -> i++%workers (picks next worker) and enqueue the packet in its queue
+packet  |- relay -> i++%workers (picks next worker) and enqueue the packet in its q 
 packet /                      
                               
 worker(a) 
@@ -32,9 +36,22 @@ worker(a)
                    -> if no worker is found then attempt to enqueue in 
                       fallback worker's queue
 
-                   (a) dies.
+                   (a) attempts to reconnect to his target server forever.
                 -> otherwise goto process_queue;
                     
             
                  
+testing:
+    $ cd relay/test
+    $ ./setup.sh
+    # after testing is done you can see the results
+    $ ./stat.sh  | sort -n -t'-' -k 2
+
+    legend:
+        po = polling
+        sp = spinlock
+        ga = garbage reuse
+        ad = array data (data[65535] instead of *data)
+
+        result-pakcet_size-relay-flags:packets_per_second .. second_best .. third_best
 

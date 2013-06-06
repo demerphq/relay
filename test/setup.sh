@@ -19,6 +19,6 @@ for size in 64 128 256 1024 16000 32000 40000 65000; do
 		# valgrind --tool=callgrind --dump-instr=yes --simulate-cache=yes --collect-jumps=yes $CMD &
 		$CMD &
 		sleep 1
-		../bin/client sock/relay.sock 40000000 $size > result-$size-$i.txt  2>&1
+		../bin/client sock/relay.sock 4000000 $size > result-$size-$i.txt  2>&1
 	done
 done

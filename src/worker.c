@@ -7,20 +7,16 @@ static INLINE void cork(struct sock *s,int flag);
 
 int q_append(struct worker *worker, blob_t *b) {
     struct queue *q = &worker->queue;
-    /*
-     WARNING: worker->abort should always be checked
-     otherwise there is going to be a deadlock between
-     q_append's inside LOCK and working_thread()->LOCK({ disaster_someone_else_try()->q_append })
-     the only thing that saves us is that we set worker->abort in the same thread
-     in which we handle the disaster
-    */
+
+    LOCK(&q->lock);
+    // must be protected by the queue's lock
+    // otherwise we can enqueue packets into aborted worker's queue
+
     if ((q->limit && q->count > q->limit) || worker->abort) {
-        #ifndef USE_POLLING
-        worker_signal(worker);
-        #endif
+        UNLOCK(&q->lock);
         return 0;
     }
-    LOCK(&q->lock);
+
     if (q->head == NULL)
         q->head = b;
     else
@@ -28,10 +24,9 @@ int q_append(struct worker *worker, blob_t *b) {
     q->tail = b;
     b->next = NULL;
     q->count++;
-    UNLOCK(&q->lock);
-    #ifndef USE_POLLING
     worker_signal(worker);
-    #endif  
+
+    UNLOCK(&q->lock);
     return 1;
 }
 
@@ -46,7 +41,8 @@ again:
     while(   self->abort
           && !self->exit
           && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
-        sleep(SLEEP_AFTER_DISASTER);
+
+        worker_wait(self,SLEEP_AFTER_DISASTER);
     }
 
     self->abort = 0;
@@ -63,12 +59,15 @@ again:
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
                 _ENO("ABORT: send to %s failed",socket_to_string(s));
-                self->abort = 1; // if we dont set it here we will deadlock
+
+                // expected race between q_append and this point, 
+                // so we must protect self->abort
                 LOCK(&q->lock);
+                self->abort = 1;
+                UNLOCK(&q->lock);
+
                 disaster_someone_else_try(self,&hijacked_queue);
                 disaster_someone_else_try(self,q);
-                UNLOCK(&q->lock);
-                close(s->socket);
                 goto again;
             }
             hijacked_queue.head = b->next;
@@ -77,7 +76,7 @@ again:
             // _TD("worker[%s] sent %llu packets",socket_to_string(s),self->sent);
         }
         cork(s,0);
-        worker_wait(self);
+        worker_wait(self,0);
     }
     close(s->socket);
     _D("worker[%s] sent %llu packets in its lifetime",socket_to_string(s),self->sent);
@@ -104,21 +103,36 @@ int enqueue_blob_for_transmission(blob_t *b) {
 }
 
 void worker_signal(struct worker *worker) {
+#ifndef USE_POLLING
     pthread_mutex_lock(&worker->cond_lock);
     pthread_cond_signal(&worker->cond);
     pthread_mutex_unlock(&worker->cond_lock);
+#endif
 }
 
 #ifdef USE_POLLING
 #define NS 5000000
 static struct timespec delay = { NS / 1000000000, NS % 1000000000 };
 #endif
-void worker_wait(struct worker *worker) {
+void worker_wait(struct worker *worker, int seconds) {
 #ifdef USE_POLLING
-    nanosleep(&delay,NULL);
+    if (seconds > 0)
+        sleep(seconds);
+    else
+        nanosleep(&delay,NULL);
 #else  
     pthread_mutex_lock(&worker->cond_lock);
-    pthread_cond_wait(&worker->cond,&worker->cond_lock);
+    if (seconds > 0) {
+        struct timeval    tp;
+        struct timespec   ts;
+        gettimeofday(&tp, NULL);
+        ts.tv_sec  = tp.tv_sec;
+        ts.tv_nsec = tp.tv_usec * 1000;
+        ts.tv_sec += seconds;
+        pthread_cond_timedwait(&worker->cond,&worker->cond_lock,&ts);
+    } else {
+        pthread_cond_wait(&worker->cond,&worker->cond_lock);
+    }
     pthread_mutex_unlock(&worker->cond_lock);
 #endif
 }
@@ -181,5 +195,5 @@ static INLINE void cork(struct sock *s,int flag) {
     if (s->proto != IPPROTO_TCP)
         return;
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
-        _E("setsockopt: %s",strerror(errno));
+        _TE("setsockopt: %s",strerror(errno));
 }

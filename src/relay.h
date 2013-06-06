@@ -86,6 +86,8 @@ struct worker {
 };
 #define THROTTLE_INTERVAL 1
 #define THROTTLE_DEBUG 0
+#define THROTTLE_ERROR 1
+
 #define DO_NOTHING      0
 #define DO_BIND         1
 #define DO_CONNECT      2
@@ -95,6 +97,7 @@ struct worker {
 #define _E(fmt,arg...) fprintf(stderr,FORMAT(fmt,##arg))
 #define _D(fmt,arg...) printf(FORMAT(fmt,##arg))
 #define _TD(fmt,arg...) t_fprintf(THROTTLE_DEBUG,stdout,FORMAT(fmt,##arg))
+#define _TE(fmt,arg...) t_fprintf(THROTTLE_ERROR,stdout,FORMAT(fmt,##arg))
 #define SAYX(rc,fmt,arg...) do {    \
     _E(fmt,##arg);                  \
     exit(rc);                       \
@@ -131,7 +134,7 @@ void b_destroy_static(void);
 struct worker * worker_init(char *arg);
 void worker_destroy(struct worker *worker);
 INLINE void worker_signal(struct worker *worker);
-INLINE void worker_wait(struct worker *worker);
+INLINE void worker_wait(struct worker *worker,int delay);
 void *worker_thread(void *arg);
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
