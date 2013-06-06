@@ -1,0 +1,40 @@
+simple(~500 lines) socket<->socket relay that listens on
+unix/udp and enqueues packets into several several workers, which sends them to
+their destination. It also uses TCP_CORK on 1 streaming tcp
+connection to send its data (if remote socket is tcp).
+
+usage:
+relay local_socket fallback_socket worker_socket worker_socket worker_socket ....
+
+for exmple:
+relay /tmp/relay.sock udp@events-fallback.example.com:112233 tcp@events-0.example.com:112233 \
+    tcp@events-1.example.com:112233
+
+There enqueuement attempt on each worker's thread (in case someone's queue is full
+or the worker is in aborted state) until the packet is enqueued. If all worker threads
+fail the packet is enqueued in the fallback worker's queue.
+
+Each thread does tries to send the packet, and if it fails it tries to requeue it
+into other threads (except if this thread is the fallback, then we exit with error) and
+then it puts itself into abort state.
+
+listener socket can be only DGRAM udp/unix.
+
+packet \                         
+packet  |- relay -> i++%workers (picks next worker) and enqueue the packet in its queue
+packet /                      
+                              
+worker(a) 
+         -> process_queue (poll/cond wait)
+            -> send packets
+                -> if disaster happens (unable to send packet) then
+                   pick other worker(b) to process my queue.
+                   -> if no worker is found then attempt to enqueue in 
+                      fallback worker's queue
+
+                   (a) dies.
+                -> otherwise goto process_queue;
+                    
+            
+                 
+
