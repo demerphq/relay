@@ -55,3 +55,19 @@ testing:
 
         result-pakcet_size-relay-flags:packets_per_second .. second_best .. third_best
 
+config:
+everything after first # is comment
+example config file (lets say /etc/relay.conf):
+
+    udp@localhost:12344 #local
+    # tcp@localhost:12345 old fallback
+    sock/fallback.sock #fallback
+    tcp@relay-1:1111 
+    tcp@relay-2:1111 
+    tcp@relay-3:1111 
+    tcp@relay-4:1111 
+
+run app with: relay /etc/relay.conf
+if you want to chane something for example relay-4 with relay-5, you
+have to edit the config file and just killall -1 relay, this will
+close/reopen all connections (including fallback). 

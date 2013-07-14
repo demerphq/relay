@@ -1,4 +1,5 @@
 #include "relay.h"
+int workers_count = 0;
 static struct worker *WORKERS[MAX_WORKERS + 1];
 #define FALLBACK WORKERS[MAX_WORKERS]
 
@@ -36,9 +37,9 @@ void *worker_thread(void *arg) {
     struct queue *q = &self->queue;
     struct sock *s = &self->s_output;
     blob_t *b;
-
+    bzero(&hijacked_queue,sizeof(hijacked_queue));
 again:
-    while(   self->abort
+    while(    self->abort
           && !self->exit
           && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
 
@@ -58,7 +59,7 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed",socket_to_string(s));
+                _ENO("ABORT: send to %s failed %d",socket_to_string(s),b->size);
 
                 // expected race between q_append and this point, 
                 // so we must protect self->abort
@@ -96,8 +97,8 @@ static void disaster_someone_else_try(struct worker *worker,struct queue *q) {
 
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
-    for (i = 0; i < MAX_WORKERS; i++)
-        if (q_append(WORKERS[b->id++ % MAX_WORKERS],b))
+    for (i = 0; i < workers_count; i++)
+        if (q_append(WORKERS[b->id++ % workers_count],b))
             return 1;
     return q_append(FALLBACK,b);
 }
@@ -139,13 +140,11 @@ void worker_wait(struct worker *worker, int seconds) {
 
 struct worker * worker_init(char *arg) {
     struct worker *worker = malloc_or_die(sizeof(*worker));
-
+    bzero(worker,sizeof(*worker));
     worker->exit = 0;
-    worker->abort = 0;
+    worker->abort = 1;
 
     socketize(arg,&worker->s_output);
-    open_socket(&worker->s_output,DO_CONNECT);
-
     pthread_mutex_init(&worker->cond_lock, NULL);
     LOCK_INIT(&worker->queue.lock);
     pthread_cond_init(&worker->cond,NULL);
@@ -167,17 +166,20 @@ void worker_destroy(struct worker *worker) {
     pthread_cond_destroy(&worker->cond); 
     free(worker);
 }
-void worker_init_static(int ac, char **av) {
-    int i;
-    
+void worker_init_static(int ac, char **av,int destroy) {
+    if (destroy)
+        worker_destroy_static();
+
+    bzero(WORKERS,sizeof(WORKERS));
+
     FALLBACK=worker_init(av[0]);
     FALLBACK->queue.limit = 0;
     ac--;
     av++;
     if (ac > MAX_WORKERS)
         _E("destination hosts(%d) > max workers(%d) %d will be skipped",ac,MAX_WORKERS,ac - MAX_WORKERS);
-    for (i = 0;i < MAX_WORKERS; i++)
-        WORKERS[i] = worker_init(av[(i % ac)]);
+    for (workers_count = 0;workers_count < MAX_WORKERS; workers_count++)
+        WORKERS[workers_count] = worker_init(av[(workers_count % ac)]);
 
 #ifdef USE_POLLING
     _D("polling every %u ms",NS/1000000);

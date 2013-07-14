@@ -18,10 +18,11 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <stdarg.h>
+#include <ctype.h>
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
 #ifndef MAX_WORKERS
-#define MAX_WORKERS 2
+#define MAX_WORKERS 255
 #endif
 #define MAX_GARBAGE (MAX_QUEUE_SIZE * MAX_WORKERS)
 #define INLINE inline
@@ -138,7 +139,7 @@ INLINE void worker_wait(struct worker *worker,int delay);
 void *worker_thread(void *arg);
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
-void worker_init_static(int ac, char **av);
+void worker_init_static(int ac, char **av,int destroy);
 
 /* util.c */
 void socketize(const char *arg,struct sock *s);
