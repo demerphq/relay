@@ -65,6 +65,8 @@ void load_config(int ac, char **av) {
         CONFIG.file = av[1];
         reload_config_file();
     } else {
+
+        CONFIG.av = realloc_or_die(CONFIG.av,sizeof(char *) * (ac));
         for (i=0; i < ac - 1; i++) {
             CONFIG.av[i] = strdup(av[i + 1]);
         }
