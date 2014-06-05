@@ -119,6 +119,7 @@ do {                                                                            
 INLINE void *realloc_or_die(void *p, size_t size);
 INLINE void *malloc_or_die(size_t size);
 INLINE blob_t * b_new(void);
+INLINE blob_t * b_clone(blob_t *b);
 INLINE void b_throw_in_garbage(blob_t *b);
 INLINE blob_t * b_find_in_garbage(void);
 INLINE void b_set_pos(blob_t *b, unsigned int pos);

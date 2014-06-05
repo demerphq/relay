@@ -66,6 +66,16 @@ INLINE blob_t * b_new(void) {
     return b;
 }
 
+INLINE blob_t * b_clone(blob_t *b) {
+    blob_t clone= b_new();
+    clone->size= b->size;
+    clone->pos= b->pos;
+#ifndef BLOB_ARRAY_DATA
+    clone->data = malloc_or_die(clone->size);
+#endif
+    memcpy(clone->data, b->data, b->size);
+}
+
 INLINE void b_prepare(blob_t *b,size_t size) {
     if (b->size - b->pos >= size)
         return;
