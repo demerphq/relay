@@ -57,8 +57,8 @@ int get_epoch_filehandle(struct worker *worker) {
     if (tm != worker->last_epoch) {
         worker->last_epoch= tm;
 
-        if (snprintf(worker->last_file, MAX_PATH, "/tmp/%.*s/%li.srlc",
-                    (int)worker->dest_hostname_len, worker->dest_hostname,
+        if (snprintf(worker->last_file, PATH_MAX, "/tmp/%s/%li.srlc",
+                    worker->s_output.to_string,
                     (long int)tm) >= MAX_PATH)
             _D("filename was truncated to %d bytes", MAX_PATH);
     }
@@ -123,7 +123,7 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %d",socket_to_string(s),b->ref->data->size + 4);
+                _ENO("ABORT: send to %s failed %d",s->to_string,b->ref->data->size + 4);
 
                 self->abort = 1;
 
@@ -132,13 +132,12 @@ again:
             }
             b_destroy( q_shift_nolock( &hijacked_queue ) );
             self->sent++;
-            // _TD("worker[%s] sent %llu packets",socket_to_string(s),self->sent);
         }
         cork(s,0);
         worker_wait(self,0);
     }
     close(s->socket);
-    _D("worker[%s] sent %llu packets in its lifetime",socket_to_string(s),self->sent);
+    _D("worker[%s] sent %llu packets in its lifetime",s->to_string,self->sent);
     return NULL;
 }
 

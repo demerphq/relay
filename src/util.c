@@ -1,5 +1,4 @@
 #include "relay.h"
-static char OUTPUT[1024];
 void socketize(const char *arg,struct sock *s) {
     char *a = strdup(arg);
     char *p;
@@ -35,24 +34,14 @@ void socketize(const char *arg,struct sock *s) {
 
         s->addrlen = sizeof(s->sa.in);
     } else {
-        s->sa.un.sun_family = AF_UNIX; 
-        strncpy(s->sa.un.sun_path,a,sizeof(s->sa.un.sun_path) - 1);
-        s->addrlen = sizeof(s->sa.un);
+	SAYX(EXIT_FAILURE,"must specity tcp or udp");
     }
     s->proto = proto;
-    _D("%s",socket_to_string(s));
+    snprintf(s->to_string,PATH_MAX,
+		    "%s@%s:%d",(s->proto == IPPROTO_TCP ? "tcp" : "udp"),
+		    inet_ntoa(s->sa.in.sin_addr),ntohs(s->sa.in.sin_port));
+    _D("%s",s->to_string);
     free(a);
-}
-char *socket_to_string(struct sock *s) {
-    char *type = s->type == SOCK_DGRAM ? "SOCK_DGRAM" : "SOCK_STREAM";
-    if (s->sa.in.sin_family == AF_INET)
-        snprintf(OUTPUT,sizeof(OUTPUT),
-                        "%s@%s:%d(%s)",(s->proto == IPPROTO_TCP ? "tcp" : "udp"),
-                                   inet_ntoa(s->sa.in.sin_addr),ntohs(s->sa.in.sin_port),type);
-    else 
-        snprintf(OUTPUT,sizeof(OUTPUT),"UNIX@%s(%s)",s->sa.un.sun_path,type);
-
-    return OUTPUT;
 }
 
 int open_socket(struct sock *s,int flags) {
@@ -68,24 +57,24 @@ do {                            \
 
     int ok = 1;
     if ((s->socket = socket(s->sa.in.sin_family,s->type,s->proto)) < 0) 
-        ERROR("socket[%s]",socket_to_string(s));
+        ERROR("socket[%s]",s->to_string);
 
     if (flags & DO_BIND) {
         if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
-            ERROR("bind[%s]",socket_to_string(s));
+            ERROR("bind[%s]",s->to_string);
     } 
 
     if(flags & DO_CONNECT) {
         if (s->proto == IPPROTO_TCP) {
             if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
-                ERROR("connect[%s]",socket_to_string(s));
+                ERROR("connect[%s]",s->to_string);
 
             if (flags & DO_SET_TIMEOUT) {
                 struct timeval tv;
                 tv.tv_sec = 2;
                 tv.tv_usec = 0;
                 if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) < 0)
-                    ERROR("setsockopt[%s]",socket_to_string(s));
+                    ERROR("setsockopt[%s]",s->to_string);
             }
         }
     }

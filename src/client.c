@@ -34,7 +34,7 @@ int main(int ac, char **av) {
     int fd = 0;
 #ifdef USE_SERVER
     if (bind(s.socket, (struct sockaddr *) &s.sa.in, s.addrlen) )
-        SAYPX("bind %s",socket_to_string(&s));
+        SAYPX("bind %s",s.to_string);
     if (s.proto == IPPROTO_TCP) {
         if (listen(s.socket,1))
             SAYPX("listen");

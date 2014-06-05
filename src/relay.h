@@ -19,6 +19,7 @@
 #include <netinet/tcp.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <sys/syslimits.h>
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
 #ifndef MAX_WORKERS
@@ -87,6 +88,7 @@ struct sock {
     int socket;
     int proto;
     int type;
+    char to_string[PATH_MAX];
     socklen_t addrlen;
 };
 
