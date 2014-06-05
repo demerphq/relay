@@ -10,9 +10,7 @@ int q_append(struct worker *worker, blob_t *b) {
     struct queue *q = &worker->queue;
 
     LOCK(&q->lock);
-    // must be protected by the queue's lock
-    // otherwise we can enqueue packets into aborted worker's queue
-
+    
     if (q->head == NULL)
         q->head = b;
     else
@@ -37,12 +35,24 @@ blob_t *q_shift_nolock(struct queue *q) {
     }
 }
 
-blob_t *q_shift_safe(struct queue *q) {
+blob_t *q_shift_lock(struct queue *q) {
     blob_t *b;
     LOCK(&q->lock);
     b= q_shift_nolock(q);
     UNLOCK(&q>lock);
     return b;
+}
+
+static void write_blob_to_disk(struct worker *worker, blob_t *b) {
+   /* XXX: Not Yet Implemented */
+}
+
+static void deal_with_failed_send(struct worker *worker, struct queue *q) {
+    blob_t *b;
+    for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
+        write_blob_to_disk(worker, b);
+        b_throw_in_garbage(b);
+    }
 }
 
 void *worker_thread(void *arg) {
@@ -84,7 +94,7 @@ again:
                 deal_with_failed_send(self, hijacked_queue);
                 goto again;
             }
-            b_throw_in_garbage(q_shift_nolock(&hijacked_queue));
+            b_throw_in_garbage( q_shift_nolock( &hijacked_queue ) );
             self->sent++;
             // _TD("worker[%s] sent %llu packets",socket_to_string(s),self->sent);
         }
@@ -96,17 +106,7 @@ again:
     return NULL;
 }
 
-static void deal_with_failed_send(struct worker *worker,struct queue *q) {
-    blob_t *b;
-    for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
-        write_blob_to_disk(worker, b);
-        b_throw_in_garbage(b);
-    }
-}
 
-static void write_blob_to_disk(struct worker *worker, blob_t *b) {
-   /* XXX: Not Yet Implemented */
-}
 
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
