@@ -127,6 +127,7 @@ again:
                 self->abort = 1;
 
                 deal_with_failed_send(self, &hijacked_queue);
+                close(s->socket);
                 goto again;
             }
             b_destroy( q_shift_nolock( &hijacked_queue ) );
