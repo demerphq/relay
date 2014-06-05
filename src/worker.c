@@ -1,4 +1,5 @@
 #include "relay.h"
+#include "worker.h"
 int workers_count = 0;
 static struct worker *WORKERS[MAX_WORKERS + 1];
 #ifdef TCP_CORK
@@ -194,7 +195,6 @@ struct worker * worker_init(char *arg) {
     if (snprintf(worker->fallback_path,PATH_MAX,FALLBACK_ROOT "/%s/",worker->s_output.to_string) >= PATH_MAX)
 	SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s",worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
-    worker->queue.limit = MAX_QUEUE_SIZE;
     worker->queue.count = 0;
     return worker;
 }

@@ -35,6 +35,11 @@ struct blob {
 };
 typedef struct blob blob_t;
 
+#define BLOB_REF_PTR(b)     ((b)->ref)
+#define BLOB_REFCNT(b)      (BLOB_REF_PTR(b)->refcnt)
+#define BLOB_DATA_PTR(b)    (BLOB_REF_PTR(b)->data)
+#define BLOB_SIZE(b)        (BLOB_DATA_PTR(b)->size)
+#define BLOB_DATA(b)        (BLOB_DATA_PTR(b)->data)
 
 /* blob.c */
 INLINE void *realloc_or_die(void *p, size_t size);

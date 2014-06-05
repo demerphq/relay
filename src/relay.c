@@ -1,4 +1,5 @@
 #include "relay.h"
+#include "worker.h"
 static void cleanup(int signum);
 static void sig_handler(int signum);
 static struct sock s_listen;
