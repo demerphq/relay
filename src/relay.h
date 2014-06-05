@@ -3,6 +3,7 @@
 
 #include "relay_common.h"
 #include "blob.h"
+#include "relay_threads.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -14,7 +15,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <signal.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -26,18 +26,13 @@
 #include <sys/stat.h>
 #include <sys/syslimits.h>
 
+
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
 #ifndef MAX_WORKERS
 #define MAX_WORKERS 255
 #endif
 #define MAX_GARBAGE (MAX_QUEUE_SIZE * MAX_WORKERS)
-
-#define LOCK_T pthread_mutex_t
-#define LOCK(x) pthread_mutex_lock(x)
-#define UNLOCK(x) pthread_mutex_unlock(x)
-#define LOCK_INIT(x) pthread_mutex_init(x,NULL)
-#define LOCK_DESTROY(x) pthread_mutex_destroy(x)
 
 #define FALLBACK_ROOT "/tmp"
 
