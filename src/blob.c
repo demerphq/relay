@@ -6,10 +6,9 @@ static struct garbage {
     LOCK_T lock;
 } GARBAGE;
 
-static unsigned long INDEX = 0;
 // static unsigned long total_allocated = 0;
 INLINE void *realloc_or_die(void *p, size_t size) {
-   // _TD("realloc %zu garbage_count: %u, allocated sofar %lu, blobs created %lu",size,GARBAGE.count,total_allocated++,INDEX);
+   // _TD("realloc %zu garbage_count: %u, allocated sofar %lu",size,GARBAGE.count,total_allocated++);
     p = realloc(p,size);
     if (!p)
         SAYX(EXIT_FAILURE,"unable to allocate %zu bytes",size);
@@ -64,7 +63,6 @@ INLINE blob_t * b_new(void) {
     }
     b->pos = 0;
     b->next = NULL;
-    b->id = INDEX++;
     return b;
 }
 

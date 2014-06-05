@@ -52,7 +52,6 @@ struct blob {
     char *data;
 #endif
     struct blob *next;
-    int id;
 };
 typedef struct blob blob_t;
 

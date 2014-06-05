@@ -98,9 +98,8 @@ static void disaster_someone_else_try(struct worker *worker,struct queue *q) {
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     for (i = 0; i < workers_count; i++)
-        if (q_append(WORKERS[b->id++ % workers_count],b))
-            return 1;
-    return q_append(FALLBACK,b);
+        q_append(WORKERS[i],b);
+    return workers_count;
 }
 
 void worker_signal(struct worker *worker) {
