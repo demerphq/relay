@@ -101,9 +101,12 @@ struct worker {
 #define SAYPX(fmt,arg...) SAYX(EXIT_FAILURE,fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 #define _ENO(fmt,arg...) _E(fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 
-#define SEND(S,B) (((S)->type != SOCK_DGRAM) ? send((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL) : \
-                                               sendto((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL,   \
-                                                    (struct sockaddr*) &(S)->sa.in,(S)->addrlen))
+#define SEND(S,B) (                                                                 \
+        ((S)->type != SOCK_DGRAM)                                                   \
+        ? send((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL)      \
+        : sendto((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL,    \
+                (struct sockaddr*) &(S)->sa.in,(S)->addrlen)                        \
+)
 
 
 #define ENQUEUE(b)                                                                      \
