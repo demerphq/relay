@@ -129,12 +129,6 @@ struct worker {
                                                sendto((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL,   \
                                                     (struct sockaddr*) &(S)->sa.in,(S)->addrlen))
 
-#define ENQUEUE(b)                                                                      \
-do {                                                                                    \
-    if (enqueue_blob_for_transmission(b) <= 0)                                          \
-        SAYX(EXIT_FAILURE,"unable to find working thread to enqueue the packet to");    \
-} while (0)
-
 /* blob.c */
 INLINE void *realloc_or_die(void *p, size_t size);
 INLINE void *malloc_or_die(size_t size);

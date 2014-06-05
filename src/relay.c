@@ -113,7 +113,7 @@ int main(int ac, char **av) {
             if (received < 0)
                 SAYPX("recv");
             b_shift(b,received);
-            ENQUEUE(b);
+            enqueue_blob_for_transmission(b);
         }
     }
     /* never reached */
