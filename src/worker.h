@@ -1,6 +1,8 @@
 #ifndef _WORKER_H
 #define _WORKER_H
 
+#include "blob.h"
+
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif

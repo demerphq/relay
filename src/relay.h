@@ -2,7 +2,6 @@
 #define _RELAY_H 
 
 #include "relay_common.h"
-#include "blob.h"
 #include "relay_threads.h"
 #include "util.h"
 
