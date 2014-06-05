@@ -1,7 +1,7 @@
 FILES=src/blob.c src/worker.c src/util.c
 RELAY=src/relay.c $(FILES)
 CLIENT=src/client.c $(FILES)
-CC=gcc -O3 -Wall -pthread -g -DMAX_WORKERS=2
+CC=gcc -O3 -Wall -pthread -g -DMAX_WORKERS=2 -Wno-int-to-void-pointer-cast
 all:
 	mkdir -p bin
 	$(CC) -o bin/client $(CLIENT)

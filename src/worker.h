@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <string.h>
 
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1

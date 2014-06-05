@@ -1,5 +1,7 @@
 #include "relay.h"
 #include "worker.h"
+#include <string.h>
+
 static void cleanup(int signum);
 static void sig_handler(int signum);
 static struct sock s_listen;
@@ -79,6 +81,64 @@ void reload_workers(int destroy) {
     worker_init_static(CONFIG.ac - 1,&CONFIG.av[1],destroy);
 }
 
+void udp_server(struct sock *s) {
+    ssize_t received;
+    char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
+    for (;;) {
+        received = recv(s->socket,buf,MAX_CHUNK_SIZE,MSG_PEEK);
+        if (received > 0) {
+            blob_t *b = b_new();
+            b_prepare(b,received);
+            received = recv(s->socket,b->ref->data->data,received,0);
+            if (received < 0)
+                SAYPX("recv");
+            enqueue_blob_for_transmission(b);
+        }
+    }
+}
+
+void *tcp_worker(void *arg) {
+    int fd = (int)arg;
+    _D("new tcp worker for fd: %d",fd);
+    for (;;) {
+        blob_t *b = b_new();
+        uint32_t expected;
+        int rc = recv(fd,&expected,sizeof(expected),MSG_WAITALL);
+        if (rc != sizeof(expected)) {
+            _ENO("failed to receive header for next packet, expected: %zu got: %d",sizeof(expected),rc);
+            break;
+        }
+
+        if (expected > MAX_CHUNK_SIZE) {
+            _ENO("requested packet(%d) > MAX_CHUNK_SIZE(%d)",expected,MAX_CHUNK_SIZE);
+            break;
+        }
+
+        b_prepare(b,expected);
+        rc = recv(fd,&b->ref->data->data,b->ref->data->size,MSG_WAITALL);
+        if (rc != b->ref->data->size) {
+            _ENO("failed to receve packet payload, expected: %d got: %d",b->ref->data->size,rc);
+            break;
+        }
+        enqueue_blob_for_transmission(b);
+    }
+    close(fd);
+    pthread_exit(NULL);
+}
+void tcp_server(struct sock *s) {
+    for (;;) {
+        int fd = accept(s->socket,NULL,NULL);
+        if (fd < 0)
+            SAYPX("accept");
+        pthread_attr_t attr;
+        pthread_t t;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_create(&t,&attr,tcp_worker,(void *) fd);
+        pthread_attr_destroy(&attr);
+    }
+}
+
 int main(int ac, char **av) {
     signal(SIGTERM,cleanup);
     signal(SIGINT,cleanup);
@@ -87,35 +147,20 @@ int main(int ac, char **av) {
 
     load_config(ac,av);
 
-    if (CONFIG.ac < 3)
-        SAYX(EXIT_FAILURE,"%s local-host:local-port fallback-host:remote-port tcp@remote-host:remote-port ...\n"\
-                          "or file with socket description per day like:\n"                                  \
-                          "\tlocal-host:local-port\n"                                                           \
-                          "\tfallback-host:remote-port\n"                                                       \
+    if (CONFIG.ac < 2)
+        SAYX(EXIT_FAILURE,"%s local-host:local-port tcp@remote-host:remote-port ...\n" \
+                          "or file with socket description per day like:\n"            \
+                          "\tlocal-host:local-port\n"                                  \
                           "\ttcp@remote-host:remote-port ...\n",av[0]);
 
     socketize(CONFIG.av[0],&s_listen);
-    if (s_listen.type != SOCK_DGRAM)
-        SAYX(EXIT_FAILURE,"we can listen only on DGRAM sockets (udp/unix)");
-
     b_init_static();
     reload_workers(0);
-
     open_socket(&s_listen,DO_BIND);
-
-    ssize_t received;
-    char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
-    for (;;) { 
-        received = recv(s_listen.socket,buf,MAX_CHUNK_SIZE,MSG_PEEK);
-        if (received > 0) {
-            blob_t *b = b_new();
-            b_prepare(b,received);
-            received = recv(s_listen.socket,b->ref->data->data,received,0);
-            if (received < 0)
-                SAYPX("recv");
-            enqueue_blob_for_transmission(b);
-        }
-    }
+    if (s_listen.proto == IPPROTO_UDP)
+        udp_server(&s_listen);
+    else
+        tcp_server(&s_listen);
     /* never reached */
     return(0);
 }

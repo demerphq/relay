@@ -1,5 +1,6 @@
 #include "util.h"
 //#include "relay.h"
+#include <string.h>
 
 void socketize(const char *arg,struct sock *s) {
     char *a = strdup(arg);
@@ -7,14 +8,14 @@ void socketize(const char *arg,struct sock *s) {
     int proto = 0;
     s->type = SOCK_DGRAM;
     if ((p = strchr(a,':')) != NULL) {
-        
+
         s->sa.in.sin_family = AF_INET;
         s->sa.in.sin_port = htons(atoi( p + 1 )); /* skip the : */
         *p = '\0';
 
         if ((p = strchr(a,'@')) != NULL) {
             *p++ = '\0'; /* get rid of the @ */
-            if (strcmp("tcp",a) == 0) { 
+            if (strcmp("tcp",a) == 0) {
                 proto = IPPROTO_TCP;
                 s->type = SOCK_STREAM;
             } else
@@ -22,12 +23,12 @@ void socketize(const char *arg,struct sock *s) {
         } else {
             p = a;
         }
-        
+
         struct in_addr ip;
         if (inet_aton(p,&ip) == 0) {
             struct hostent * host = gethostbyname2(p,AF_INET);
-            if (!host) 
-                SAYX(EXIT_FAILURE,"failed to parse/resolve %s",p); 
+            if (!host)
+                SAYX(EXIT_FAILURE,"failed to parse/resolve %s",p);
 
             memcpy(&(s->sa.in.sin_addr),host->h_addr,host->h_length);
         } else {
@@ -58,15 +59,17 @@ do {                            \
 } while(0);
 
     int ok = 1;
-    if ((s->socket = socket(s->sa.in.sin_family,s->type,s->proto)) < 0) 
+    if ((s->socket = socket(s->sa.in.sin_family,s->type,s->proto)) < 0)
         ERROR("socket[%s]",s->to_string);
 
     if (flags & DO_BIND) {
         if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
             ERROR("bind[%s]",s->to_string);
-    } 
-
-    if(flags & DO_CONNECT) {
+        if (s->proto == IPPROTO_TCP) {
+            if (listen(s->socket,SOMAXCONN))
+                ERROR("listen[%s]",s->to_string);
+        }
+    }  else if (flags & DO_CONNECT) {
         if (s->proto == IPPROTO_TCP) {
             if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
                 ERROR("connect[%s]",s->to_string);
@@ -78,6 +81,14 @@ do {                            \
                 if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) < 0)
                     ERROR("setsockopt[%s]",s->to_string);
             }
+        }
+        if (s->proto == IPPROTO_TCP) {
+            struct timeval timeout;
+            timeout.tv_sec = SEND_TIMEOUT;
+            timeout.tv_usec = 0;
+
+            if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,sizeof(timeout)) < 0)
+                ERROR("setsockopt[%s]",s->to_string);
         }
     }
     return ok;

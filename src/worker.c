@@ -61,9 +61,9 @@ int get_epoch_filehandle(struct worker *worker) {
     if (snprintf(worker->fallback_file, PATH_MAX, "%s/%li.srlc",
                  worker->fallback_path,
                  (long int)time(NULL)) >= PATH_MAX)
-        _D("filename was truncated to %d bytes", PATH_MAX);
+        SAYX(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
     recreate_fallback_path(worker->fallback_path);
-    fd = open(worker->fallback_file,O_WRONLY|O_APPEND,0640);
+    fd = open(worker->fallback_file,O_WRONLY|O_APPEND|O_CREAT,0640);
     if (fd < 0)
         _D("failed to open '%s', everyting is lost!: %s",worker->fallback_file,strerror(errno)); /* show reason? */
     return fd;
@@ -100,16 +100,11 @@ void *worker_thread(void *arg) {
     bzero(&hijacked_queue,sizeof(hijacked_queue));
 
 again:
-    while(    self->abort
-              && !self->exit
-              && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
-
+    while(!self->exit && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
         worker_wait(self,SLEEP_AFTER_DISASTER);
     }
 
-    self->abort = 0;
-
-    while(!self->abort && !self->exit) {
+    while(!self->exit) {
         /* hijack the queue - copy the queue state into our private copy
          * and then reset the queue state to empty. So the formerly
          * shared queue is now private. We only do this if necessary. */
@@ -123,10 +118,7 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %d",s->to_string,b->ref->data->size + 4);
-
-                self->abort = 1;
-
+                _ENO("ABORT: send to %s failed to send %d bytes",s->to_string,b->ref->data->size + 4);
                 deal_with_failed_send(self, &hijacked_queue);
                 close(s->socket);
                 goto again;
@@ -141,8 +133,6 @@ again:
     _D("worker[%s] sent %llu packets in its lifetime",s->to_string,self->sent);
     return NULL;
 }
-
-
 
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
@@ -185,8 +175,6 @@ struct worker * worker_init(char *arg) {
     struct worker *worker = malloc_or_die(sizeof(*worker));
     bzero(worker,sizeof(*worker));
     worker->exit = 0;
-    worker->abort = 1;
-
     socketize(arg,&worker->s_output);
     pthread_mutex_init(&worker->cond_lock, NULL);
     LOCK_INIT(&worker->queue.lock);
