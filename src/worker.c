@@ -226,6 +226,6 @@ void worker_init_static(int argc, char **argv, int destroy) {
 
 void worker_destroy_static(void) {
     int i;
-    for (i = 0;i < MAX_WORKERS + 1; i++)
+    for (i = 0;i < workers_count; i++)
         worker_destroy(WORKERS[i]);
 }
