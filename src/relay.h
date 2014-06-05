@@ -24,7 +24,12 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#if defined(__APPLE__) || defined(__MACH__)
 #include <sys/syslimits.h>
+# ifndef MSG_NOSIGNAL
+#   define MSG_NOSIGNAL SO_NOSIGPIPE
+# endif
+#endif
 
 
 #define MAX_CHUNK_SIZE 0xFFFF
@@ -40,11 +45,6 @@
 #define SLEEP_AFTER_DISASTER 1
 #endif
 
-#if defined(__APPLE__) || defined(__MACH__)
-# ifndef MSG_NOSIGNAL
-#   define MSG_NOSIGNAL SO_NOSIGPIPE
-# endif
-#endif
 
 #define MAX_PATH 256
 
