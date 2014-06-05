@@ -21,9 +21,9 @@ int q_append(struct worker *worker, blob_t *b) {
     if (q->head == NULL)
         q->head = b;
     else
-        q->tail->next = b;
+        BLOB_NEXT_set(q->tail,b);
     q->tail = b;
-    b->next = NULL;
+    BLOB_NEXT_set(b,NULL);
     q->count++;
     worker_signal(worker);
 
@@ -34,8 +34,8 @@ int q_append(struct worker *worker, blob_t *b) {
 blob_t *q_shift_nolock(struct queue *q) {
     blob_t *b= q->head;
     if (b) {
-        if (b->next)
-            q->head = b->next;
+        if (BLOB_NEXT(b))
+            q->head = BLOB_NEXT(b);
         else
             q->head = q->tail = NULL;
         q->count--;
@@ -70,11 +70,11 @@ int get_epoch_filehandle(struct worker *worker) {
 }
 
 static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
-    if (!b->ref)
-        SAYX(EXIT_FAILURE,"b->ref is null"); /* XXX */
-    if (!b->ref->data)
-        SAYX(EXIT_FAILURE,"b->ref->data is null"); /* XXX */
-    if (write(fd,b->ref->data->data,b->ref->data->size) != b->ref->data->size)
+    if (!BLOB_REF_PTR(b))
+        SAYX(EXIT_FAILURE,"BLOB_REF_PTR(b) is null"); /* XXX */
+    if (!BLOB_DATA_PTR(b))
+        SAYX(EXIT_FAILURE,"BLOB_DATA_PTR(b) is null"); /* XXX */
+    if (write(fd,BLOB_DATA(b),BLOB_SIZE(b)) != BLOB_SIZE(b))
         _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file,strerror(errno));
 }
 
@@ -118,7 +118,8 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed to send %d bytes",s->to_string,b->ref->data->size + 4);
+                _ENO("ABORT: send to %s failed %ld",s->to_string,BLOB_DATA_SIZE(b));
+
                 deal_with_failed_send(self, &hijacked_queue);
                 close(s->socket);
                 goto again;
@@ -137,7 +138,7 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     blob_t *append_b;
-    b->ref->refcnt= workers_count;
+    BLOB_REFCNT(b)= workers_count;
     for (i = 0; i < workers_count; i++) {
         if (i + 1 == workers_count) {
             append_b= b_clone(b);

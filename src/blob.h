@@ -35,11 +35,33 @@ struct blob {
 };
 typedef struct blob blob_t;
 
-#define BLOB_REF_PTR(b)     ((b)->ref)
-#define BLOB_REFCNT(b)      (BLOB_REF_PTR(b)->refcnt)
-#define BLOB_DATA_PTR(b)    (BLOB_REF_PTR(b)->data)
-#define BLOB_SIZE(b)        (BLOB_DATA_PTR(b)->size)
-#define BLOB_DATA(b)        (BLOB_DATA_PTR(b)->data)
+#define BLOB_REF_PTR(B)     ((B)->ref)
+#define BLOB_NEXT(B)        ((B)->next)
+
+#define BLOB_DATA_PTR(B)    (BLOB_REF_PTR(B)->data)
+
+#define BLOB_REFCNT(B)      (BLOB_REF_PTR(B)->refcnt)
+#define BLOB_LOCK(B)        (BLOB_REF_PTR(B)->lock)
+
+#define BLOB_DATA_SIZE(B)   (BLOB_DATA_PTR(B)->size + sizeof(BLOB_DATA_PTR(B)->size))
+
+#define BLOB_SIZE(B)        (BLOB_DATA_PTR(B)->size)
+#define BLOB_DATA(B)        (BLOB_DATA_PTR(B)->data)
+
+/* --- */
+
+#define BLOB_REF_PTR_set(B) (B)->ref= (v)
+#define BLOB_NEXT_set(B,v)  (B)->next = (v)
+
+#define BLOB_DATA_PTR_set(B) BLOB_REF_PTR(B)->data = (v)
+
+#define BLOB_REFCNT_set(B)  BLOB_REF_PTR(B)->refcnt = (v)
+#define BLOB_REFCNT_dec(B)  BLOB_REF_PTR(B)->refcnt--
+
+#define BLOB_LOCK_set(B)    BLOB_REF_PTR(B)->lock = (v)
+#define BLOB_SIZE_set(B)    BLOB_DATA_PTR(B)->size = (v)
+
+//#define BLOB_DATA_set(B)        (BLOB_DATA_PTR(B)->data)
 
 /* blob.c */
 INLINE void *realloc_or_die(void *p, size_t size);

@@ -53,8 +53,8 @@ void *worker_thread(void *arg);
 
 #define SEND(S,B) (                                                     \
     ((S)->type != SOCK_DGRAM)                                           \
-    ? send((S)->socket,(B)->ref->data, (B)->ref->data->size + sizeof((B)->ref->data->size), MSG_NOSIGNAL) \
-    : sendto((S)->socket,(B)->ref->data, (B)->ref->data->size + sizeof((B)->ref->data->size), MSG_NOSIGNAL, \
+    ? send((S)->socket,BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL) \
+    : sendto((S)->socket,BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL, \
              (struct sockaddr*) &(S)->sa.in,(S)->addrlen)               \
 )
 

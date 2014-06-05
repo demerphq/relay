@@ -16,11 +16,11 @@ INLINE blob_t * b_new(void) {
     blob_t *b;
 
     b = malloc_or_die(sizeof(blob_t));
-    b->next = NULL;
-    b->ref = malloc_or_die(sizeof(_refcnt_blob_t));
-    LOCK_INIT(&b->ref->lock);
-    b->ref->refcnt = 1;
-    b->ref->data= NULL;
+    BLOB_NEXT_set(b,NULL);
+    BLOB_REF_PTR(b) = malloc_or_die(sizeof(_refcnt_blob_t));
+    LOCK_INIT(&BLOB_LOCK(b));
+    BLOB_REFCNT(b) = 1;
+    BLOB_DATA_PTR(b)= NULL;
     return b;
 }
 
@@ -28,40 +28,40 @@ INLINE blob_t * b_clone(blob_t *b) {
     blob_t *clone;
 
     clone= malloc_or_die(sizeof(blob_t));
-    clone->next= NULL;
+    BLOB_NEXT_set(clone,NULL);
 
-    /* note we assume that b->ref->refcnt is setup externally to b_clone */
-    clone->ref= b->ref;
+    /* note we assume that BLOB_REFCNT(b) is setup externally to b_clone */
+    BLOB_REF_PTR(clone)= BLOB_REF_PTR(b);
 
     return clone;
 }
 
 INLINE void b_prepare(blob_t *b,size_t size) {
-    if (!b->ref)
-        SAYX(EXIT_FAILURE,"b->ref is null"); /* XXX */
-    if (!b->ref->data) {
-        b->ref->data= malloc_or_die(sizeof(__data_blob_t) + size);
-        b->ref->data->size= size;
+    if (!BLOB_REF_PTR(b))
+        SAYX(EXIT_FAILURE,"BLOB_REF_PTR(b) is null"); /* XXX */
+    if (!BLOB_DATA_PTR(b)) {
+        BLOB_DATA_PTR(b)= malloc_or_die(sizeof(__data_blob_t) + size);
+        BLOB_SIZE(b)= size;
     } else {
-        size += b->ref->data->size;
-        b->ref->data = realloc_or_die(b->ref->data, size);
-        b->ref->data->size= size;
+        size += BLOB_SIZE(b);
+        BLOB_DATA_PTR(b) = realloc_or_die(BLOB_DATA_PTR(b), size);
+        BLOB_SIZE(b)= size;
     }
 }
 
 INLINE void b_destroy(blob_t *b) {
-    if ( b->ref ) {
+    if ( BLOB_REF_PTR(b) ) {
         uint32_t refcnt;
-        LOCK(&b->ref->lock);
-        refcnt= b->ref->refcnt;
+        LOCK(&BLOB_LOCK(b));
+        refcnt= BLOB_REFCNT(b);
         if (refcnt)
-            b->ref->refcnt--;
-        UNLOCK(&b->ref->lock);
+            BLOB_REFCNT(b)--;
+        UNLOCK(&BLOB_LOCK(b));
         if (refcnt == 1) {
             /* we were the last owner so we can release it */
-            free(b->ref->data);
-            LOCK_DESTROY(&b->ref->lock);
-            free(b->ref);
+            free(BLOB_DATA_PTR(b));
+            LOCK_DESTROY(&BLOB_LOCK(b));
+            free(BLOB_REF_PTR(b));
         }
     }
     free(b);

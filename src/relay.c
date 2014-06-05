@@ -88,7 +88,7 @@ void udp_server(struct sock *s) {
         if (received > 0) {
             blob_t *b = b_new();
             b_prepare(b,received);
-            received = recv(s->socket,b->ref->data->data,received,0);
+            received = recv(s->socket,BLOB_DATA(b),received,0);
             if (received < 0)
                 SAYPX("recv");
             enqueue_blob_for_transmission(b);
@@ -97,7 +97,7 @@ void udp_server(struct sock *s) {
 }
 
 void *tcp_worker(void *arg) {
-    int fd = (int)arg;
+    int fd = (int )arg;
     _D("new tcp worker for fd: %d",fd);
     for (;;) {
         blob_t *b = b_new();
@@ -114,9 +114,9 @@ void *tcp_worker(void *arg) {
         }
 
         b_prepare(b,expected);
-        rc = recv(fd,&b->ref->data->data,b->ref->data->size,MSG_WAITALL);
-        if (rc != b->ref->data->size) {
-            _ENO("failed to receve packet payload, expected: %d got: %d",b->ref->data->size,rc);
+        rc = recv(fd,&BLOB_DATA(b),expected,MSG_WAITALL);
+        if (rc != BLOB_SIZE(b)) {
+            _ENO("failed to receve packet payload, expected: %d got: %d",BLOB_SIZE(b),rc);
             break;
         }
         enqueue_blob_for_transmission(b);
@@ -133,7 +133,7 @@ void tcp_server(struct sock *s) {
         pthread_t t;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        pthread_create(&t,&attr,tcp_worker,(void *) fd);
+        pthread_create(&t,&attr,tcp_worker,(void *)fd);
         pthread_attr_destroy(&attr);
     }
 }
