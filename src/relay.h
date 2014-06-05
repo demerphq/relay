@@ -31,6 +31,9 @@
 # endif
 #endif
 
+#ifndef PATH_MAX
+#define PATH_MAX 256
+#endif
 
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
@@ -46,7 +49,6 @@
 #endif
 
 
-#define MAX_PATH 256
 
 struct queue {
     blob_t *head;
