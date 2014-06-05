@@ -25,11 +25,12 @@ INLINE blob_t * b_new(void) {
 }
 
 INLINE blob_t * b_clone(blob_t *b) {
-    blob_t clone= b_new();
+    blob_t *clone= b_new();
     clone->size= b->size;
     clone->pos= b->pos;
     clone->data = malloc_or_die(clone->size);
     memcpy(clone->data, b->data, b->size);
+    return clone;
 }
 
 INLINE void b_prepare(blob_t *b,size_t size) {

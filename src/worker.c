@@ -3,7 +3,6 @@ int workers_count = 0;
 static struct worker *WORKERS[MAX_WORKERS + 1];
 #define FALLBACK WORKERS[MAX_WORKERS]
 
-static void disaster_someone_else_try(struct worker *worker, struct queue *q);
 static INLINE void cork(struct sock *s,int flag);
 
 int q_append(struct worker *worker, blob_t *b) {
@@ -33,26 +32,49 @@ blob_t *q_shift_nolock(struct queue *q) {
             q->head = q->tail = NULL;
         q->count--;
     }
+    return b;
 }
 
 blob_t *q_shift_lock(struct queue *q) {
     blob_t *b;
     LOCK(&q->lock);
     b= q_shift_nolock(q);
-    UNLOCK(&q>lock);
+    UNLOCK(&q->lock);
     return b;
 }
 
-static void write_blob_to_disk(struct worker *worker, blob_t *b) {
-   /* XXX: Not Yet Implemented */
+#define MAX_PATH 256
+int get_epoch_filehandle(struct worker *worker) {
+    int fd;
+    time_t tm= time(NULL);
+    char filename[MAX_PATH];
+
+    /* XXX: fixme, better path */
+    if (snprintf(filename, MAX_PATH, "/tmp/%li.srlc", (long int)tm)>=MAX_PATH)
+        _D("filename was truncated to %d bytes", MAX_PATH);
+
+    fd = open(filename,O_WRONLY|O_APPEND,0640);
+    if (fd < 0)
+        _D("failed to open '%s', everyting is lost!",filename);
+    return fd;
+}
+
+static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
+    if (write(fd,b->data,b->size) != b->size)
+        _D("failed to append to file, everything is lost!");
 }
 
 static void deal_with_failed_send(struct worker *worker, struct queue *q) {
     blob_t *b;
+    int fd= get_epoch_filehandle(worker);
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
-        write_blob_to_disk(worker, b);
+        write_blob_to_disk(worker, fd, b);
         b_destroy(b);
     }
+    if (fsync(fd))
+        _D("failed to fsync file, everything is lost");
+    if (close(fd))
+        _D("failed to close file, everything is lost");
 }
 
 void *worker_thread(void *arg) {
@@ -77,7 +99,7 @@ again:
         /* hijack the queue - copy the queue state into our private copy
          * and then reset the queue state to empty. So the formerly
          * shared queue is now private. We only do this if necessary. */
-        if (hijacked_queue->head == NULL) {
+        if (hijacked_queue.head == NULL) {
             LOCK(&q->lock);
             memcpy(&hijacked_queue, q, sizeof(struct queue));
             q->tail = q->head = NULL;
@@ -91,7 +113,7 @@ again:
 
                 self->abort = 1;
 
-                deal_with_failed_send(self, hijacked_queue);
+                deal_with_failed_send(self, &hijacked_queue);
                 goto again;
             }
             b_destroy( q_shift_nolock( &hijacked_queue ) );
