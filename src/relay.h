@@ -35,11 +35,31 @@
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif
+
+/* this structure is shared between different threads */
+/* the idea here is that we want a data structure which is exactly
+ * 4 bytes of length, followed by K bytes of string */
+struct __data_blob {
+    uint32_t size;
+    char data[0];
+} __attribute__ ((packed));
+typedef struct __data_blob __data_blob_t;
+
+/* this structure is shared between different threads
+ * we use this to refcount __blob_t items, and we use
+ * the lock to guard refcnt modifications */
+struct _refcnt_blob {
+    LOCK_T lock;
+    uint32_t refcnt;
+    __data_blob_t *data;
+};
+typedef struct _refcnt_blob _refcnt_blob_t;
+
+/* this structure is private to each thread */
 struct blob {
-    unsigned int size;
     unsigned int pos;
-    char *data;
     struct blob *next;
+    _refcnt_blob_t *ref;
 };
 typedef struct blob blob_t;
 
@@ -102,9 +122,9 @@ struct worker {
 
 #define SAYPX(fmt,arg...) SAYX(EXIT_FAILURE,fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 #define _ENO(fmt,arg...) _E(fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
-#define SEND(s,b) (((s)->type != SOCK_DGRAM) ? send((s)->socket,(b)->data, (b)->pos,MSG_NOSIGNAL) : \
-                                             sendto((s)->socket,(b)->data, (b)->pos,MSG_NOSIGNAL,   \
-                                                    (struct sockaddr*) &(s)->sa.in,(s)->addrlen))
+#define SEND(S,B) (((S)->type != SOCK_DGRAM) ? send((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL) : \
+                                               sendto((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL,   \
+                                                    (struct sockaddr*) &(S)->sa.in,(S)->addrlen))
 
 #define ENQUEUE(b)                                                                      \
 do {                                                                                    \

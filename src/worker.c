@@ -62,7 +62,11 @@ int get_epoch_filehandle(struct worker *worker) {
 }
 
 static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
-    if (write(fd,b->data,b->size) != b->size)
+    if (!b->ref)
+        SAYX(EXIT_FAILURE,"b->ref is null"); /* XXX */
+    if (!b->ref->data)
+        SAYX(EXIT_FAILURE,"b->ref->data is null"); /* XXX */
+    if (write(fd,b->ref->data->data,b->ref->data->size) != b->ref->data->size)
         _D("failed to append to '%s', everything is lost!", worker->last_file);
 }
 
@@ -111,7 +115,7 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %d",socket_to_string(s),b->size);
+                _ENO("ABORT: send to %s failed %d",socket_to_string(s),b->ref->data->size + 4);
 
                 self->abort = 1;
 
@@ -135,6 +139,7 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     blob_t *append_b;
+    b->ref->refcnt= workers_count;
     for (i = 0; i < workers_count; i++) {
         if (i + 1 == workers_count) {
             append_b= b_clone(b);

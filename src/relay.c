@@ -110,7 +110,7 @@ int main(int ac, char **av) {
         if (received > 0) {
             blob_t *b = b_new();
             b_prepare(b,received);
-            received = recv(s_listen.socket,b->data,received,0);
+            received = recv(s_listen.socket,b->ref->data->data,received,0);
             if (received < 0)
                 SAYPX("recv");
             b_shift(b,received);
