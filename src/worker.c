@@ -16,7 +16,7 @@ int q_append(struct worker *worker, blob_t *b) {
     struct queue *q = &worker->queue;
 
     LOCK(&q->lock);
-    
+
     if (q->head == NULL)
         q->head = b;
     else
@@ -50,22 +50,21 @@ blob_t *q_shift_lock(struct queue *q) {
     return b;
 }
 
+static void recreate_fallback_path(char *dir) {
+    if (mkdir(dir,0750) == -1 && errno != EEXIST)
+        SAYX(EXIT_FAILURE,"mkdir of %s failed",dir);
+}
+
 int get_epoch_filehandle(struct worker *worker) {
     int fd;
-    time_t tm= time(NULL);
-
-    if (tm != worker->last_epoch) {
-        worker->last_epoch= tm;
-
-        if (snprintf(worker->last_file, PATH_MAX, "/tmp/%s/%li.srlc",
-                    worker->s_output.to_string,
-                    (long int)tm) >= MAX_PATH)
-            _D("filename was truncated to %d bytes", MAX_PATH);
-    }
-
-    fd = open(worker->last_file,O_WRONLY|O_APPEND,0640);
+    if (snprintf(worker->fallback_file, PATH_MAX, "%s/%li.srlc",
+                 worker->fallback_path,
+                 (long int)time(NULL)) >= PATH_MAX)
+        _D("filename was truncated to %d bytes", PATH_MAX);
+    recreate_fallback_path(worker->fallback_path);
+    fd = open(worker->fallback_file,O_WRONLY|O_APPEND,0640);
     if (fd < 0)
-        _D("failed to open '%s', everyting is lost!",worker->last_file); /* show reason? */
+        _D("failed to open '%s', everyting is lost!: %s",worker->fallback_file,strerror(errno)); /* show reason? */
     return fd;
 }
 
@@ -75,7 +74,7 @@ static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
     if (!b->ref->data)
         SAYX(EXIT_FAILURE,"b->ref->data is null"); /* XXX */
     if (write(fd,b->ref->data->data,b->ref->data->size) != b->ref->data->size)
-        _D("failed to append to '%s', everything is lost!", worker->last_file);
+        _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file,strerror(errno));
 }
 
 static void deal_with_failed_send(struct worker *worker, struct queue *q) {
@@ -86,9 +85,9 @@ static void deal_with_failed_send(struct worker *worker, struct queue *q) {
         b_destroy(b);
     }
     if (fsync(fd))
-        _D("failed to fsync '%s', everything is lost", worker->last_file);
+        _D("failed to fsync '%s', everything is lost: %s", worker->fallback_file,strerror(errno));
     if (close(fd))
-        _D("failed to close '%s', everything is lost", worker->last_file);
+        _D("failed to close '%s', everything is lost: %s", worker->fallback_file,strerror(errno));
 }
 
 void *worker_thread(void *arg) {
@@ -101,8 +100,8 @@ void *worker_thread(void *arg) {
 
 again:
     while(    self->abort
-          && !self->exit
-          && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
+              && !self->exit
+              && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
 
         worker_wait(self,SLEEP_AFTER_DISASTER);
     }
@@ -181,21 +180,19 @@ void worker_wait(struct worker *worker, int seconds) {
 }
 
 struct worker * worker_init(char *arg) {
-    size_t arg_len= strlen(arg);
     struct worker *worker = malloc_or_die(sizeof(*worker));
     bzero(worker,sizeof(*worker));
     worker->exit = 0;
     worker->abort = 1;
-
-    worker->dest_hostname= malloc_or_die(arg_len);
-    memcpy(worker->dest_hostname, arg, arg_len);
 
     socketize(arg,&worker->s_output);
     pthread_mutex_init(&worker->cond_lock, NULL);
     LOCK_INIT(&worker->queue.lock);
     pthread_cond_init(&worker->cond,NULL);
     pthread_create(&worker->tid,NULL,worker_thread,worker);
-
+    if (snprintf(worker->fallback_path,PATH_MAX,FALLBACK_ROOT "/%s/",worker->s_output.to_string) >= PATH_MAX)
+	SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s",worker->fallback_path);
+    recreate_fallback_path(worker->fallback_path);
     worker->queue.limit = MAX_QUEUE_SIZE;
     worker->queue.count = 0;
     return worker;
@@ -210,7 +207,6 @@ void worker_destroy(struct worker *worker) {
     LOCK_DESTROY(&worker->queue.lock);
     pthread_mutex_destroy(&worker->cond_lock);
     pthread_cond_destroy(&worker->cond);
-    free(worker->dest_hostname);
     free(worker);
 }
 
@@ -233,4 +229,3 @@ void worker_destroy_static(void) {
     for (i = 0;i < MAX_WORKERS + 1; i++)
         worker_destroy(WORKERS[i]);
 }
-

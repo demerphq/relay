@@ -19,6 +19,7 @@
 #include <netinet/tcp.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <sys/syslimits.h>
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
@@ -31,6 +32,7 @@
 #else
 #define INLINE
 #endif
+#define FALLBACK_ROOT "/tmp"
 #define LOCK_T pthread_mutex_t
 #define LOCK(x) pthread_mutex_lock(x)
 #define UNLOCK(x) pthread_mutex_unlock(x)
@@ -103,12 +105,9 @@ struct worker {
     volatile int abort;
     volatile int exit;
 
-    char *dest_hostname;
-    size_t dest_hostname_len;
-
     struct sock s_output;
-    time_t last_epoch;
-    char last_file[MAX_PATH];
+    char fallback_path[PATH_MAX];
+    char fallback_file[PATH_MAX];
 };
 
 #define DO_NOTHING      0

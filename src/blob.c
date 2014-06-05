@@ -2,7 +2,7 @@
 
 // static unsigned long total_allocated = 0;
 INLINE void *realloc_or_die(void *p, size_t size) {
-   // _TD("realloc %zu allocated sofar %lu",size,total_allocated++);
+    // _TD("realloc %zu allocated sofar %lu",size,total_allocated++);
     p = realloc(p,size);
     if (!p)
         SAYX(EXIT_FAILURE,"unable to allocate %zu bytes",size);
