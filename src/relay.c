@@ -97,7 +97,6 @@ int main(int ac, char **av) {
     if (s_listen.type != SOCK_DGRAM)
         SAYX(EXIT_FAILURE,"we can listen only on DGRAM sockets (udp/unix)");
 
-    throttle_init_static();
     b_init_static();
     reload_workers(0);
 

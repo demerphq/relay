@@ -3,8 +3,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/epoll.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -25,7 +25,11 @@
 #define MAX_WORKERS 255
 #endif
 #define MAX_GARBAGE (MAX_QUEUE_SIZE * MAX_WORKERS)
+#ifndef NO_INLINE
 #define INLINE inline
+#else
+#define INLINE
+#endif
 #define LOCK_T pthread_mutex_t
 #define LOCK(x) pthread_mutex_lock(x)
 #define UNLOCK(x) pthread_mutex_unlock(x)
@@ -35,7 +39,11 @@
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif
-
+#if defined(__APPLE__) || defined(__MACH__)
+# ifndef MSG_NOSIGNAL
+#   define MSG_NOSIGNAL SO_NOSIGPIPE
+# endif
+#endif
 /* this structure is shared between different threads */
 /* the idea here is that we want a data structure which is exactly
  * 4 bytes of length, followed by K bytes of string */
@@ -101,10 +109,6 @@ struct worker {
     char last_file[MAX_PATH];
 };
 
-#define THROTTLE_INTERVAL 1
-#define THROTTLE_DEBUG 0
-#define THROTTLE_ERROR 1
-
 #define DO_NOTHING      0
 #define DO_BIND         1
 #define DO_CONNECT      2
@@ -113,8 +117,6 @@ struct worker {
 #define FORMAT(fmt,arg...) fmt " [%s():%s:%d @ %u]\n",##arg,__func__,__FILE__,__LINE__,(unsigned int) time(NULL)
 #define _E(fmt,arg...) fprintf(stderr,FORMAT(fmt,##arg))
 #define _D(fmt,arg...) printf(FORMAT(fmt,##arg))
-#define _TD(fmt,arg...) t_fprintf(THROTTLE_DEBUG,stdout,FORMAT(fmt,##arg))
-#define _TE(fmt,arg...) t_fprintf(THROTTLE_ERROR,stdout,FORMAT(fmt,##arg))
 #define SAYX(rc,fmt,arg...) do {    \
     _E(fmt,##arg);                  \
     exit(rc);                       \

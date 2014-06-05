@@ -1,8 +1,16 @@
 #include "relay.h"
 int workers_count = 0;
 static struct worker *WORKERS[MAX_WORKERS + 1];
-
-static INLINE void cork(struct sock *s,int flag);
+#ifdef TCP_CORK
+static INLINE void cork(struct sock *s,int flag) {
+    if (s->proto != IPPROTO_TCP)
+        return;
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
+        _ENO("setsockopt: %s",strerror(errno));
+}
+#else
+#define cork(a,b)
+#endif
 
 int q_append(struct worker *worker, blob_t *b) {
     struct queue *q = &worker->queue;
@@ -227,10 +235,3 @@ void worker_destroy_static(void) {
         worker_destroy(WORKERS[i]);
 }
 
-
-static INLINE void cork(struct sock *s,int flag) {
-    if (s->proto != IPPROTO_TCP)
-        return;
-    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
-        _TE("setsockopt: %s",strerror(errno));
-}

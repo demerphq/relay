@@ -1,4 +1,4 @@
-FILES=src/blob.c src/worker.c src/util.c src/throttle.c
+FILES=src/blob.c src/worker.c src/util.c
 RELAY=src/relay.c $(FILES)
 CLIENT=src/client.c $(FILES)
 CC=gcc -O3 -Wall -pthread -g -DMAX_WORKERS=2
