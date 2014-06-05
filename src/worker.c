@@ -13,11 +13,6 @@ int q_append(struct worker *worker, blob_t *b) {
     // must be protected by the queue's lock
     // otherwise we can enqueue packets into aborted worker's queue
 
-    if ((q->limit && q->count > q->limit) || worker->abort) {
-        UNLOCK(&q->lock);
-        return 0;
-    }
-
     if (q->head == NULL)
         q->head = b;
     else
@@ -31,6 +26,25 @@ int q_append(struct worker *worker, blob_t *b) {
     return 1;
 }
 
+blob_t *q_shift_nolock(struct queue *q) {
+    blob_t *b= q->head;
+    if (b) {
+        if (b->next)
+            q->head = b->next;
+        else
+            q->head = q->tail = NULL;
+        q->count--;
+    }
+}
+
+blob_t *q_shift_safe(struct queue *q) {
+    blob_t *b;
+    LOCK(&q->lock);
+    b= q_shift_nolock(q);
+    UNLOCK(&q>lock);
+    return b;
+}
+
 void *worker_thread(void *arg) {
     struct worker *self = (struct worker *) arg;
     struct queue hijacked_queue;
@@ -38,6 +52,7 @@ void *worker_thread(void *arg) {
     struct sock *s = &self->s_output;
     blob_t *b;
     bzero(&hijacked_queue,sizeof(hijacked_queue));
+
 again:
     while(    self->abort
           && !self->exit
@@ -49,30 +64,27 @@ again:
     self->abort = 0;
 
     while(!self->abort && !self->exit) {
-        /* hijack the queue's head, so we can send it slowly */
-        LOCK(&q->lock);
-        hijacked_queue.head = q->head;
-        q->tail = q->head = NULL;
-        q->count = 0;
-        UNLOCK(&q->lock);
-        
+        /* hijack the queue - copy the queue state into our private copy
+         * and then reset the queue state to empty. So the formerly
+         * shared queue is now private. We only do this if necessary. */
+        if (hijacked_queue->head == NULL) {
+            LOCK(&q->lock);
+            memcpy(&hijacked_queue, q, sizeof(struct queue));
+            q->tail = q->head = NULL;
+            q->count = 0;
+            UNLOCK(&q->lock);
+        }
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
                 _ENO("ABORT: send to %s failed %d",socket_to_string(s),b->size);
 
-                // expected race between q_append and this point, 
-                // so we must protect self->abort
-                LOCK(&q->lock);
                 self->abort = 1;
-                UNLOCK(&q->lock);
 
-                disaster_someone_else_try(self,&hijacked_queue);
-                disaster_someone_else_try(self,q);
+                deal_with_failed_send(self, hijacked_queue);
                 goto again;
             }
-            hijacked_queue.head = b->next;
-            b_throw_in_garbage(b);
+            b_throw_in_garbage(q_shift_nolock(&hijacked_queue));
             self->sent++;
             // _TD("worker[%s] sent %llu packets",socket_to_string(s),self->sent);
         }
@@ -84,15 +96,16 @@ again:
     return NULL;
 }
 
-static void disaster_someone_else_try(struct worker *worker,struct queue *q) {
-        if (worker == FALLBACK)
-            SAYX(EXIT_FAILURE,"disaster in the fallback, dont know what to do.");
-        
-        blob_t *b;
-        while ((b = q->head)) {
-            q->head = b->next;
-            enqueue_blob_for_transmission(b);
-        }
+static void deal_with_failed_send(struct worker *worker,struct queue *q) {
+    blob_t *b;
+    for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
+        write_blob_to_disk(worker, b);
+        b_throw_in_garbage(b);
+    }
+}
+
+static void write_blob_to_disk(struct worker *worker, blob_t *b) {
+   /* XXX: Not Yet Implemented */
 }
 
 int enqueue_blob_for_transmission(blob_t *b) {
