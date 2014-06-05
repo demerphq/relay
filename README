@@ -16,36 +16,33 @@ for exmple:
 relay /tmp/relay.sock udp@events-fallback.example.com:112233 \
     tcp@events-0.example.com:112233 tcp@events-1.example.com:112233
 
-The enqueuement attempt on each worker's thread (in case
-someone's queue is full or the worker is in aborted state) until
-the packet is enqueued.
-
-If all worker threads fail the packet is enqueued in the fallback
-worker's queue.
-
-Each thread tries to send the packet, and if it fails it tries
-to requeue it into other threads (except if this thread is the
-fallback, thenwe exit with error) and then it puts itself into
-abort state, while it attempts to reconnect.
-
 listener socket can be only DGRAM udp/unix.
 
-packet \                         
-packet  |- relay -> i++ % workers - picks next worker and adds
-packet /                          - packet to its queue
-                              
-worker(a) 
- -> process_queue (poll/cond wait)
-    -> send packets
-        -> if disaster happens (unable to send packet) then
-           pick other worker(b) to process my queue.
-           -> if no worker is found then attempt to enqueue in
-              fallback worker's queue
+packet \         / worker -> listener-1
+packet  |- relay - worker -> listener-2
+packet /         \ worker -> listener-3
 
-           (a) attempts to reconnect to his target server forever.
-        -> otherwise goto process_queue;
-                    
-            
+
+main_thread
+    -> foreach listener
+        -> start one worker thread
+    -> listen for udp sereal packet
+        -> append sereal packet to queue for each worker
+
+worker
+    main_loop:
+    -> if queue is non-empty
+        -> lock queue
+           hijack queue (move items from queue to local storage)
+           unlock queue
+        -> open connection to listener
+        -> while items in hijacked queue
+            -> try to send top item to listener
+                -> if it fails: write remaining items to disk
+                   goto main_loop
+                -> if it is ok: pop item from hijacked queue.
+        -> close connection
+
                  
 testing:
     $ cd relay/test
