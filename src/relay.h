@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <ctype.h>
+#include <string.h>
 
 #if defined(__APPLE__) || defined(__MACH__)
 #include <sys/syslimits.h>

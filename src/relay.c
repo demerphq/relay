@@ -1,6 +1,5 @@
 #include "relay.h"
 #include "worker.h"
-#include <string.h>
 
 static void cleanup(int signum);
 static void sig_handler(int signum);
