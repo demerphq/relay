@@ -1,4 +1,5 @@
-#include "relay.h"
+#include "util.h"
+//#include "relay.h"
 
 void socketize(const char *arg,struct sock *s) {
     char *a = strdup(arg);

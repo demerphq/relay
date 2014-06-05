@@ -1,6 +1,9 @@
 #ifndef _RELAY_COMMON_H
 #define _RELAY_COMMON_H
 
+#include <time.h>
+#include <sys/time.h>
+
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif

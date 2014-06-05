@@ -1,4 +1,5 @@
 #include "relay.h"
+#include "relay_threads.h"
 
 static struct sock s;
 #ifdef USE_SERVER

@@ -1,7 +1,11 @@
 #ifndef _WORKER_H
 #define _WORKER_H
 
+#include "relay_threads.h"
 #include "blob.h"
+
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1

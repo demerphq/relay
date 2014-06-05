@@ -1,9 +1,18 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 
+#include "relay_common.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <errno.h>
 
 struct sock {
     union sa {
