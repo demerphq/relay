@@ -1,5 +1,7 @@
 #ifndef _RELAY_H
 #define _RELAY_H 
+
+#include "relay_common.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -27,17 +29,14 @@
 #define MAX_WORKERS 255
 #endif
 #define MAX_GARBAGE (MAX_QUEUE_SIZE * MAX_WORKERS)
-#ifndef NO_INLINE
-#define INLINE inline
-#else
-#define INLINE
-#endif
-#define FALLBACK_ROOT "/tmp"
+
 #define LOCK_T pthread_mutex_t
 #define LOCK(x) pthread_mutex_lock(x)
 #define UNLOCK(x) pthread_mutex_unlock(x)
 #define LOCK_INIT(x) pthread_mutex_init(x,NULL)
 #define LOCK_DESTROY(x) pthread_mutex_destroy(x)
+
+#define FALLBACK_ROOT "/tmp"
 
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
@@ -115,13 +114,11 @@ struct worker {
 #define DO_CONNECT      2
 #define DO_NOT_EXIT     4
 #define DO_SET_TIMEOUT  8
-#define FORMAT(fmt,arg...) fmt " [%s():%s:%d @ %u]\n",##arg,__func__,__FILE__,__LINE__,(unsigned int) time(NULL)
-#define _E(fmt,arg...) fprintf(stderr,FORMAT(fmt,##arg))
+
+
 #define _D(fmt,arg...) printf(FORMAT(fmt,##arg))
-#define SAYX(rc,fmt,arg...) do {    \
-    _E(fmt,##arg);                  \
-    exit(rc);                       \
-} while(0)
+#define _TD(fmt,arg...) t_fprintf(THROTTLE_DEBUG,stdout,FORMAT(fmt,##arg))
+#define _TE(fmt,arg...) t_fprintf(THROTTLE_ERROR,stdout,FORMAT(fmt,##arg))
 
 #define SAYPX(fmt,arg...) SAYX(EXIT_FAILURE,fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 #define _ENO(fmt,arg...) _E(fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
