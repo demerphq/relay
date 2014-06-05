@@ -30,7 +30,6 @@ typedef struct _refcnt_blob _refcnt_blob_t;
 
 /* this structure is private to each thread */
 struct blob {
-    unsigned int pos;
     struct blob *next;
     _refcnt_blob_t *ref;
 };
@@ -42,10 +41,6 @@ INLINE void *realloc_or_die(void *p, size_t size);
 INLINE void *malloc_or_die(size_t size);
 INLINE blob_t * b_new(void);
 INLINE blob_t * b_clone(blob_t *b);
-INLINE void b_set_pos(blob_t *b, unsigned int pos);
-INLINE void b_shift(blob_t *b, unsigned int len);
-INLINE char * b_data(blob_t *b);
-INLINE char * b_data_at_pos(blob_t *b, unsigned int pos);
 INLINE void b_prepare(blob_t *b,size_t size);
 INLINE void b_destroy(blob_t *b);
 void b_init_static(void);

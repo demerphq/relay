@@ -112,7 +112,6 @@ int main(int ac, char **av) {
             received = recv(s_listen.socket,b->ref->data->data,received,0);
             if (received < 0)
                 SAYPX("recv");
-            b_shift(b,received);
             enqueue_blob_for_transmission(b);
         }
     }
