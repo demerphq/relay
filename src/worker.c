@@ -123,24 +123,12 @@ int enqueue_blob_for_transmission(blob_t *b) {
 }
 
 void worker_signal(struct worker *worker) {
-#ifndef USE_POLLING
     pthread_mutex_lock(&worker->cond_lock);
     pthread_cond_signal(&worker->cond);
     pthread_mutex_unlock(&worker->cond_lock);
-#endif
 }
 
-#ifdef USE_POLLING
-#define NS 5000000
-static struct timespec delay = { NS / 1000000000, NS % 1000000000 };
-#endif
 void worker_wait(struct worker *worker, int seconds) {
-#ifdef USE_POLLING
-    if (seconds > 0)
-        sleep(seconds);
-    else
-        nanosleep(&delay,NULL);
-#else  
     pthread_mutex_lock(&worker->cond_lock);
     if (seconds > 0) {
         struct timeval    tp;
@@ -154,7 +142,6 @@ void worker_wait(struct worker *worker, int seconds) {
         pthread_cond_wait(&worker->cond,&worker->cond_lock);
     }
     pthread_mutex_unlock(&worker->cond_lock);
-#endif
 }
 
 struct worker * worker_init(char *arg) {
@@ -201,9 +188,6 @@ void worker_init_static(int ac, char **av,int destroy) {
     for (workers_count = 0;workers_count < MAX_WORKERS; workers_count++)
         WORKERS[workers_count] = worker_init(av[(workers_count % ac)]);
 
-#ifdef USE_POLLING
-    _D("polling every %u ms",NS/1000000);
-#endif
 }
 
 void worker_destroy_static(void) {

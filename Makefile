@@ -6,11 +6,7 @@ all:
 	mkdir -p bin
 	$(CC) -o bin/client $(CLIENT)
 	$(CC) -DUSE_SERVER -o bin/server $(CLIENT)
-
 	$(CC) -o bin/relay $(RELAY)
-
-	$(CC) -DUSE_POLLING -o bin/relay-po $(RELAY)
-	$(CC) -DUSE_POLLING -DUSE_SPINLOCK -o bin/relay-po-sp $(RELAY)
 
 clean:
 	rm -f bin/relay* test/sock/*

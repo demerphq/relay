@@ -26,19 +26,11 @@
 #endif
 #define MAX_GARBAGE (MAX_QUEUE_SIZE * MAX_WORKERS)
 #define INLINE inline
-#ifdef USE_SPINLOCK
-#define LOCK_T pthread_spinlock_t
-#define LOCK(x) pthread_spin_lock(x)
-#define UNLOCK(x) pthread_spin_unlock(x)
-#define LOCK_INIT(x) pthread_spin_init(x,0)
-#define LOCK_DESTROY(x) pthread_spin_destroy(x)
-#else
 #define LOCK_T pthread_mutex_t
 #define LOCK(x) pthread_mutex_lock(x)
 #define UNLOCK(x) pthread_mutex_unlock(x)
 #define LOCK_INIT(x) pthread_mutex_init(x,NULL)
 #define LOCK_DESTROY(x) pthread_mutex_destroy(x)
-#endif
 
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
