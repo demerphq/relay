@@ -8,12 +8,9 @@ all:
 	$(CC) -DUSE_SERVER -o bin/server $(CLIENT)
 
 	$(CC) -o bin/relay $(RELAY)
-	$(CC) -DUSE_GARBAGE -o bin/relay-ga $(RELAY)
-	$(CC) -DUSE_GARBAGE -DUSE_POLLING -o bin/relay-ga-po $(RELAY)
 
 	$(CC) -DUSE_POLLING -o bin/relay-po $(RELAY)
 	$(CC) -DUSE_POLLING -DUSE_SPINLOCK -o bin/relay-po-sp $(RELAY)
-	$(CC) -DUSE_POLLING -DUSE_SPINLOCK -DUSE_GARBAGE -o bin/relay-po-sp-ga $(RELAY)
 
 clean:
 	rm -f bin/relay* test/sock/*

@@ -51,7 +51,7 @@ static void deal_with_failed_send(struct worker *worker, struct queue *q) {
     blob_t *b;
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
         write_blob_to_disk(worker, b);
-        b_throw_in_garbage(b);
+        b_destroy(b);
     }
 }
 
@@ -94,7 +94,7 @@ again:
                 deal_with_failed_send(self, hijacked_queue);
                 goto again;
             }
-            b_throw_in_garbage( q_shift_nolock( &hijacked_queue ) );
+            b_destroy( q_shift_nolock( &hijacked_queue ) );
             self->sent++;
             // _TD("worker[%s] sent %llu packets",socket_to_string(s),self->sent);
         }
