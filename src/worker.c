@@ -1,7 +1,6 @@
 #include "relay.h"
 int workers_count = 0;
 static struct worker *WORKERS[MAX_WORKERS + 1];
-#define FALLBACK WORKERS[MAX_WORKERS]
 
 static INLINE void cork(struct sock *s,int flag);
 
@@ -43,25 +42,28 @@ blob_t *q_shift_lock(struct queue *q) {
     return b;
 }
 
-#define MAX_PATH 256
 int get_epoch_filehandle(struct worker *worker) {
     int fd;
     time_t tm= time(NULL);
-    char filename[MAX_PATH];
 
-    /* XXX: fixme, better path */
-    if (snprintf(filename, MAX_PATH, "/tmp/%li.srlc", (long int)tm)>=MAX_PATH)
-        _D("filename was truncated to %d bytes", MAX_PATH);
+    if (tm != worker->last_epoch) {
+        worker->last_epoch= tm;
 
-    fd = open(filename,O_WRONLY|O_APPEND,0640);
+        if (snprintf(worker->last_file, MAX_PATH, "/tmp/%.*s/%li.srlc",
+                    (int)worker->dest_hostname_len, worker->dest_hostname,
+                    (long int)tm) >= MAX_PATH)
+            _D("filename was truncated to %d bytes", MAX_PATH);
+    }
+
+    fd = open(worker->last_file,O_WRONLY|O_APPEND,0640);
     if (fd < 0)
-        _D("failed to open '%s', everyting is lost!",filename);
+        _D("failed to open '%s', everyting is lost!",worker->last_file); /* show reason? */
     return fd;
 }
 
 static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
     if (write(fd,b->data,b->size) != b->size)
-        _D("failed to append to file, everything is lost!");
+        _D("failed to append to '%s', everything is lost!", worker->last_file);
 }
 
 static void deal_with_failed_send(struct worker *worker, struct queue *q) {
@@ -72,9 +74,9 @@ static void deal_with_failed_send(struct worker *worker, struct queue *q) {
         b_destroy(b);
     }
     if (fsync(fd))
-        _D("failed to fsync file, everything is lost");
+        _D("failed to fsync '%s', everything is lost", worker->last_file);
     if (close(fd))
-        _D("failed to close file, everything is lost");
+        _D("failed to close '%s', everything is lost", worker->last_file);
 }
 
 void *worker_thread(void *arg) {
@@ -167,10 +169,14 @@ void worker_wait(struct worker *worker, int seconds) {
 }
 
 struct worker * worker_init(char *arg) {
+    size_t arg_len= strlen(arg);
     struct worker *worker = malloc_or_die(sizeof(*worker));
     bzero(worker,sizeof(*worker));
     worker->exit = 0;
     worker->abort = 1;
+
+    worker->dest_hostname= malloc_or_die(arg_len);
+    memcpy(worker->dest_hostname, arg, arg_len);
 
     socketize(arg,&worker->s_output);
     pthread_mutex_init(&worker->cond_lock, NULL);
@@ -191,24 +197,22 @@ void worker_destroy(struct worker *worker) {
     }
     LOCK_DESTROY(&worker->queue.lock);
     pthread_mutex_destroy(&worker->cond_lock);
-    pthread_cond_destroy(&worker->cond); 
+    pthread_cond_destroy(&worker->cond);
+    free(worker->dest_hostname);
     free(worker);
 }
 
-void worker_init_static(int ac, char **av,int destroy) {
+void worker_init_static(int argc, char **argv, int destroy) {
     if (destroy)
         worker_destroy_static();
 
     bzero(WORKERS,sizeof(WORKERS));
 
-    FALLBACK=worker_init(av[0]);
-    FALLBACK->queue.limit = 0;
-    ac--;
-    av++;
-    if (ac > MAX_WORKERS)
-        _E("destination hosts(%d) > max workers(%d) %d will be skipped",ac,MAX_WORKERS,ac - MAX_WORKERS);
-    for (workers_count = 0;workers_count < MAX_WORKERS; workers_count++)
-        WORKERS[workers_count] = worker_init(av[(workers_count % ac)]);
+    if (argc > MAX_WORKERS)
+        _D("destination hosts(%d) > max workers(%d)", argc, MAX_WORKERS);
+
+    for (workers_count = 0; workers_count < argc; workers_count++)
+        WORKERS[workers_count] = worker_init(argv[workers_count]);
 
 }
 

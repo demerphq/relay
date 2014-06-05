@@ -62,6 +62,8 @@ struct sock {
     socklen_t addrlen;
 };
 
+#define MAX_PATH 256
+
 struct worker {
     struct queue queue;
     pthread_mutex_t cond_lock;
@@ -70,8 +72,15 @@ struct worker {
     unsigned long long sent;
     volatile int abort;
     volatile int exit;
+
+    char *dest_hostname;
+    size_t dest_hostname_len;
+
     struct sock s_output;
+    time_t last_epoch;
+    char last_file[MAX_PATH];
 };
+
 #define THROTTLE_INTERVAL 1
 #define THROTTLE_DEBUG 0
 #define THROTTLE_ERROR 1
