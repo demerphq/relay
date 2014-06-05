@@ -2,6 +2,8 @@
 #define _RELAY_H 
 
 #include "relay_common.h"
+#include "blob.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -23,6 +25,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
+
 #define MAX_CHUNK_SIZE 0xFFFF
 #define MAX_QUEUE_SIZE 8192
 #ifndef MAX_WORKERS
@@ -41,37 +44,14 @@
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif
+
 #if defined(__APPLE__) || defined(__MACH__)
 # ifndef MSG_NOSIGNAL
 #   define MSG_NOSIGNAL SO_NOSIGPIPE
 # endif
 #endif
-/* this structure is shared between different threads */
-/* the idea here is that we want a data structure which is exactly
- * 4 bytes of length, followed by K bytes of string */
-struct __data_blob {
-    uint32_t size;
-    char data[0];
-} __attribute__ ((packed));
-typedef struct __data_blob __data_blob_t;
 
-/* this structure is shared between different threads
- * we use this to refcount __blob_t items, and we use
- * the lock to guard refcnt modifications */
-struct _refcnt_blob {
-    LOCK_T lock;
-    uint32_t refcnt;
-    __data_blob_t *data;
-};
-typedef struct _refcnt_blob _refcnt_blob_t;
-
-/* this structure is private to each thread */
-struct blob {
-    unsigned int pos;
-    struct blob *next;
-    _refcnt_blob_t *ref;
-};
-typedef struct blob blob_t;
+#define MAX_PATH 256
 
 struct queue {
     blob_t *head;
@@ -92,8 +72,6 @@ struct sock {
     char to_string[PATH_MAX];
     socklen_t addrlen;
 };
-
-#define MAX_PATH 256
 
 struct worker {
     struct queue queue;
@@ -122,23 +100,17 @@ struct worker {
 
 #define SAYPX(fmt,arg...) SAYX(EXIT_FAILURE,fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
 #define _ENO(fmt,arg...) _E(fmt " { %s }",##arg,errno ? strerror(errno) : "undefined error");
+
 #define SEND(S,B) (((S)->type != SOCK_DGRAM) ? send((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL) : \
                                                sendto((S)->socket,(B)->ref->data, (B)->ref->data->size, MSG_NOSIGNAL,   \
                                                     (struct sockaddr*) &(S)->sa.in,(S)->addrlen))
 
-/* blob.c */
-INLINE void *realloc_or_die(void *p, size_t size);
-INLINE void *malloc_or_die(size_t size);
-INLINE blob_t * b_new(void);
-INLINE blob_t * b_clone(blob_t *b);
-INLINE void b_set_pos(blob_t *b, unsigned int pos);
-INLINE void b_shift(blob_t *b, unsigned int len);
-INLINE char * b_data(blob_t *b);
-INLINE char * b_data_at_pos(blob_t *b, unsigned int pos);
-INLINE void b_prepare(blob_t *b,size_t size);
-INLINE void b_destroy(blob_t *b);
-void b_init_static(void);
-void b_destroy_static(void);
+
+#define ENQUEUE(b)                                                                      \
+do {                                                                                    \
+    if (enqueue_blob_for_transmission(b) <= 0)                                          \
+        SAYX(EXIT_FAILURE,"unable to find working thread to enqueue the packet to");    \
+} while (0)
 
 /* worker.c */
 struct worker * worker_init(char *arg);
