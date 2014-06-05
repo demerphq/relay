@@ -62,6 +62,11 @@ int main(int ac, char **av) {
                 SAYX(EXIT_SUCCESS,"death decided by chance");
             #endif
             *magic_place = 0x11111111;
+            int expected;
+            if (recv(fd,&expected,4,MSG_WAITALL) != 4)
+                SAYPX("recv");
+            if (expected != sizeof(DATA))
+                SAYX(EXIT_FAILURE,"expected: %zu, got: %d",sizeof(DATA),expected);
             if ((rc = recv(fd,DATA,sizeof(DATA),MSG_WAITALL)) <= 0) {
                 if (rc == 0) // shutdown
                     break;
