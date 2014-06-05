@@ -50,16 +50,16 @@ typedef struct blob blob_t;
 
 /* --- */
 
-#define BLOB_REF_PTR_set(B) (B)->ref= (v)
+#define BLOB_REF_PTR_set(B,v) (B)->ref= (v)
 #define BLOB_NEXT_set(B,v)  (B)->next = (v)
 
-#define BLOB_DATA_PTR_set(B) BLOB_REF_PTR(B)->data = (v)
+#define BLOB_DATA_PTR_set(B,v) BLOB_REF_PTR(B)->data = (v)
 
-#define BLOB_REFCNT_set(B)  BLOB_REF_PTR(B)->refcnt = (v)
+#define BLOB_REFCNT_set(B,v)  BLOB_REF_PTR(B)->refcnt = (v)
 #define BLOB_REFCNT_dec(B)  BLOB_REF_PTR(B)->refcnt--
 
-#define BLOB_LOCK_set(B)    BLOB_REF_PTR(B)->lock = (v)
-#define BLOB_SIZE_set(B)    BLOB_DATA_PTR(B)->size = (v)
+#define BLOB_LOCK_set(B,v)    BLOB_REF_PTR(B)->lock = (v)
+#define BLOB_SIZE_set(B,v)    BLOB_DATA_PTR(B)->size = (v)
 
 //#define BLOB_DATA_set(B)        (BLOB_DATA_PTR(B)->data)
 

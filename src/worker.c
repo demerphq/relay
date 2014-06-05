@@ -138,7 +138,7 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     blob_t *append_b;
-    BLOB_REFCNT(b)= workers_count;
+    BLOB_REFCNT_set(b, workers_count);
     for (i = 0; i < workers_count; i++) {
         if (i + 1 == workers_count) {
             append_b= b_clone(b);
