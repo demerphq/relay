@@ -155,11 +155,5 @@ void worker_init_static(int ac, char **av,int destroy);
 
 /* util.c */
 void socketize(const char *arg,struct sock *s);
-char *socket_to_string(struct sock *s);
 int open_socket(struct sock *s,int do_bind);
-
-/* throttle.c */
-void throttle_init_static(void);
-int is_throttled(unsigned char type);
-void t_fprintf(unsigned char type, FILE *stream, const char *format, ...);
 #endif
