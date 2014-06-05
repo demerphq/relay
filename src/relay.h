@@ -46,11 +46,7 @@
 struct blob {
     unsigned int size;
     unsigned int pos;
-#ifdef BLOB_ARRAY_DATA
-    char data[MAX_CHUNK_SIZE];
-#else
     char *data;
-#endif
     struct blob *next;
 };
 typedef struct blob blob_t;

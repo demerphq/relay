@@ -104,20 +104,6 @@ int main(int ac, char **av) {
     open_socket(&s_listen,DO_BIND);
 
     ssize_t received;
-#ifdef BLOB_ARRAY_DATA
-    for (;;) {
-        blob_t *b = b_new();
-        received = recv(s_listen.socket,b->data,b->size,0);
-        if (received > 0) {
-            b_shift(b,received);
-            ENQUEUE(b);
-        } else {
-            if (received < 0)
-                SAYPX("recv");
-            b_throw_in_garbage(b);
-        }
-    }
-#else
     char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
     for (;;) { 
         received = recv(s_listen.socket,buf,MAX_CHUNK_SIZE,MSG_PEEK);
@@ -131,7 +117,6 @@ int main(int ac, char **av) {
             ENQUEUE(b);
         }
     }
-#endif
     /* never reached */
     return(0);
 }

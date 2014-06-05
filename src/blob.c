@@ -54,12 +54,8 @@ INLINE blob_t * b_new(void) {
     blob_t *b = b_find_in_garbage();
     if (!b) {
         b = malloc_or_die(sizeof(*b));
-#ifdef BLOB_ARRAY_DATA
-        b->size = sizeof(b->data);
-#else
         b->data = NULL;
         b->size = 0;
-#endif
     }
     b->pos = 0;
     b->next = NULL;
@@ -70,9 +66,7 @@ INLINE blob_t * b_clone(blob_t *b) {
     blob_t clone= b_new();
     clone->size= b->size;
     clone->pos= b->pos;
-#ifndef BLOB_ARRAY_DATA
     clone->data = malloc_or_die(clone->size);
-#endif
     memcpy(clone->data, b->data, b->size);
 }
 
@@ -80,9 +74,7 @@ INLINE void b_prepare(blob_t *b,size_t size) {
     if (b->size - b->pos >= size)
         return;
     b->size += size;
-#ifndef BLOB_ARRAY_DATA
     b->data = realloc_or_die(b->data,b->size);
-#endif
 }
 
 INLINE void b_set_pos(blob_t *b, unsigned int pos) {
@@ -110,12 +102,12 @@ void b_init_static(void) {
     GARBAGE.list = NULL;
     LOCK_INIT(&GARBAGE.lock);
 }
+
 INLINE void b_destroy(blob_t *b) {
-#ifndef BLOB_ARRAY_DATA
     free(b->data);
-#endif
     free(b);
 }
+
 void b_destroy_static(void) {
     blob_t *b;
     while ((b = b_find_in_garbage()))

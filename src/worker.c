@@ -185,6 +185,7 @@ void worker_destroy(struct worker *worker) {
     pthread_cond_destroy(&worker->cond); 
     free(worker);
 }
+
 void worker_init_static(int ac, char **av,int destroy) {
     if (destroy)
         worker_destroy_static();
