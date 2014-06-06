@@ -177,6 +177,7 @@ struct worker * worker_init(char *arg) {
     struct worker *worker = malloc_or_die(sizeof(*worker));
     bzero(worker,sizeof(*worker));
     worker->exit = 0;
+    worker->queue.count = 0;
     socketize(arg,&worker->s_output);
     pthread_mutex_init(&worker->cond_lock, NULL);
     LOCK_INIT(&worker->queue.lock);
@@ -185,7 +186,6 @@ struct worker * worker_init(char *arg) {
     if (snprintf(worker->fallback_path,PATH_MAX,FALLBACK_ROOT "/%s/",worker->s_output.to_string) >= PATH_MAX)
 	SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s",worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
-    worker->queue.count = 0;
     return worker;
 }
 
