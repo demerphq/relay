@@ -5,7 +5,7 @@ use POSIX;
 use warnings;
 use strict;
 use Data::Dumper;
-
+use Sereal::Decoder qw(decode_sereal looks_like_sereal);
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 setsockopt($server, SOL_SOCKET, SO_REUSEADDR, 1);
@@ -54,7 +54,12 @@ while(1) {
     }
     if (int(time()) != $NOW) {
         $NOW = int(time());
-	print Dumper(\@DONE);
+        print "got " . scalar(@DONE) . "\n";
+        for my $e(@DONE) {
+            if (looks_like_sereal($e)) {
+                my $try = decode_sereal($e);
+            }
+        }
         @DONE = ();
     }
 }
