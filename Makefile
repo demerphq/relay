@@ -4,6 +4,7 @@ CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
 CC=gcc
 CFLAGS=-O3 -Wall -pthread -g -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+
 all:
 	mkdir -p bin
 	$(CC) $(CFLAGS) -o bin/client $(CLIENT)
@@ -11,10 +12,10 @@ all:
 	$(CC) $(CFLAGS) -o bin/relay $(RELAY)
 
 clang:
-	mkdir -p clang
-	$(CLANG) $(CFLAGS) -o clang/client $(CLIENT)
-	$(CLANG) $(CFLAGS) -DUSE_SERVER -o clang/server $(CLIENT)
-	$(CLANG) $(CFLAGS) -o clang/relay $(RELAY)
+	mkdir -p bin/clang
+	$(CLANG) $(CFLAGS) -o bin/clang/client $(CLIENT)
+	$(CLANG) $(CFLAGS) -DUSE_SERVER -o bin/clang/server $(CLIENT)
+	$(CLANG) $(CFLAGS) -o bin/clang/relay $(RELAY)
 
 clean:
 	rm -f bin/relay* test/sock/*
