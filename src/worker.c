@@ -97,7 +97,7 @@ void *worker_thread(void *arg) {
     struct queue *q = &self->queue;
     struct sock *s = &self->s_output;
     blob_t *b;
-    bzero(&hijacked_queue,sizeof(hijacked_queue));
+    memset(&hijacked_queue,0,sizeof(hijacked_queue));
 
 again:
     while(!self->exit && !open_socket(s,DO_CONNECT | DO_NOT_EXIT)) {
@@ -175,7 +175,7 @@ void worker_wait(struct worker *worker, int seconds) {
 
 struct worker * worker_init(char *arg) {
     struct worker *worker = malloc_or_die(sizeof(*worker));
-    bzero(worker,sizeof(*worker));
+    memset(worker,0,sizeof(*worker));
     worker->exit = 0;
     worker->queue.count = 0;
     socketize(arg,&worker->s_output);
@@ -205,7 +205,7 @@ void worker_init_static(int argc, char **argv, int destroy) {
     if (destroy)
         worker_destroy_static();
 
-    bzero(WORKERS,sizeof(WORKERS));
+    memset(WORKERS,0,sizeof(WORKERS));
 
     if (argc > MAX_WORKERS)
         _D("destination hosts(%d) > max workers(%d)", argc, MAX_WORKERS);
