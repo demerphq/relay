@@ -82,9 +82,21 @@ void reload_workers(int destroy) {
 
 void udp_server(struct sock *s) {
     ssize_t received;
+#ifdef PACKETS_PER_SECOND
+    uint32_t packets = 0, prev_packets = 0;
+    uint32_t epoch, prev_epoch = 0;
+#endif
     char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
     for (;;) {
         received = recv(s->socket,buf,MAX_CHUNK_SIZE,MSG_PEEK);
+#ifdef PACKETS_PER_SECOND
+        if ((epoch = time(0)) != prev_epoch) {
+            _D("packets: %d", packets - prev_packets);
+            prev_epoch = epoch;
+            prev_packets = packets;
+        }
+        packets++;
+#endif
         if (received > 0) {
             blob_t *b = b_new();
             b_prepare(b,received);
