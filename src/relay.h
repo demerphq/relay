@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(__APPLE__) || defined(__MACH__)
 #include <sys/syslimits.h>
