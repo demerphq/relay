@@ -27,6 +27,10 @@ int main(int ac, char **av) {
     char DATA[DATA_SIZE];
     unsigned int *magic_place;
 
+#ifndef USE_SERVER
+    unsigned int sleep_us = 0;
+#endif
+
     srand(time(NULL) + rdtsc());
     if (ac < 2)
         SAYX(EXIT_FAILURE,"%s remote-ip:remote-port",av[0]);
@@ -39,6 +43,12 @@ int main(int ac, char **av) {
         data_size = atoi(av[3]);
     if (data_size < 32)
         SAYX(EXIT_FAILURE,"data_size: %d is too small",data_size);
+
+#ifndef USE_SERVER
+    if (ac > 4)
+        sleep_us = 1e6/atoi(av[4]);
+    _D("sending packets at %s (%d us sleep)", av[4], sleep_us);
+#endif
 
     _D("processing max %d with size %d",do_max,data_size);
 
@@ -88,6 +98,8 @@ int main(int ac, char **av) {
             rc = sendto(fd,DATA,sizeof(DATA),0,(struct sockaddr*) &s.sa.in,s.addrlen);
             if (rc < 0)
                 SAYPX("sendto");
+            if (sleep_us)
+                usleep(sleep_us);
         #endif
     }
     ms = (clock() - start) * 1000 / CLOCKS_PER_SEC;
