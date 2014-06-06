@@ -86,9 +86,8 @@ void udp_server(struct sock *s) {
     for (;;) {
         received = recv(s->socket,buf,MAX_CHUNK_SIZE,MSG_PEEK);
         if (received > 0) {
-            blob_t *b = b_new();
-            b_prepare(b,received);
-            received = recv(s->socket,BLOB_DATA(b),received,0);
+            blob_t *b = b_new(received);
+            received = recv(s->socket,b->ref->data,received,0);
             if (received < 0)
                 SAYPX("recv");
             enqueue_blob_for_transmission(b);
@@ -100,7 +99,6 @@ void *tcp_worker(void *arg) {
     int fd = (int )arg;
     _D("new tcp worker for fd: %d",fd);
     for (;;) {
-        blob_t *b = b_new();
         uint32_t expected;
         int rc = recv(fd,&expected,sizeof(expected),MSG_WAITALL);
         if (rc != sizeof(expected)) {
@@ -113,14 +111,16 @@ void *tcp_worker(void *arg) {
             break;
         }
 
-        b_prepare(b,expected);
-        rc = recv(fd,&BLOB_DATA(b),expected,MSG_WAITALL);
-        if (rc != BLOB_SIZE(b)) {
-            _ENO("failed to receve packet payload, expected: %d got: %d",BLOB_SIZE(b),rc);
+        blob_t *b = b_new(expected);
+        rc = recv(fd,b->ref->data,expected,MSG_WAITALL);
+        if (rc != b->ref->size) {
+            _ENO("failed to receve packet payload, expected: %d got: %d",b->ref->size,rc);
+            b_destroy(b);
             break;
         }
         enqueue_blob_for_transmission(b);
     }
+    _D("closing %d",fd);
     close(fd);
     pthread_exit(NULL);
 }
@@ -153,7 +153,6 @@ int main(int ac, char **av) {
                           "\ttcp@remote-host:remote-port ...\n",av[0]);
 
     socketize(CONFIG.av[0],&s_listen);
-    b_init_static();
     reload_workers(0);
     open_socket(&s_listen,DO_BIND);
     if (s_listen.proto == IPPROTO_UDP)
@@ -178,7 +177,6 @@ static void sig_handler(int signum) {
 static void cleanup(int signum) {
     close(s_listen.socket);
     worker_destroy_static();
-    b_destroy_static();
     int i;
     for (i = 0; i < CONFIG.ac; i++)
         free(CONFIG.av[i]);

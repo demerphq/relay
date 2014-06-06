@@ -21,34 +21,14 @@ int q_append(struct worker *worker, blob_t *b) {
     if (q->head == NULL)
         q->head = b;
     else
-        BLOB_NEXT_set(q->tail,b);
+        q->tail->next = b;
     q->tail = b;
-    BLOB_NEXT_set(b,NULL);
+    b->next = NULL;
     q->count++;
     worker_signal(worker);
 
     UNLOCK(&q->lock);
     return 1;
-}
-
-blob_t *q_shift_nolock(struct queue *q) {
-    blob_t *b= q->head;
-    if (b) {
-        if (BLOB_NEXT(b))
-            q->head = BLOB_NEXT(b);
-        else
-            q->head = q->tail = NULL;
-        q->count--;
-    }
-    return b;
-}
-
-blob_t *q_shift_lock(struct queue *q) {
-    blob_t *b;
-    LOCK(&q->lock);
-    b= q_shift_nolock(q);
-    UNLOCK(&q->lock);
-    return b;
 }
 
 static void recreate_fallback_path(char *dir) {
@@ -65,30 +45,29 @@ int get_epoch_filehandle(struct worker *worker) {
     recreate_fallback_path(worker->fallback_path);
     fd = open(worker->fallback_file,O_WRONLY|O_APPEND|O_CREAT,0640);
     if (fd < 0)
-        _D("failed to open '%s', everyting is lost!: %s",worker->fallback_file,strerror(errno)); /* show reason? */
+        _ENO("failed to open '%s', everyting is lost!",worker->fallback_file);
     return fd;
 }
 
 static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
-    if (!BLOB_REF_PTR(b))
-        SAYX(EXIT_FAILURE,"BLOB_REF_PTR(b) is null"); /* XXX */
-    if (!BLOB_DATA_PTR(b))
-        SAYX(EXIT_FAILURE,"BLOB_DATA_PTR(b) is null"); /* XXX */
-    if (write(fd,BLOB_DATA(b),BLOB_SIZE(b)) != BLOB_SIZE(b))
-        _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file,strerror(errno));
+    if (!b->ref)
+        SAYX(EXIT_FAILURE,"blob without reference"); /* XXX */
+    if (write(fd,b->ref->data,b->ref->size) != b->ref->size)
+        _ENO("failed to append to '%s', everything is lost!", worker->fallback_file);
 }
 
 static void deal_with_failed_send(struct worker *worker, struct queue *q) {
     blob_t *b;
     int fd= get_epoch_filehandle(worker);
-    for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
+    while ((b = q->head) != NULL) {
         write_blob_to_disk(worker, fd, b);
+        q->head = b->next;
         b_destroy(b);
     }
     if (fsync(fd))
-        _D("failed to fsync '%s', everything is lost: %s", worker->fallback_file,strerror(errno));
+        _ENO("failed to fsync '%s', everything is lost", worker->fallback_file);
     if (close(fd))
-        _D("failed to close '%s', everything is lost: %s", worker->fallback_file,strerror(errno));
+        _ENO("failed to close '%s', everything is lost", worker->fallback_file);
 }
 
 void *worker_thread(void *arg) {
@@ -118,13 +97,14 @@ again:
         cork(s,1);
         while ((b = hijacked_queue.head) != NULL) {
             if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %ld",s->to_string,BLOB_DATA_SIZE(b));
+                _ENO("ABORT: send to %s failed %d",s->to_string,b->ref->size);
 
                 deal_with_failed_send(self, &hijacked_queue);
                 close(s->socket);
                 goto again;
             }
-            b_destroy( q_shift_nolock( &hijacked_queue ) );
+            hijacked_queue.head = b->next;
+            b_destroy(b);
             self->sent++;
         }
         cork(s,0);
@@ -138,12 +118,13 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     blob_t *append_b;
-    BLOB_REFCNT_set(b, workers_count);
+    b->ref->refcnt = workers_count;
     for (i = 0; i < workers_count; i++) {
         if (i + 1 == workers_count) {
-            append_b= b_clone(b);
-        } else {
+            // assign the original to the last worker
             append_b= b;
+        } else {
+            append_b= b_clone(b);
         }
         q_append(WORKERS[i],append_b);
     }
@@ -189,6 +170,7 @@ struct worker * worker_init(char *arg) {
 }
 
 void worker_destroy(struct worker *worker) {
+    _D("destroy started");
     if (!worker->exit) {
         worker->exit = 1;
         worker_signal(worker);
