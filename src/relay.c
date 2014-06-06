@@ -112,7 +112,6 @@ void *tcp_worker(void *arg) {
     int fd = (int )arg;
     _D("new tcp worker for fd: %d",fd);
     for (;;) {
-        blob_t *b = b_new();
         uint32_t expected;
         int rc = recv(fd,&expected,sizeof(expected),MSG_WAITALL);
         if (rc != sizeof(expected)) {
@@ -125,10 +124,12 @@ void *tcp_worker(void *arg) {
             break;
         }
 
+        blob_t *b = b_new();
         b_prepare(b,expected);
         rc = recv(fd,&BLOB_DATA(b),expected,MSG_WAITALL);
         if (rc != BLOB_SIZE(b)) {
             _ENO("failed to receve packet payload, expected: %d got: %d",BLOB_SIZE(b),rc);
+            b_destroy(b);
             break;
         }
         enqueue_blob_for_transmission(b);
