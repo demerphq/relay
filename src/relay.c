@@ -1,16 +1,28 @@
 #include "relay.h"
 #include "worker.h"
 
-static void cleanup(int signum);
+static void cleanup();
 static void sig_handler(int signum);
-static struct sock s_listen;
-
+static struct sock *s_listen;
+volatile int ABORT = 0;
+#define DIE 1
+#define RELOAD 2
 struct config {
     char **av;
     int ac;
     char *file;
     pthread_mutex_t lock;
 } CONFIG;
+
+static pthread_t spawn(void *(*func)(void *), void *arg) {
+    pthread_attr_t attr;
+    pthread_t t;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&t,&attr,func,arg);
+    pthread_attr_destroy(&attr);
+    return t;
+}
 
 void trim(char * s) {
     char *p = s;
@@ -67,7 +79,6 @@ void load_config(int ac, char **av) {
         CONFIG.file = av[1];
         reload_config_file();
     } else {
-
         CONFIG.av = realloc_or_die(CONFIG.av,sizeof(char *) * (ac));
         for (i=0; i < ac - 1; i++) {
             CONFIG.av[i] = strdup(av[i + 1]);
@@ -80,7 +91,8 @@ void reload_workers(int destroy) {
     worker_init_static(CONFIG.ac - 1,&CONFIG.av[1],destroy);
 }
 
-void udp_server(struct sock *s) {
+void *udp_server(void *arg) {
+    struct sock *s = (struct sock *) arg;
     ssize_t received;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
@@ -98,14 +110,14 @@ void udp_server(struct sock *s) {
         packets++;
 #endif
         if (received > 0) {
-            blob_t *b = b_new();
-            b_prepare(b,received);
+            blob_t *b = b_new(received);
             received = recv(s->socket,BLOB_DATA(b),received,0);
             if (received < 0)
                 SAYPX("recv");
             enqueue_blob_for_transmission(b);
         }
     }
+    pthread_exit(NULL);
 }
 
 void *tcp_worker(void *arg) {
@@ -124,8 +136,7 @@ void *tcp_worker(void *arg) {
             break;
         }
 
-        blob_t *b = b_new();
-        b_prepare(b,expected);
+        blob_t *b = b_new(expected);
         rc = recv(fd,&BLOB_DATA(b),expected,MSG_WAITALL);
         if (rc != BLOB_SIZE(b)) {
             _ENO("failed to receve packet payload, expected: %d got: %d",BLOB_SIZE(b),rc);
@@ -137,23 +148,27 @@ void *tcp_worker(void *arg) {
     close(fd);
     pthread_exit(NULL);
 }
-void tcp_server(struct sock *s) {
+
+void *tcp_server(void *arg) {
+    struct sock *s = (struct sock *) arg;
+
     for (;;) {
         int fd = accept(s->socket,NULL,NULL);
-        if (fd < 0)
-            SAYPX("accept");
-        pthread_attr_t attr;
-        pthread_t t;
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        pthread_create(&t,&attr,tcp_worker,(void *)fd);
-        pthread_attr_destroy(&attr);
+        if (fd < 0) {
+            ABORT = DIE;
+            _ENO("accept");
+            pthread_exit(NULL);
+        }
+        spawn(tcp_worker,(void *)fd);
     }
+
+    pthread_exit(NULL);
 }
 
 int main(int ac, char **av) {
-    signal(SIGTERM,cleanup);
-    signal(SIGINT,cleanup);
+    pthread_t server_tid;
+    signal(SIGTERM,sig_handler);
+    signal(SIGINT,sig_handler);
     signal(SIGPIPE,sig_handler);
     signal(SIGHUP,sig_handler);
 
@@ -164,40 +179,52 @@ int main(int ac, char **av) {
                           "or file with socket description per day like:\n"            \
                           "\tlocal-host:local-port\n"                                  \
                           "\ttcp@remote-host:remote-port ...\n",av[0]);
-
-    socketize(CONFIG.av[0],&s_listen);
-    b_init_static();
+    s_listen = malloc_or_die(sizeof(*s_listen));
+    socketize(CONFIG.av[0],s_listen);
     reload_workers(0);
-    open_socket(&s_listen,DO_BIND);
-    if (s_listen.proto == IPPROTO_UDP)
-        udp_server(&s_listen);
+    open_socket(s_listen,DO_BIND);
+
+    if (s_listen->proto == IPPROTO_UDP)
+        server_tid = spawn(udp_server,s_listen);
     else
-        tcp_server(&s_listen);
-    /* never reached */
+        server_tid = spawn(tcp_server,s_listen);
+    for (;;) {
+        if (ABORT == RELOAD) {
+            reload_config_file();
+            reload_workers(1);
+            ABORT = 0;
+        } else if (ABORT == DIE) {
+            break;
+        }
+        sleep(1);
+    }
+    cleanup(server_tid);
     return(0);
 }
 
 static void sig_handler(int signum) {
     switch(signum) {
         case SIGHUP:
-            reload_config_file();
-            reload_workers(1);
+            ABORT = RELOAD;
+            break;
+        case SIGTERM:
+        case SIGINT:
+            ABORT = DIE;
             break;
         default:
             _E("IGNORE: unexpected signal %d",signum);
     }
 }
 
-static void cleanup(int signum) {
-    close(s_listen.socket);
+static void cleanup(pthread_t server_tid) {
+    shutdown(s_listen->socket,SHUT_RDWR);
+    close(s_listen->socket);
+    pthread_join(server_tid,NULL);
     worker_destroy_static();
-    b_destroy_static();
     int i;
     for (i = 0; i < CONFIG.ac; i++)
         free(CONFIG.av[i]);
 
-    if (s_listen.sa.in.sin_family == AF_UNIX)
-        unlink(s_listen.sa.un.sun_path);
-
-    exit(EXIT_SUCCESS);
+    free(s_listen);
+    sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
 }

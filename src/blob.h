@@ -66,10 +66,7 @@ typedef struct blob blob_t;
 /* blob.c */
 void *realloc_or_die(void *p, size_t size);
 void *malloc_or_die(size_t size);
-void b_prepare(blob_t *b,size_t size);
-blob_t * b_new(void);
+blob_t * b_new(size_t size);
 blob_t * b_clone(blob_t *b);
 void b_destroy(blob_t *b);
-void b_init_static(void);
-void b_destroy_static(void);
 #endif

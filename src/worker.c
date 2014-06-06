@@ -195,6 +195,7 @@ void worker_destroy(struct worker *worker) {
         worker_signal(worker);
         pthread_join(worker->tid,NULL);
     }
+    deal_with_failed_send(worker,&worker->queue);
     LOCK_DESTROY(&worker->queue.lock);
     pthread_mutex_destroy(&worker->cond_lock);
     pthread_cond_destroy(&worker->cond);
