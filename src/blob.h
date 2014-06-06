@@ -64,12 +64,20 @@ typedef struct blob blob_t;
 //#define BLOB_DATA_set(B)        (BLOB_DATA_PTR(B)->data)
 
 /* blob.c */
-INLINE void *realloc_or_die(void *p, size_t size);
-INLINE void *malloc_or_die(size_t size);
-INLINE blob_t * b_new(void);
-INLINE blob_t * b_clone(blob_t *b);
-INLINE void b_prepare(blob_t *b,size_t size);
-INLINE void b_destroy(blob_t *b);
+INLINE void *realloc_or_die(void *p, size_t size) {
+    p = realloc(p,size);
+    if (!p)
+        SAYX(EXIT_FAILURE,"unable to allocate %zu bytes",size);
+    return p;
+}
+INLINE void *malloc_or_die(size_t size) {
+    return realloc_or_die(NULL,size);
+}
+void b_prepare(blob_t *b,size_t size);
+
+blob_t * b_new(void);
+blob_t * b_clone(blob_t *b);
+void b_destroy(blob_t *b);
 void b_init_static(void);
 void b_destroy_static(void);
 #endif
