@@ -140,10 +140,11 @@ int enqueue_blob_for_transmission(blob_t *b) {
     blob_t *append_b;
     BLOB_REFCNT_set(b, workers_count);
     for (i = 0; i < workers_count; i++) {
+        // send the original blob to the last worker
         if (i + 1 == workers_count) {
-            append_b= b_clone(b);
-        } else {
             append_b= b;
+        } else {
+            append_b= b_clone(b);
         }
         q_append(WORKERS[i],append_b);
     }
