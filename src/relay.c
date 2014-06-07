@@ -5,6 +5,7 @@ static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
 volatile int ABORT = 0;
+LOCK_T ABORT_LOCK;
 #define DIE 1
 #define RELOAD 2
 struct config {
@@ -13,6 +14,27 @@ struct config {
     char *file;
     pthread_mutex_t lock;
 } CONFIG;
+
+void set_aborted() {
+    LOCK(&ABORT_LOCK);
+    ABORT = DIE;
+    UNLOCK(&ABORT_LOCK);
+}
+
+void set_abort_to_val(v) {
+    LOCK(&ABORT_LOCK);
+    if (ABORT != DIE)
+        ABORT = v;
+    UNLOCK(&ABORT_LOCK);
+}
+
+int get_abort_val() {
+    int ret;
+    LOCK(&ABORT_LOCK);
+    ret= ABORT;
+    UNLOCK(&ABORT_LOCK);
+    return ret;
+}
 
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_t unused;
@@ -119,9 +141,10 @@ void *udp_server(void *arg) {
         }
     }
     _ENO("recv failed");
-    ABORT=DIE;
+    set_aborted();
     pthread_exit(NULL);
 }
+
 
 void *tcp_worker(void *arg) {
     int fd = (int )arg;
@@ -158,8 +181,7 @@ void *tcp_server(void *arg) {
     for (;;) {
         int fd = accept(s->socket, NULL, NULL);
         if (fd < 0) {
-            /* tsan says this is a data race, but borislav says its ok */
-            ABORT = DIE;
+            set_aborted();
             _ENO("accept");
             break;
         }
@@ -175,6 +197,7 @@ int main(int ac, char **av) {
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
+    LOCK_INIT(&ABORT_LOCK);
 
     load_config(ac, av);
 
@@ -194,12 +217,15 @@ int main(int ac, char **av) {
         spawn(&server_tid, tcp_server, s_listen, PTHREAD_CREATE_JOINABLE);
 
     for (;;) {
-        if (ABORT == RELOAD) {
+        int abort= get_abort_val();
+        if (abort == DIE) {
+            break;
+        }
+        else
+        if (abort == RELOAD) {
             reload_config_file();
             reload_workers(1);
-            ABORT = 0;
-        } else if (ABORT == DIE) {
-            break;
+            set_abort_to_val(0);
         }
         sleep(1);
     }
@@ -211,11 +237,11 @@ int main(int ac, char **av) {
 static void sig_handler(int signum) {
     switch(signum) {
         case SIGHUP:
-            ABORT = RELOAD;
+            set_abort_to_val(RELOAD);
             break;
         case SIGTERM:
         case SIGINT:
-            ABORT = DIE;
+            set_aborted();
             break;
         default:
             _E("IGNORE: unexpected signal %d", signum);
