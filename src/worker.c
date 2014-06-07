@@ -5,6 +5,7 @@
 #define EXIT_FLAG 1
 
 static struct giant {
+    /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, worker) workers;
     LOCK_T lock;
     pthread_mutex_t cond_lock;
