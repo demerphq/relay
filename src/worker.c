@@ -150,7 +150,7 @@ int enqueue_blob_for_transmission(blob_t *b) {
         if (w == TAILQ_FIRST(&GIANT.workers)) {
             q_append_locked(w, b);
         } else {
-            q_append_locked(w, b_clone(b));
+            q_append_locked(w, b_clone_no_refcnt_inc(b));
         }
         i++;
     }
