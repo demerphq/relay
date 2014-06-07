@@ -2,6 +2,7 @@ FILES=src/blob.c src/worker.c src/util.c
 RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
+CLANG_FLAGS=-fsanitize=thread -fPIE -pie
 CC=gcc
 CFLAGS=-O3 -Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
@@ -13,9 +14,9 @@ all:
 
 clang:
 	mkdir -p bin/clang
-	$(CLANG) $(CFLAGS) -o bin/clang/client $(CLIENT)
-	$(CLANG) $(CFLAGS) -DUSE_SERVER -o bin/clang/server $(CLIENT)
-	$(CLANG) $(CFLAGS) -o bin/clang/relay $(RELAY)
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/clang/client $(CLIENT)
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -DUSE_SERVER -o bin/clang/server $(CLIENT)
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/clang/relay $(RELAY)
 
 clean:
 	rm -f bin/relay* test/sock/*
