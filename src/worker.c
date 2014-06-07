@@ -253,6 +253,7 @@ void worker_init_static(int argc, char **argv, int reload) {
         for (i = 0; i < argc; i++) {
             w = worker_init_locked(argv[i]);
             TAILQ_INSERT_HEAD(&GIANT.workers, w, entries);
+            GIANT.n_workers++;
         }
         UNLOCK(&GIANT.lock);
     }
