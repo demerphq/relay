@@ -33,6 +33,11 @@ int get_abort_val() {
     return RELAY_ATOMIC_READ(ABORT);
 }
 
+int not_aborted() {
+    uint32_t v= RELAY_ATOMIC_READ(ABORT);
+    return (v & DIE) == 0;
+}
+
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_t unused;
     pthread_attr_t attr;
@@ -117,7 +122,7 @@ void *udp_server(void *arg) {
     uint32_t epoch, prev_epoch = 0;
 #endif
     char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
-    for (;;) {
+    while (not_aborted()) {
         received = recv(s->socket, buf, MAX_CHUNK_SIZE, MSG_PEEK);
 #ifdef PACKETS_PER_SECOND
         if ((epoch = time(0)) != prev_epoch) {
@@ -146,7 +151,7 @@ void *udp_server(void *arg) {
 void *tcp_worker(void *arg) {
     int fd = (int )arg;
     _D("new tcp worker for fd: %d", fd);
-    for (;;) {
+    while (not_aborted()) {
         uint32_t expected;
         int rc = recv(fd, &expected, sizeof(expected), MSG_WAITALL);
         if (rc != sizeof(expected)) {
