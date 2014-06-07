@@ -3,7 +3,7 @@ RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
 CC=gcc
-CFLAGS=-O3 -Wall -pthread -g -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-O3 -Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 all:
 	mkdir -p bin

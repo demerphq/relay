@@ -57,6 +57,7 @@ typedef struct blob blob_t;
 
 #define BLOB_REFCNT_set(B, v)       BLOB_REF_PTR(B)->refcnt = (v)
 #define BLOB_REFCNT_dec(B)          BLOB_REF_PTR(B)->refcnt--
+#define BLOB_REFCNT_inc(B)          BLOB_REF_PTR(B)->refcnt++
 
 #define BLOB_LOCK_set(B, v)         BLOB_REF_PTR(B)->lock = (v)
 #define BLOB_BUF_SIZE_set(B, v)     BLOB_DATA_MBR(B).size = (v)

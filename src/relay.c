@@ -86,8 +86,8 @@ void load_config(int ac, char **av) {
     }
 }
 
-void reload_workers(int destroy) {
-    worker_init_static(CONFIG.ac - 1, &CONFIG.av[1], destroy);
+void reload_workers(int reload) {
+    worker_init_static(CONFIG.ac - 1, &CONFIG.av[1], reload);
 }
 
 void *udp_server(void *arg) {
@@ -112,10 +112,14 @@ void *udp_server(void *arg) {
             blob_t *b = b_new(received);
             received = recv(s->socket, BLOB_BUF(b), received, 0);
             if (received < 0)
-                SAYPX("recv");
+                break;
             enqueue_blob_for_transmission(b);
+        } else {
+            break;
         }
     }
+    _ENO("recv failed");
+    ABORT=DIE;
     pthread_exit(NULL);
 }
 
@@ -156,7 +160,7 @@ void *tcp_server(void *arg) {
         if (fd < 0) {
             ABORT = DIE;
             _ENO("accept");
-            pthread_exit(NULL);
+            break;
         }
         spawn(NULL, tcp_worker, (void *)fd, PTHREAD_CREATE_DETACHED);
     }
@@ -199,6 +203,7 @@ int main(int ac, char **av) {
         sleep(1);
     }
     cleanup(server_tid);
+    _D("bye");
     return(0);
 }
 

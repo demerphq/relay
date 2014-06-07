@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
-
+#include <sys/queue.h>
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif
@@ -28,14 +28,13 @@ typedef struct queue queue_t;
 
 struct worker {
     struct queue queue;
-    pthread_mutex_t cond_lock;
-    pthread_cond_t cond;
     pthread_t tid;
     unsigned long long sent;
-    volatile int abort;
+    volatile int exists;
     volatile int exit;
-
+    TAILQ_ENTRY(worker) entries;
     sock_t s_output;
+    char *arg;
     char fallback_path[PATH_MAX];
     char fallback_file[PATH_MAX];
 };
@@ -48,8 +47,8 @@ void worker_init_static(int ac, char **av, int destroy);
 
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);
-INLINE void worker_signal(worker_t *worker);
-INLINE void worker_wait(worker_t *worker, int delay);
+INLINE void w_wakeup();
+INLINE void w_wait(int delay);
 void *worker_thread(void *arg);
 
 #define SEND(S, B) (                                                                    \
