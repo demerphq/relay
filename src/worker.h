@@ -30,8 +30,8 @@ struct worker {
     struct queue queue;
     pthread_t tid;
     unsigned long long sent;
-    volatile int exists;
-    volatile int exit;
+    volatile uint32_t exists;
+    volatile uint32_t exit;
     TAILQ_ENTRY(worker) entries;
     sock_t s_output;
     char *arg;

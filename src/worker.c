@@ -15,6 +15,8 @@
 #endif
 #endif
 
+#define EXIT_FLAG 1
+
 static struct giant {
     TAILQ_HEAD(, worker) workers;
     LOCK_T lock;
@@ -105,11 +107,11 @@ void *worker_thread(void *arg) {
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
 
 again:
-    while(!self->exit && !open_socket(s, DO_CONNECT | DO_NOT_EXIT)) {
+    while(!RELAY_ATOMIC_READ(self->exit) && !open_socket(s, DO_CONNECT | DO_NOT_EXIT)) {
         w_wait(SLEEP_AFTER_DISASTER);
     }
 
-    while(!self->exit) {
+    while(!RELAY_ATOMIC_READ(self->exit)) {
         /* hijack the queue - copy the queue state into our private copy
          * and then reset the queue state to empty. So the formerly
          * shared queue is now private. We only do this if necessary. */
@@ -199,12 +201,14 @@ worker_t * worker_init_locked(char *arg) {
 }
 
 void worker_destroy_locked(worker_t *worker) {
+    uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit,EXIT_FLAG);
+
+    if (old_exit & EXIT_FLAG)
+        return;
+
     close(worker->s_output.socket);
-    if (!worker->exit) {
-        worker->exit = 1;
-        w_wakeup();
-        pthread_join(worker->tid, NULL);
-    }
+    w_wakeup();
+    pthread_join(worker->tid, NULL);
     deal_with_failed_send_locked(worker, &worker->queue);
     free(worker->arg);
     free(worker);
