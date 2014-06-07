@@ -250,6 +250,7 @@ void worker_init_static(int argc, char **argv, int reload) {
         pthread_mutex_init(&GIANT.cond_lock, NULL);
         pthread_cond_init(&GIANT.cond, NULL);
         LOCK(&GIANT.lock);
+        GIANT.n_workers = 0;
         for (i = 0; i < argc; i++) {
             w = worker_init_locked(argv[i]);
             TAILQ_INSERT_HEAD(&GIANT.workers, w, entries);
