@@ -46,14 +46,14 @@ void socketize(const char *arg, sock_t *s) {
 }
 
 int open_socket(sock_t *s, int flags) {
-#define ERROR(fmt, arg...)       \
-do {                            \
-    if (flags & DO_NOT_EXIT) {  \
-        _ENO(fmt, ##arg);        \
-    } else {                    \
-        SAYPX(fmt, ##arg);       \
-    }                           \
-    ok = 0;                     \
+#define ERROR(fmt, arg...)          \
+do {                                \
+    if (flags & DO_NOT_EXIT) {      \
+        _ENO(fmt, ##arg);           \
+    } else {                        \
+        SAYPX(fmt, ##arg);          \
+    }                               \
+    ok = 0;                         \
 } while(0);
 
     int ok = 1;

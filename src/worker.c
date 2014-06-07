@@ -71,7 +71,6 @@ int get_epoch_filehandle(worker_t *worker) {
 
 static void write_blob_to_disk(worker_t *worker, int fd, blob_t *b) {
     assert(BLOB_REF_PTR(b));
-    assert(BLOB_DATA_PTR(b));
     if (write(fd, BLOB_DATA(b), BLOB_SIZE(b)) != BLOB_SIZE(b))
         _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file, strerror(errno));
 }
@@ -122,7 +121,7 @@ again:
             cork(s, 1);
             while ((b = hijacked_queue.head) != NULL) {
                 if (SEND(s, b) < 0) {
-                    _ENO("ABORT: send to %s failed %ld", s->to_string, BLOB_DATA_SIZE(b));
+                    _ENO("ABORT: send to %s failed %ld", s->to_string, BLOB_DATA_MBR_SIZE(b));
 
                     deal_with_failed_send(self, &hijacked_queue);
                     close(s->socket);

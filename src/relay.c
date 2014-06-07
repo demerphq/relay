@@ -174,9 +174,9 @@ int main(int ac, char **av) {
     load_config(ac, av);
 
     if (CONFIG.ac < 2)
-        SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n" \
-                          "or file with socket description per day like:\n"            \
-                          "\tlocal-host:local-port\n"                                  \
+        SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \
+                          "or file with socket description per day like:\n"                 \
+                          "\tlocal-host:local-port\n"                                       \
                           "\ttcp@remote-host:remote-port ...\n", av[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
     socketize(CONFIG.av[0], s_listen);
