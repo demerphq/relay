@@ -22,8 +22,7 @@ typedef struct __data_blob __data_blob_t;
  * we use this to refcount __blob_t items, and we use
  * the lock to guard refcnt modifications */
 struct _refcnt_blob {
-    LOCK_T lock;
-    uint32_t refcnt;
+    volatile int32_t refcnt;
     __data_blob_t data;
 };
 typedef struct _refcnt_blob _refcnt_blob_t;
@@ -42,8 +41,6 @@ typedef struct blob blob_t;
 #define BLOB_DATA_MBR_addr(B)       (&BLOB_DATA_MBR(B))
 
 #define BLOB_REFCNT(B)              (BLOB_REF_PTR(B)->refcnt)
-#define BLOB_LOCK(B)                (BLOB_REF_PTR(B)->lock)
-#define BLOB_LOCK_addr(B)           (&BLOB_LOCK(B))
 
 #define BLOB_BUF_SIZE(B)            (BLOB_DATA_MBR(B).size)
 #define BLOB_BUF(B)                 (BLOB_DATA_MBR(B).buf)

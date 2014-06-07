@@ -42,4 +42,13 @@
 #define SAYPX(fmt, arg...) SAYX(EXIT_FAILURE, fmt " { %s }", ##arg, errno ? strerror(errno) : "undefined error");
 #define _ENO(fmt, arg...) _E(fmt " { %s }", ##arg, errno ? strerror(errno) : "undefined error");
 
+#define RELAY_ATOMIC_INCREMENT(__i, __cnt) __sync_fetch_and_add(&__i, __cnt);
+#define RELAY_ATOMIC_DECREMENT(__i, __cnt) __sync_fetch_and_sub(&__i, __cnt);
+#define RELAY_ATOMIC_READ(__p) __sync_fetch_and_add(&__p, 0)
+#define RELAY_ATOMIC_CMPXCHG(__p, __v1, __v2) __sync_bool_compare_and_swap(&__p, __v1, __v2)
+#define RELAY_ATOMIC_CMPXCHG_RETURN(__p, __v1, __v2) __sync_val_compare_and_swap(&__p, __v1, __v2)
+
+#define RELAY_ATOMIC_OR(__i, __flags) __sync_fetch_and_or(&__i, __flags);
+#define RELAY_ATOMIC_AND(__i, __flags) __sync_fetch_and_and(&__i, __flags);
+
 #endif
