@@ -5,10 +5,13 @@ use POSIX;
 use warnings;
 use strict;
 use Data::Dumper;
-use Sereal::Decoder qw(decode_sereal looks_like_sereal);
+use Sereal::Decoder qw(sereal_decode_with_object scalar_looks_like_sereal);
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 setsockopt($server, SOL_SOCKET, SO_REUSEADDR, 1);
+
+my $srl= Sereal::Decoder->new();
+
 my $sa = sockaddr_in(9003, INADDR_ANY);
 bind($server, $sa) or die $!;
 set_non_blocking($server);
@@ -56,8 +59,8 @@ while(1) {
         $NOW = int(time());
         print "got " . scalar(@DONE) . "\n";
         for my $e(@DONE) {
-            if (looks_like_sereal($e)) {
-                my $try = decode_sereal($e);
+            if (scalar_looks_like_sereal($e)) {
+                my $try = sereal_decode_with_object($srl, $e);
             }
         }
         @DONE = ();
