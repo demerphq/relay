@@ -35,33 +35,33 @@ struct blob {
 };
 typedef struct blob blob_t;
 
-#define BLOB_REF_PTR(B)         ((B)->ref)
-#define BLOB_NEXT(B)            ((B)->next)
+#define BLOB_REF_PTR(B)             ((B)->ref)
+#define BLOB_NEXT(B)                ((B)->next)
 
-#define BLOB_DATA_MBR(B)        (BLOB_REF_PTR(B)->data)
-#define BLOB_DATA_MBR_addr(B)   (&BLOB_DATA_MBR(B))
+#define BLOB_DATA_MBR(B)            (BLOB_REF_PTR(B)->data)
+#define BLOB_DATA_MBR_addr(B)       (&BLOB_DATA_MBR(B))
 
-#define BLOB_REFCNT(B)          (BLOB_REF_PTR(B)->refcnt)
-#define BLOB_LOCK(B)            (BLOB_REF_PTR(B)->lock)
-#define BLOB_LOCK_addr(B)       (&BLOB_LOCK(B))
+#define BLOB_REFCNT(B)              (BLOB_REF_PTR(B)->refcnt)
+#define BLOB_LOCK(B)                (BLOB_REF_PTR(B)->lock)
+#define BLOB_LOCK_addr(B)           (&BLOB_LOCK(B))
 
-#define BLOB_SIZE(B)            (BLOB_DATA_MBR(B).size)
-#define BLOB_DATA(B)            (BLOB_DATA_MBR(B).buf)
-#define BLOB_DATA_addr(B)       (&BLOB_DATA(B))
+#define BLOB_BUF_SIZE(B)            (BLOB_DATA_MBR(B).size)
+#define BLOB_BUF(B)                 (BLOB_DATA_MBR(B).buf)
+#define BLOB_BUF_addr(B)            (&BLOB_BUF(B))
 
-#define BLOB_DATA_MBR_SIZE(B)   (BLOB_SIZE(B) + sizeof(BLOB_SIZE(B)))
+#define BLOB_DATA_MBR_SIZE(B)       (BLOB_BUF_SIZE(B) + sizeof(BLOB_BUF_SIZE(B)))
 /* --- */
 
-#define BLOB_REF_PTR_set(B, v)  (B)->ref= (v)
-#define BLOB_NEXT_set(B, v)     (B)->next = (v)
+#define BLOB_REF_PTR_set(B, v)      (B)->ref= (v)
+#define BLOB_NEXT_set(B, v)         (B)->next = (v)
 
-#define BLOB_REFCNT_set(B, v)   BLOB_REF_PTR(B)->refcnt = (v)
-#define BLOB_REFCNT_dec(B)      BLOB_REF_PTR(B)->refcnt--
+#define BLOB_REFCNT_set(B, v)       BLOB_REF_PTR(B)->refcnt = (v)
+#define BLOB_REFCNT_dec(B)          BLOB_REF_PTR(B)->refcnt--
 
-#define BLOB_LOCK_set(B, v)     BLOB_REF_PTR(B)->lock = (v)
-#define BLOB_SIZE_set(B, v)     BLOB_DATA_MBR(B).size = (v)
+#define BLOB_LOCK_set(B, v)         BLOB_REF_PTR(B)->lock = (v)
+#define BLOB_BUF_SIZE_set(B, v)     BLOB_DATA_MBR(B).size = (v)
 
-//#define BLOB_DATA_set(B)        (BLOB_DATA_PTR(B)->data)
+//#define BLOB_BUF_set(B)        (BLOB_DATA_PTR(B)->data)
 
 /* blob.c */
 void *realloc_or_die(void *p, size_t size);

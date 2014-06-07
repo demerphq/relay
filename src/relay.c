@@ -110,7 +110,7 @@ void *udp_server(void *arg) {
 #endif
         if (received > 0) {
             blob_t *b = b_new(received);
-            received = recv(s->socket, BLOB_DATA(b), received, 0);
+            received = recv(s->socket, BLOB_BUF(b), received, 0);
             if (received < 0)
                 SAYPX("recv");
             enqueue_blob_for_transmission(b);
@@ -136,9 +136,9 @@ void *tcp_worker(void *arg) {
         }
 
         blob_t *b = b_new(expected);
-        rc = recv(fd, BLOB_DATA_addr(b), expected, MSG_WAITALL);
-        if (rc != BLOB_SIZE(b)) {
-            _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_SIZE(b), rc);
+        rc = recv(fd, BLOB_BUF_addr(b), expected, MSG_WAITALL);
+        if (rc != BLOB_BUF_SIZE(b)) {
+            _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
             b_destroy(b);
             break;
         }

@@ -71,7 +71,7 @@ int get_epoch_filehandle(worker_t *worker) {
 
 static void write_blob_to_disk(worker_t *worker, int fd, blob_t *b) {
     assert(BLOB_REF_PTR(b));
-    if (write(fd, BLOB_DATA(b), BLOB_SIZE(b)) != BLOB_SIZE(b))
+    if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
         _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file, strerror(errno));
 }
 

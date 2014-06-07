@@ -19,7 +19,7 @@ INLINE blob_t * b_new(size_t size) {
     BLOB_REFCNT_set(b, 1); /* XXX: should we set it to the number workers here */
     LOCK_INIT(BLOB_LOCK_addr(b));
 
-    BLOB_SIZE_set(b, size);
+    BLOB_BUF_SIZE_set(b, size);
 
     return b;
 }
