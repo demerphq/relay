@@ -52,13 +52,11 @@ INLINE void worker_signal(worker_t *worker);
 INLINE void worker_wait(worker_t *worker, int delay);
 void *worker_thread(void *arg);
 
-
-#define SEND(S, B) (                                                     \
-    ((S)->type != SOCK_DGRAM)                                           \
-    ? send((S)->socket, BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL) \
-    : sendto((S)->socket, BLOB_DATA(B), BLOB_SIZE(B), MSG_NOSIGNAL, \
-             (struct sockaddr*) &(S)->sa.in, (S)->addrlen)               \
+#define SEND(S, B) (                                                        \
+    ((S)->type != SOCK_DGRAM)                                               \
+    ? send((S)->socket, BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL)  \
+    : sendto((S)->socket, BLOB_DATA(B), BLOB_SIZE(B), MSG_NOSIGNAL,         \
+             (struct sockaddr*) &(S)->sa.in, (S)->addrlen)                  \
 )
-
 
 #endif

@@ -30,8 +30,8 @@
 #define STMT_START do
 #define STMT_END while (0)
 
-#define SAYX(rc, fmt, arg...) STMT_START {    \
-    _E(fmt, ##arg);                          \
+#define SAYX(rc, fmt, arg...) STMT_START {  \
+    _E(fmt, ##arg);                         \
     exit(rc);                               \
 } STMT_END
 
