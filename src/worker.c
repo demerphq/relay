@@ -153,7 +153,7 @@ int enqueue_blob_for_transmission(blob_t *b) {
         if (i + 1 == workers_count) {
             append_b= b;
         } else {
-            append_b= b_clone(b);
+            append_b= b_clone_no_refcnt_inc(b);
         }
         q_append(WORKERS[i], append_b);
     }

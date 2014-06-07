@@ -1,15 +1,20 @@
 #include "blob.h"
 
+/* reallocate a buffer or die - (wonder if we should be more graceful
+ * when we shutdown? */
 void *realloc_or_die(void *p, size_t size) {
     p = realloc(p, size);
     if (!p)
         SAYX(EXIT_FAILURE, "unable to allocate %zu bytes", size);
     return p;
 }
+
+/* malloc a buffer or die - via realloc_or_die() */
 void *malloc_or_die(size_t size) {
     return realloc_or_die(NULL, size);
 }
 
+/* blob= b_new(size) - create a new empty blob with space for size bytes */
 INLINE blob_t * b_new(size_t size) {
     blob_t *b;
 
@@ -24,18 +29,26 @@ INLINE blob_t * b_new(size_t size) {
     return b;
 }
 
-INLINE blob_t * b_clone(blob_t *b) {
+/* blob= b_clone_no_refcnt_inc(a_blob) - lightweight clone of the original
+ * note the refcount of the underlying _refcnt_blob_t is NOT
+ * incremented, that must be done externally. */
+INLINE blob_t * b_clone_no_refcnt_inc(blob_t *b) {
     blob_t *clone;
 
     clone= malloc_or_die(sizeof(blob_t));
     BLOB_NEXT_set(clone, NULL);
 
-    /* note we assume that BLOB_REFCNT(b) is setup externally to b_clone */
+    /* Note we assume that BLOB_REFCNT(b) is setup externally
+     * so we do NOT set the refcnt when we do this.
+     *
+     * This also avoid unnecessary lock churn.
+     */
     BLOB_REF_PTR_set(clone, BLOB_REF_PTR(b));
 
     return clone;
 }
 
+/* b_destroy(blob) - destroy a blob object */
 void b_destroy(blob_t *b) {
     if ( BLOB_REF_PTR(b) ) {
         uint32_t refcnt;
@@ -52,3 +65,4 @@ void b_destroy(blob_t *b) {
     }
     free(b);
 }
+
