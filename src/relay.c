@@ -9,8 +9,8 @@ volatile uint32_t ABORT = 0;
 #define RELOAD 2
 
 struct config {
-    char **av;
-    int ac;
+    char **argv;
+    int argc;
     char *file;
     pthread_mutex_t lock;
 } CONFIG;
@@ -70,12 +70,12 @@ void reload_config_file(void) {
     if (f == NULL)
         SAYPX("fopen");
 
-    if (CONFIG.ac > 0) {
-        for (i=0;i<CONFIG.ac;i++)
-            free(CONFIG.av[i]);
+    if (CONFIG.argc > 0) {
+        for (i=0;i<CONFIG.argc;i++)
+            free(CONFIG.argv[i]);
     }
 
-    CONFIG.ac = 0;
+    CONFIG.argc = 0;
     while ((read = getline(&line, &len, f)) != -1) {
         char *p;
         if ((p = strchr(line, '#')))
@@ -83,9 +83,9 @@ void reload_config_file(void) {
 
         trim(line);
         if (strlen(line) != 0) {
-            CONFIG.av = realloc_or_die(CONFIG.av, sizeof(line) * (CONFIG.ac + 1));
-            CONFIG.av[CONFIG.ac] = strdup(line);
-            CONFIG.ac++;
+            CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(line) * (CONFIG.argc + 1));
+            CONFIG.argv[CONFIG.argc] = strdup(line);
+            CONFIG.argc++;
         }
     }
     if (line)
@@ -93,25 +93,25 @@ void reload_config_file(void) {
     _D("loading config file %s", CONFIG.file);
 }
 
-void load_config(int ac, char **av) {
+void load_config(int argc, char **argv) {
     int i = 0;
-    CONFIG.av = NULL;
-    CONFIG.ac = 0;
+    CONFIG.argv = NULL;
+    CONFIG.argc = 0;
     CONFIG.file = NULL;
-    if (ac == 2) {
-        CONFIG.file = av[1];
+    if (argc == 2) {
+        CONFIG.file = argv[1];
         reload_config_file();
     } else {
-        CONFIG.av = realloc_or_die(CONFIG.av, sizeof(char *) * (ac));
-        for (i=0; i < ac - 1; i++) {
-            CONFIG.av[i] = strdup(av[i + 1]);
+        CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(char *) * (argc));
+        for (i=0; i < argc - 1; i++) {
+            CONFIG.argv[i] = strdup(argv[i + 1]);
         }
-        CONFIG.ac = i;
+        CONFIG.argc = i;
     }
 }
 
 void reload_workers(int reload) {
-    worker_init_static(CONFIG.ac - 1, &CONFIG.av[1], reload);
+    worker_init_static(CONFIG.argc - 1, &CONFIG.argv[1], reload);
 }
 
 void *udp_server(void *arg) {
@@ -193,22 +193,22 @@ void *tcp_server(void *arg) {
     pthread_exit(NULL);
 }
 
-int main(int ac, char **av) {
+int main(int argc, char **argv) {
     pthread_t server_tid;
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
 
-    load_config(ac, av);
+    load_config(argc, argv);
 
-    if (CONFIG.ac < 2)
+    if (CONFIG.argc < 2)
         SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \
                           "or file with socket description per day like:\n"                 \
                           "\tlocal-host:local-port\n"                                       \
-                          "\ttcp@remote-host:remote-port ...\n", av[0]);
+                          "\ttcp@remote-host:remote-port ...\n", argv[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
-    socketize(CONFIG.av[0], s_listen);
+    socketize(CONFIG.argv[0], s_listen);
     reload_workers(0);
     open_socket(s_listen, DO_BIND);
 
@@ -255,8 +255,8 @@ static void cleanup(pthread_t server_tid) {
     pthread_join(server_tid, NULL);
     worker_destroy_static();
     int i;
-    for (i = 0; i < CONFIG.ac; i++)
-        free(CONFIG.av[i]);
+    for (i = 0; i < CONFIG.argc; i++)
+        free(CONFIG.argv[i]);
 
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
