@@ -17,7 +17,7 @@ INLINE blob_t * b_new(size_t size) {
     BLOB_NEXT_set(b, NULL);
     BLOB_REF_PTR_set(b, malloc_or_die(sizeof(_refcnt_blob_t) + size));
     BLOB_REFCNT_set(b, 1); /* XXX: should we set it to the number workers here */
-    LOCK_INIT(&BLOB_LOCK(b));
+    LOCK_INIT(BLOB_LOCK_addr(b));
 
     BLOB_SIZE_set(b, size);
 
@@ -39,14 +39,14 @@ INLINE blob_t * b_clone(blob_t *b) {
 void b_destroy(blob_t *b) {
     if ( BLOB_REF_PTR(b) ) {
         uint32_t refcnt;
-        LOCK(&BLOB_LOCK(b));
+        LOCK(BLOB_LOCK_addr(b));
         refcnt= BLOB_REFCNT(b);
         if (refcnt)
             BLOB_REFCNT_dec(b);
-        UNLOCK(&BLOB_LOCK(b));
+        UNLOCK(BLOB_LOCK_addr(b));
         if (refcnt <= 1) {
             /* we were the last owner so we can release it */
-            LOCK_DESTROY(&BLOB_LOCK(b));
+            LOCK_DESTROY(BLOB_LOCK_addr(b));
             free(BLOB_REF_PTR(b));
         }
     }

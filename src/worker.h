@@ -54,8 +54,8 @@ void *worker_thread(void *arg);
 
 #define SEND(S, B) (                                                                \
     ((S)->type != SOCK_DGRAM)                                                       \
-    ? send((S)->socket, &BLOB_DATA_MBR(B), BLOB_DATA_MBR_SIZE(B), MSG_NOSIGNAL)     \
-    : sendto((S)->socket, &BLOB_DATA(B), BLOB_SIZE(B), MSG_NOSIGNAL,                \
+    ? send((S)->socket, BLOB_DATA_MBR_addr(B), BLOB_DATA_MBR_SIZE(B), MSG_NOSIGNAL) \
+    : sendto((S)->socket, BLOB_DATA_addr(B), BLOB_SIZE(B), MSG_NOSIGNAL,            \
              (struct sockaddr*) &(S)->sa.in, (S)->addrlen)                          \
 )
 

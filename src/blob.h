@@ -39,13 +39,15 @@ typedef struct blob blob_t;
 #define BLOB_NEXT(B)            ((B)->next)
 
 #define BLOB_DATA_MBR(B)        (BLOB_REF_PTR(B)->data)
+#define BLOB_DATA_MBR_addr(B)   (&BLOB_DATA_MBR(B))
 
 #define BLOB_REFCNT(B)          (BLOB_REF_PTR(B)->refcnt)
 #define BLOB_LOCK(B)            (BLOB_REF_PTR(B)->lock)
-
+#define BLOB_LOCK_addr(B)       (&BLOB_LOCK(B))
 
 #define BLOB_SIZE(B)            (BLOB_DATA_MBR(B).size)
 #define BLOB_DATA(B)            (BLOB_DATA_MBR(B).data)
+#define BLOB_DATA_addr(B)       (&BLOB_DATA(B))
 
 #define BLOB_DATA_MBR_SIZE(B)   (BLOB_SIZE(B) + sizeof(BLOB_SIZE(B)))
 /* --- */
