@@ -187,16 +187,26 @@ void w_wait(int seconds) {
 
 worker_t * worker_init_locked(char *arg) {
     worker_t *worker = malloc_or_die(sizeof(*worker));
+
+    /* wipe worker */
     memset(worker,0,sizeof(*worker));
-    worker->exit = 0;
+
+    /* setup flags */
     worker->exists = 1;
-    worker->queue.count = 0;
-    socketize(arg,&worker->s_output);
     worker->arg = strdup(arg);
+
+    /* socketize */
+    socketize(arg, &worker->s_output);
+
+    /* setup fallback_path */
     if (snprintf(worker->fallback_path, PATH_MAX,FALLBACK_ROOT "/%s/", worker->s_output.to_string) >= PATH_MAX)
 	SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
+
+    /* and finally create the thread */
     pthread_create(&worker->tid, NULL, worker_thread, worker);
+
+    /* return the worker */
     return worker;
 }
 
