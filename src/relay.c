@@ -3,7 +3,7 @@
 
 static void cleanup();
 static void sig_handler(int signum);
-static struct sock *s_listen;
+static sock_t *s_listen;
 volatile int ABORT = 0;
 #define DIE 1
 #define RELOAD 2
@@ -91,7 +91,7 @@ void reload_workers(int destroy) {
 }
 
 void *udp_server(void *arg) {
-    struct sock *s = (struct sock *) arg;
+    sock_t *s = (sock_t *) arg;
     ssize_t received;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
@@ -149,7 +149,7 @@ void *tcp_worker(void *arg) {
 }
 
 void *tcp_server(void *arg) {
-    struct sock *s = (struct sock *) arg;
+    sock_t *s = (sock_t *) arg;
 
     for (;;) {
         int fd = accept(s->socket,NULL,NULL);

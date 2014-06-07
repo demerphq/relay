@@ -1,6 +1,6 @@
 #include "util.h"
 
-void socketize(const char *arg,struct sock *s) {
+void socketize(const char *arg,sock_t *s) {
     char *a = strdup(arg);
     char *p;
     int proto = 0;
@@ -45,7 +45,7 @@ void socketize(const char *arg,struct sock *s) {
     free(a);
 }
 
-int open_socket(struct sock *s,int flags) {
+int open_socket(sock_t *s,int flags) {
 #define ERROR(fmt,arg...)       \
 do {                            \
     if (flags & DO_NOT_EXIT) {  \

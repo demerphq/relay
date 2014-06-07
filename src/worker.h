@@ -35,7 +35,7 @@ struct worker {
     volatile int abort;
     volatile int exit;
 
-    struct sock s_output;
+    sock_t s_output;
     char fallback_path[PATH_MAX];
     char fallback_file[PATH_MAX];
 };

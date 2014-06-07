@@ -1,7 +1,7 @@
 #include "relay.h"
 #include "relay_threads.h"
 
-static struct sock s;
+static sock_t s;
 #ifdef USE_SERVER
 #define PREFIX "SERVER"
 #else

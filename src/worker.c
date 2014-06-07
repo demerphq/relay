@@ -3,7 +3,7 @@
 int workers_count = 0;
 static worker_t *WORKERS[MAX_WORKERS + 1];
 #ifdef TCP_CORK
-static INLINE void cork(struct sock *s,int flag) {
+static INLINE void cork(sock_t *s,int flag) {
     if (s->proto != IPPROTO_TCP)
         return;
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
@@ -102,7 +102,7 @@ INLINE void hijack_queue (worker_t *self, queue_t *hijacked_queue)
 void *worker_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
     queue_t hijacked_queue;
-    struct sock *s = &self->s_output;
+    sock_t *s = &self->s_output;
     blob_t *b;
     memset(&hijacked_queue,0,sizeof(hijacked_queue));
 
