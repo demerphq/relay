@@ -45,7 +45,6 @@ int q_append_locked(worker_t *worker, blob_t *b) {
     q->tail = b;
     BLOB_NEXT_set(b,NULL);
     q->count++;
-    w_wakeup();
     return 1;
 }
 
@@ -157,6 +156,7 @@ int enqueue_blob_for_transmission(blob_t *b) {
         i++;
     }
     UNLOCK(&GIANT.lock);
+    w_wakeup();
     if (i == 0) {
         _E("no living workers, not sure what to do"); // dump the packet on disk?
     }
