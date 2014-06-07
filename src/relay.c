@@ -158,6 +158,7 @@ void *tcp_server(void *arg) {
     for (;;) {
         int fd = accept(s->socket, NULL, NULL);
         if (fd < 0) {
+            /* tsan says this is a data race, but borislav says its ok */
             ABORT = DIE;
             _ENO("accept");
             break;

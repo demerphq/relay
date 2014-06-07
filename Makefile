@@ -4,7 +4,7 @@ CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
 CLANG_FLAGS=-fsanitize=thread -fPIE -pie
 CC=gcc
-CFLAGS=-O3 -Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-O0 -g3 -Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 all:
 	mkdir -p bin
