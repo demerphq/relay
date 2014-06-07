@@ -20,6 +20,7 @@ static struct giant {
     LOCK_T lock;
     pthread_mutex_t cond_lock;
     pthread_cond_t cond;
+    int n_workers;
 } GIANT;
 
 #ifdef TCP_CORK
@@ -143,10 +144,9 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
     worker_t *w;
-
     LOCK(&GIANT.lock);
+    BLOB_REFCNT_set(b,GIANT.n_workers);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
-        BLOB_REFCNT_inc(b);
         if (w == TAILQ_FIRST(&GIANT.workers)) {
             q_append_locked(w, b);
         } else {
@@ -223,7 +223,6 @@ void worker_init_static(int argc, char **argv, int reload) {
         for (i = 0; i < argc; i++) {
             must_add = 1;
             TAILQ_FOREACH(w, &GIANT.workers, entries) {
-                _D("AAAAA");
                 if (strcmp(argv[i], w->arg) == 0) {
                     w->exists = 1;
                     must_add = 0;
@@ -234,13 +233,16 @@ void worker_init_static(int argc, char **argv, int reload) {
                 TAILQ_INSERT_TAIL(&GIANT.workers, w, entries);
             }
         }
+        int n_workers = 0;
         TAILQ_FOREACH_SAFE(w,&GIANT.workers,entries,wtmp) {
             if (w->exists == 0) {
                 TAILQ_REMOVE(&GIANT.workers, w, entries);
                 worker_destroy_locked(w);
+            } else {
+                n_workers++;
             }
         }
-        
+        GIANT.n_workers = n_workers;
         UNLOCK(&GIANT.lock);
     } else {
         TAILQ_INIT(&GIANT.workers);
