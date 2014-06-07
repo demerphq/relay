@@ -136,7 +136,7 @@ void *tcp_worker(void *arg) {
         }
 
         blob_t *b = b_new(expected);
-        rc = recv(fd, &BLOB_DATA(b), expected, MSG_WAITALL);
+        rc = recv(fd, BLOB_DATA_addr(b), expected, MSG_WAITALL);
         if (rc != BLOB_SIZE(b)) {
             _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_SIZE(b), rc);
             b_destroy(b);
