@@ -4,10 +4,10 @@
 static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
-volatile int ABORT = 0;
-LOCK_T ABORT_LOCK;
+volatile uint32_t ABORT = 0;
 #define DIE 1
 #define RELOAD 2
+
 struct config {
     char **av;
     int ac;
@@ -15,25 +15,22 @@ struct config {
     pthread_mutex_t lock;
 } CONFIG;
 
-void set_aborted() {
-    LOCK(&ABORT_LOCK);
-    ABORT = DIE;
-    UNLOCK(&ABORT_LOCK);
+
+void set_abort_bits(uint32_t v) {
+    RELAY_ATOMIC_OR(ABORT, v);
 }
 
-void set_abort_to_val(v) {
-    LOCK(&ABORT_LOCK);
-    if (ABORT != DIE)
-        ABORT = v;
-    UNLOCK(&ABORT_LOCK);
+void unset_abort_bits(uint32_t v) {
+    v= ~v;
+    RELAY_ATOMIC_AND(ABORT, v);
+}
+
+void set_aborted() {
+    set_abort_bits(DIE);
 }
 
 int get_abort_val() {
-    int ret;
-    LOCK(&ABORT_LOCK);
-    ret= ABORT;
-    UNLOCK(&ABORT_LOCK);
-    return ret;
+    return RELAY_ATOMIC_READ(ABORT);
 }
 
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
@@ -197,7 +194,6 @@ int main(int ac, char **av) {
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
-    LOCK_INIT(&ABORT_LOCK);
 
     load_config(ac, av);
 
@@ -218,14 +214,14 @@ int main(int ac, char **av) {
 
     for (;;) {
         int abort= get_abort_val();
-        if (abort == DIE) {
+        if (abort & DIE) {
             break;
         }
         else
-        if (abort == RELOAD) {
+        if (abort & RELOAD) {
             reload_config_file();
             reload_workers(1);
-            set_abort_to_val(0);
+            unset_abort_bits(RELOAD);
         }
         sleep(1);
     }
@@ -237,7 +233,7 @@ int main(int ac, char **av) {
 static void sig_handler(int signum) {
     switch(signum) {
         case SIGHUP:
-            set_abort_to_val(RELOAD);
+            set_abort_bits(RELOAD);
             break;
         case SIGTERM:
         case SIGINT:
