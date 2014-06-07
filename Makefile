@@ -1,4 +1,4 @@
-FILES=src/blob.c src/worker.c src/util.c
+FILES=src/setproctitle.c src/blob.c src/worker.c src/util.c
 RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang

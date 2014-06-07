@@ -1,5 +1,6 @@
 #include "relay.h"
 #include "worker.h"
+#include "setproctitle.h"
 
 static void cleanup();
 static void sig_handler(int signum);
@@ -201,6 +202,9 @@ int main(int argc, char **argv) {
     signal(SIGHUP, sig_handler);
 
     load_config(argc, argv);
+
+    initproctitle(argc, argv);
+    setproctitle("relay","testing");
 
     if (CONFIG.argc < 2)
         SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \

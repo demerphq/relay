@@ -1,5 +1,6 @@
 #include "relay.h"
 #include "worker.h"
+#include "setproctitle.h"
 #ifdef __linux__
 #define TAILQ_EMPTY(head)       ((head)->tqh_first == NULL)
 #define TAILQ_FIRST(head)       ((head)->tqh_first)
@@ -205,6 +206,8 @@ worker_t * worker_init_locked(char *arg) {
 
     /* and finally create the thread */
     pthread_create(&worker->tid, NULL, worker_thread, worker);
+
+    setproctitle("relay","worker");
 
     /* return the worker */
     return worker;
