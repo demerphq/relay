@@ -23,6 +23,7 @@ struct sock {
     char to_string[PATH_MAX];
     socklen_t addrlen;
 };
+typedef struct sock sock_t;
 
 /* util.c */
 void socketize(const char *arg,struct sock *s);

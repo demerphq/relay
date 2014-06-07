@@ -1,7 +1,7 @@
 #include "relay.h"
 #include "worker.h"
 int workers_count = 0;
-static struct worker *WORKERS[MAX_WORKERS + 1];
+static worker_t *WORKERS[MAX_WORKERS + 1];
 #ifdef TCP_CORK
 static INLINE void cork(struct sock *s,int flag) {
     if (s->proto != IPPROTO_TCP)
@@ -13,8 +13,8 @@ static INLINE void cork(struct sock *s,int flag) {
 #define cork(a,b)
 #endif
 
-int q_append(struct worker *worker, blob_t *b) {
-    struct queue *q = &worker->queue;
+int q_append(worker_t *worker, blob_t *b) {
+    queue_t *q = &worker->queue;
 
     LOCK(&q->lock);
 
@@ -31,7 +31,7 @@ int q_append(struct worker *worker, blob_t *b) {
     return 1;
 }
 
-blob_t *q_shift_nolock(struct queue *q) {
+blob_t *q_shift_nolock(queue_t *q) {
     blob_t *b= q->head;
     if (b) {
         if (BLOB_NEXT(b))
@@ -43,7 +43,7 @@ blob_t *q_shift_nolock(struct queue *q) {
     return b;
 }
 
-blob_t *q_shift_lock(struct queue *q) {
+blob_t *q_shift_lock(queue_t *q) {
     blob_t *b;
     LOCK(&q->lock);
     b= q_shift_nolock(q);
@@ -56,7 +56,7 @@ static void recreate_fallback_path(char *dir) {
         SAYX(EXIT_FAILURE,"mkdir of %s failed",dir);
 }
 
-int get_epoch_filehandle(struct worker *worker) {
+int get_epoch_filehandle(worker_t *worker) {
     int fd;
     if (snprintf(worker->fallback_file, PATH_MAX, "%s/%li.srlc",
                  worker->fallback_path,
@@ -69,16 +69,14 @@ int get_epoch_filehandle(struct worker *worker) {
     return fd;
 }
 
-static void write_blob_to_disk(struct worker *worker, int fd, blob_t *b) {
-    if (!BLOB_REF_PTR(b))
-        SAYX(EXIT_FAILURE,"BLOB_REF_PTR(b) is null"); /* XXX */
-    if (!BLOB_DATA_PTR(b))
-        SAYX(EXIT_FAILURE,"BLOB_DATA_PTR(b) is null"); /* XXX */
+static void write_blob_to_disk(worker_t *worker, int fd, blob_t *b) {
+    assert(BLOB_REF_PTR(b));
+    assert(BLOB_DATA_PTR(b));
     if (write(fd,BLOB_DATA(b),BLOB_SIZE(b)) != BLOB_SIZE(b))
         _D("failed to append to '%s', everything is lost!: %s", worker->fallback_file,strerror(errno));
 }
 
-static void deal_with_failed_send(struct worker *worker, struct queue *q) {
+static void deal_with_failed_send(worker_t *worker, queue_t *q) {
     blob_t *b;
     int fd= get_epoch_filehandle(worker);
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
@@ -91,10 +89,19 @@ static void deal_with_failed_send(struct worker *worker, struct queue *q) {
         _D("failed to close '%s', everything is lost: %s", worker->fallback_file,strerror(errno));
 }
 
+INLINE void hijack_queue (worker_t *self, queue_t *hijacked_queue)
+{
+    queue_t *q = &self->queue;
+    LOCK(&q->lock);
+    memcpy(hijacked_queue, q, sizeof(queue_t));
+    q->tail = q->head = NULL;
+    q->count = 0;
+    UNLOCK(&q->lock);
+}
+
 void *worker_thread(void *arg) {
-    struct worker *self = (struct worker *) arg;
-    struct queue hijacked_queue;
-    struct queue *q = &self->queue;
+    worker_t *self = (worker_t *) arg;
+    queue_t hijacked_queue;
     struct sock *s = &self->s_output;
     blob_t *b;
     memset(&hijacked_queue,0,sizeof(hijacked_queue));
@@ -109,25 +116,23 @@ again:
          * and then reset the queue state to empty. So the formerly
          * shared queue is now private. We only do this if necessary. */
         if (hijacked_queue.head == NULL) {
-            LOCK(&q->lock);
-            memcpy(&hijacked_queue, q, sizeof(struct queue));
-            q->tail = q->head = NULL;
-            q->count = 0;
-            UNLOCK(&q->lock);
+            hijack_queue(self, &hijacked_queue);
         }
-        cork(s,1);
-        while ((b = hijacked_queue.head) != NULL) {
-            if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %ld",s->to_string,BLOB_DATA_SIZE(b));
+        if (hijacked_queue.head) {
+            cork(s,1);
+            while ((b = hijacked_queue.head) != NULL) {
+                if (SEND(s,b) < 0) {
+                    _ENO("ABORT: send to %s failed %ld",s->to_string,BLOB_DATA_SIZE(b));
 
-                deal_with_failed_send(self, &hijacked_queue);
-                close(s->socket);
-                goto again;
+                    deal_with_failed_send(self, &hijacked_queue);
+                    close(s->socket);
+                    goto again;
+                }
+                b_destroy( q_shift_nolock( &hijacked_queue ) );
+                self->sent++;
             }
-            b_destroy( q_shift_nolock( &hijacked_queue ) );
-            self->sent++;
+            cork(s,0);
         }
-        cork(s,0);
         worker_wait(self,0);
     }
     close(s->socket);
@@ -138,6 +143,11 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i;
     blob_t *append_b;
+    /* we overwrite the recount here with the number of workers we
+     * are going to issue this item to, that way even if they process
+     * the item faster than we can allocate it (which is unlikely anyway),
+     * when they call destroy it wont hit 0 until all the workers have
+     * processed it. */
     BLOB_REFCNT_set(b, workers_count);
     for (i = 0; i < workers_count; i++) {
         // send the original blob to the last worker
@@ -151,13 +161,13 @@ int enqueue_blob_for_transmission(blob_t *b) {
     return workers_count;
 }
 
-void worker_signal(struct worker *worker) {
+void worker_signal(worker_t *worker) {
     pthread_mutex_lock(&worker->cond_lock);
     pthread_cond_signal(&worker->cond);
     pthread_mutex_unlock(&worker->cond_lock);
 }
 
-void worker_wait(struct worker *worker, int seconds) {
+void worker_wait(worker_t *worker, int seconds) {
     pthread_mutex_lock(&worker->cond_lock);
     if (seconds > 0) {
         struct timeval    tp;
@@ -173,8 +183,8 @@ void worker_wait(struct worker *worker, int seconds) {
     pthread_mutex_unlock(&worker->cond_lock);
 }
 
-struct worker * worker_init(char *arg) {
-    struct worker *worker = malloc_or_die(sizeof(*worker));
+worker_t * worker_init(char *arg) {
+    worker_t *worker = malloc_or_die(sizeof(*worker));
     memset(worker,0,sizeof(*worker));
     worker->exit = 0;
     worker->queue.count = 0;
@@ -189,7 +199,7 @@ struct worker * worker_init(char *arg) {
     return worker;
 }
 
-void worker_destroy(struct worker *worker) {
+void worker_destroy(worker_t *worker) {
     if (!worker->exit) {
         worker->exit = 1;
         worker_signal(worker);

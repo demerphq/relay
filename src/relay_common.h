@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <sys/time.h>
+#include <assert.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 256

@@ -24,6 +24,7 @@ struct queue {
     LOCK_T lock;
     unsigned int count;
 };
+typedef struct queue queue_t;
 
 struct worker {
     struct queue queue;
@@ -38,16 +39,17 @@ struct worker {
     char fallback_path[PATH_MAX];
     char fallback_file[PATH_MAX];
 };
+typedef struct worker worker_t;
 
 /* worker.c */
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
 void worker_init_static(int ac, char **av,int destroy);
 
-struct worker * worker_init(char *arg);
-void worker_destroy(struct worker *worker);
-INLINE void worker_signal(struct worker *worker);
-INLINE void worker_wait(struct worker *worker,int delay);
+worker_t * worker_init(char *arg);
+void worker_destroy(worker_t *worker);
+INLINE void worker_signal(worker_t *worker);
+INLINE void worker_wait(worker_t *worker,int delay);
 void *worker_thread(void *arg);
 
 
