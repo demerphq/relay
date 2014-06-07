@@ -14,14 +14,13 @@ struct config {
     pthread_mutex_t lock;
 } CONFIG;
 
-static pthread_t spawn(void *(*func)(void *), void *arg) {
+static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
+    pthread_t unused;
     pthread_attr_t attr;
-    pthread_t t;
     pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create(&t,&attr,func,arg);
+    pthread_attr_setdetachstate(&attr, type);
+    pthread_create(tid ? tid : &unused,&attr,func,arg);
     pthread_attr_destroy(&attr);
-    return t;
 }
 
 void trim(char * s) {
@@ -159,7 +158,7 @@ void *tcp_server(void *arg) {
             _ENO("accept");
             pthread_exit(NULL);
         }
-        spawn(tcp_worker,(void *)fd);
+        spawn(NULL,tcp_worker,(void *)fd,PTHREAD_CREATE_DETACHED);
     }
 
     pthread_exit(NULL);
@@ -185,9 +184,9 @@ int main(int ac, char **av) {
     open_socket(s_listen,DO_BIND);
 
     if (s_listen->proto == IPPROTO_UDP)
-        server_tid = spawn(udp_server,s_listen);
+        spawn(&server_tid,udp_server,s_listen,PTHREAD_CREATE_JOINABLE);
     else
-        server_tid = spawn(tcp_server,s_listen);
+        spawn(&server_tid,tcp_server,s_listen,PTHREAD_CREATE_JOINABLE);
     for (;;) {
         if (ABORT == RELOAD) {
             reload_config_file();
