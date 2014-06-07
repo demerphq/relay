@@ -44,20 +44,20 @@ typedef struct worker worker_t;
 /* worker.c */
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
-void worker_init_static(int ac, char **av,int destroy);
+void worker_init_static(int ac, char **av, int destroy);
 
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);
 INLINE void worker_signal(worker_t *worker);
-INLINE void worker_wait(worker_t *worker,int delay);
+INLINE void worker_wait(worker_t *worker, int delay);
 void *worker_thread(void *arg);
 
 
-#define SEND(S,B) (                                                     \
+#define SEND(S, B) (                                                     \
     ((S)->type != SOCK_DGRAM)                                           \
-    ? send((S)->socket,BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL) \
-    : sendto((S)->socket,BLOB_DATA(B), BLOB_SIZE(B), MSG_NOSIGNAL, \
-             (struct sockaddr*) &(S)->sa.in,(S)->addrlen)               \
+    ? send((S)->socket, BLOB_DATA_PTR(B), BLOB_DATA_SIZE(B), MSG_NOSIGNAL) \
+    : sendto((S)->socket, BLOB_DATA(B), BLOB_SIZE(B), MSG_NOSIGNAL, \
+             (struct sockaddr*) &(S)->sa.in, (S)->addrlen)               \
 )
 
 

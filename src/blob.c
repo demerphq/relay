@@ -1,13 +1,13 @@
 #include "blob.h"
 
 void *realloc_or_die(void *p, size_t size) {
-    p = realloc(p,size);
+    p = realloc(p, size);
     if (!p)
-        SAYX(EXIT_FAILURE,"unable to allocate %zu bytes",size);
+        SAYX(EXIT_FAILURE, "unable to allocate %zu bytes", size);
     return p;
 }
 void *malloc_or_die(size_t size) {
-    return realloc_or_die(NULL,size);
+    return realloc_or_die(NULL, size);
 }
 
 INLINE blob_t * b_new(size_t size) {
@@ -29,10 +29,10 @@ INLINE blob_t * b_clone(blob_t *b) {
     blob_t *clone;
 
     clone= malloc_or_die(sizeof(blob_t));
-    BLOB_NEXT_set(clone,NULL);
+    BLOB_NEXT_set(clone, NULL);
 
     /* note we assume that BLOB_REFCNT(b) is setup externally to b_clone */
-    BLOB_REF_PTR_set(clone,BLOB_REF_PTR(b));
+    BLOB_REF_PTR_set(clone, BLOB_REF_PTR(b));
 
     return clone;
 }
