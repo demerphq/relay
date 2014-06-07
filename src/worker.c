@@ -1,20 +1,6 @@
 #include "relay.h"
 #include "worker.h"
 #include "setproctitle.h"
-#ifdef __linux__
-#define TAILQ_EMPTY(head)       ((head)->tqh_first == NULL)
-#define TAILQ_FIRST(head)       ((head)->tqh_first)
-#ifndef TAILQ_END
-#define	TAILQ_END(head)			NULL
-#endif
-#ifndef TAILQ_FOREACH_SAFE
-#define TAILQ_FOREACH_SAFE(var, head, field, tvar)                      \
-	for ((var) = TAILQ_FIRST(head);                                 \
-	    (var) != TAILQ_END(head) &&                                 \
-	    ((tvar) = TAILQ_NEXT(var, field), 1);                       \
-	    (var) = (tvar))
-#endif
-#endif
 
 #define EXIT_FLAG 1
 

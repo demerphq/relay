@@ -7,7 +7,24 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
+/* this defines things like TAILQ_ENTRY() see man TAILQ_ENTRY for details */
 #include <sys/queue.h>
+/* fixups for stuff that might be missing from sys/queue.h */
+#ifdef __linux__
+#define TAILQ_EMPTY(head)       ((head)->tqh_first == NULL)
+#define TAILQ_FIRST(head)       ((head)->tqh_first)
+#ifndef TAILQ_END
+#define	TAILQ_END(head)			NULL
+#endif
+#ifndef TAILQ_FOREACH_SAFE
+#define TAILQ_FOREACH_SAFE(var, head, field, tvar)      \
+        for ((var) = TAILQ_FIRST(head);                 \
+            (var) != TAILQ_END(head) &&                 \
+            ((tvar) = TAILQ_NEXT(var, field), 1);       \
+            (var) = (tvar))
+#endif
+#endif
+
 #ifndef SLEEP_AFTER_DISASTER
 #define SLEEP_AFTER_DISASTER 1
 #endif
