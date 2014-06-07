@@ -14,7 +14,7 @@
  * 4 bytes of length, followed by K bytes of string */
 struct __data_blob {
     uint32_t size;
-    char data[0];
+    char buf[0];
 } __attribute__ ((packed));
 typedef struct __data_blob __data_blob_t;
 
@@ -46,7 +46,7 @@ typedef struct blob blob_t;
 #define BLOB_LOCK_addr(B)       (&BLOB_LOCK(B))
 
 #define BLOB_SIZE(B)            (BLOB_DATA_MBR(B).size)
-#define BLOB_DATA(B)            (BLOB_DATA_MBR(B).data)
+#define BLOB_DATA(B)            (BLOB_DATA_MBR(B).buf)
 #define BLOB_DATA_addr(B)       (&BLOB_DATA(B))
 
 #define BLOB_DATA_MBR_SIZE(B)   (BLOB_SIZE(B) + sizeof(BLOB_SIZE(B)))
