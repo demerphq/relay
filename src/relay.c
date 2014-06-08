@@ -93,6 +93,27 @@ void reload_workers(int reload) {
     worker_init_static(CONFIG.argc - 1, &CONFIG.argv[1], reload);
 }
 
+static inline int recv_and_enqueue(int fd, int expected, int flags) {
+    int rc;
+    blob_t *b;
+    if (expected == 0) {
+        /* ignore 0 byte packets */
+        if (0)
+            _E("Received 0 byte packet, not forwarding.");
+    } else {
+        inc_received_count();
+        b = b_new(expected);
+        rc = recv(fd, BLOB_BUF_addr(b), expected, flags);
+        if (rc != BLOB_BUF_SIZE(b)) {
+            _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
+            b_destroy(b);
+            return 0;
+        }
+        enqueue_blob_for_transmission(b);
+    }
+    return 1;
+}
+
 void *udp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
     ssize_t received;
@@ -111,28 +132,14 @@ void *udp_server(void *arg) {
         }
         packets++;
 #endif
-        if (received < 0) {
+        if (received < 0 || !recv_and_enqueue(s->socket,received,0)) {
             break;
-        } else {
-            inc_received_count();
-            if (received == 0) {
-            /* ignore 0 byte packets */
-                if (0)
-                    _E("Received 0 byte packet, not forwarding.");
-            } else {
-                blob_t *b = b_new(received);
-                received = recv(s->socket, BLOB_BUF(b), received, 0);
-                if (received < 0)
-                    break;
-                enqueue_blob_for_transmission(b);
-            }
         }
     }
     _ENO("recv failed");
     set_aborted();
     pthread_exit(NULL);
 }
-
 
 void *tcp_worker(void *arg) {
     int fd = (int )arg;
@@ -145,21 +152,14 @@ void *tcp_worker(void *arg) {
             break;
         }
 
-        inc_received_count();
-
         if (expected > MAX_CHUNK_SIZE) {
             _ENO("requested packet(%d) > MAX_CHUNK_SIZE(%d)", expected, MAX_CHUNK_SIZE);
             break;
         }
 
-        blob_t *b = b_new(expected);
-        rc = recv(fd, BLOB_BUF_addr(b), expected, MSG_WAITALL);
-        if (rc != BLOB_BUF_SIZE(b)) {
-            _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
-            b_destroy(b);
+        if (!recv_and_enqueue(fd,expected,MSG_WAITALL)) {
             break;
         }
-        enqueue_blob_for_transmission(b);
     }
     close(fd);
     pthread_exit(NULL);
