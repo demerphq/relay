@@ -22,10 +22,12 @@ static INLINE void cork(struct sock *s,int flag) {
 
 int q_append_locked(worker_t *worker, blob_t *b) {
     struct queue *q = &worker->queue;
+
     if (q->head == NULL)
         q->head = b;
     else
         BLOB_NEXT_set(q->tail,b);
+
     q->tail = b;
     BLOB_NEXT_set(b,NULL);
     q->count++;
