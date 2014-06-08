@@ -7,6 +7,7 @@
 #include "relay_threads.h"
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 256

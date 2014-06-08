@@ -6,6 +6,7 @@
 #include "relay_threads.h"
 #include "blob.h"
 #include "abort.h"
+#include "stats.h"
 
 #define EXIT_FLAG 1
 

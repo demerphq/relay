@@ -134,6 +134,7 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
     worker_t *w;
+    inc_packets();
     LOCK(&GIANT.lock);
     BLOB_REFCNT_set(b,GIANT.n_workers);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
@@ -195,8 +196,6 @@ worker_t * worker_init_locked(char *arg) {
     /* and finally create the thread */
     pthread_create(&worker->tid, NULL, worker_thread, worker);
 
-    setproctitle("relay","worker");
-
     /* return the worker */
     return worker;
 }
@@ -220,6 +219,7 @@ void worker_init_static(int argc, char **argv, int reload) {
     int i;
     int must_add;
     worker_t *w,*wtmp;
+    int n_workers = 0;
     if (reload) {
         LOCK(&GIANT.lock);
         
@@ -239,7 +239,6 @@ void worker_init_static(int argc, char **argv, int reload) {
                 TAILQ_INSERT_TAIL(&GIANT.workers, w, entries);
             }
         }
-        int n_workers = 0;
         TAILQ_FOREACH_SAFE(w,&GIANT.workers,entries,wtmp) {
             if (w->exists == 0) {
                 TAILQ_REMOVE(&GIANT.workers, w, entries);
@@ -264,6 +263,7 @@ void worker_init_static(int argc, char **argv, int reload) {
             TAILQ_INSERT_HEAD(&GIANT.workers, w, entries);
             GIANT.n_workers++;
         }
+        n_workers= GIANT.n_workers;
         UNLOCK(&GIANT.lock);
     }
 }

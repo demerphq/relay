@@ -3,6 +3,7 @@
 #include "setproctitle.h"
 #include "abort.h"
 
+#define MAX_BUF_LEN 128
 static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
@@ -13,6 +14,8 @@ struct config {
     char *file;
     pthread_mutex_t lock;
 } CONFIG;
+
+
 
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_t unused;
@@ -179,7 +182,7 @@ int main(int argc, char **argv) {
     load_config(argc, argv);
 
     initproctitle(argc, argv);
-    setproctitle("relay","testing");
+    setproctitle("relay","starting");
 
     if (CONFIG.argc < 2)
         SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \
@@ -212,6 +215,7 @@ int main(int argc, char **argv) {
             reload_workers(1);
             unset_abort_bits(RELOAD);
         }
+        reset_packets();
         sleep(1);
     }
     cleanup(server_tid);
