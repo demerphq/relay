@@ -16,13 +16,48 @@
 
 extern char **environ;
 
-static char **argv0;
-static int argv_lth;
+static char **argv0    = NULL;
+static int    argv_lth = 0;
+
+static char  *prog_str = NULL;
+static int    prog_len = 0;
+
+static char  *args_str = NULL;
+static int    args_len = 0;
 
 void initproctitle (int argc, char **argv)
 {
         int i;
         char **envp = environ;
+
+        if (argc) {
+            prog_len= strlen(argv[0]);
+            prog_str= strdup(argv[0]);
+            if (argc > 1 ) {
+                for(i = 1; i < argc; i++) {
+                    args_len += strlen(argv[i]);
+                    args_len++;
+                }
+                args_str= (char *) malloc(args_len);
+                args_len= 0;
+                for(i = 1; i < argc; i++) {
+                    int l= strlen(argv[i]);
+                    memcpy(args_str + args_len, argv[i], l);
+                    args_len += l;
+                    args_str[args_len++]=' ';
+                }
+                args_len--;
+                args_str[args_len]= 0;
+            } else {
+                args_str= "";
+                args_len= 0;
+            }
+        } else {
+            prog_str= STR_AND_LEN("relay",prog_len);
+        }
+        /*
+        printf("prog_str: '%*s' args_str: '%*s'\n", prog_len, prog_str, args_len, args_str);
+        */
 
         /*
          * Move the environment so we can reuse the memory.
@@ -49,7 +84,7 @@ void initproctitle (int argc, char **argv)
                 argv_lth = argv0[argc-1] + strlen(argv0[argc-1]) - argv0[0];
 }
 
-void setproctitle (const char *prog, const char *txt)
+void setproctitle (const char *txt)
 {
         int i;
         char buf[SPT_BUFSIZE];
@@ -57,10 +92,10 @@ void setproctitle (const char *prog, const char *txt)
         if (!argv0)
                 return;
 
-        if (strlen(prog) + strlen(txt) + 5 > SPT_BUFSIZE)
+        if (prog_len + args_len + strlen(txt) + 6 > SPT_BUFSIZE)
                 return;
 
-        sprintf(buf, "%s -- %s", prog, txt);
+        sprintf(buf, "%s %s -- %s", prog_str, args_str, txt);
 
         i = strlen(buf);
         if (i > argv_lth - 2) {

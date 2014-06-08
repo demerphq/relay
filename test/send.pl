@@ -8,11 +8,11 @@ my $file = "";
 my $port = 10000;
 my $host = "localhost";
 my $ns   = 1000;
-GetOptions ("port=i"      => \$port,
+my $usage= !GetOptions ("port=i"      => \$port,
             "file=s"      => \$file,
             "nanosleep=i" => \$ns,
             "host=s"      => \$host);
-die "usage: $0 --port=10000 --host=localhost --file=/tmp/example.txt" unless $file && $port && $host;
+die "usage: $0 --port=10000 --host=localhost --file=/tmp/example.txt" if $usage or !($file && $port && $host);
 
 open(my $fh,'<',$file);
 my $data = do { local $/; <$fh> };

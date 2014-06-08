@@ -27,7 +27,7 @@ void reset_packets() {
 
     /* set it in the process name */
     snprintf(str, MAX_BUF_LEN, STATSfmt " : " STATSfmt, count, accumulated );
-    setproctitle("relay", str);
+    setproctitle(str);
 }
 
 

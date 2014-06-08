@@ -178,6 +178,7 @@ void *tcp_server(void *arg) {
 
 int main(int argc, char **argv) {
     pthread_t server_tid;
+
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
@@ -186,7 +187,7 @@ int main(int argc, char **argv) {
     load_config(argc, argv);
 
     initproctitle(argc, argv);
-    setproctitle("relay","starting");
+    setproctitle("starting");
 
     if (CONFIG.argc < 2)
         SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \
