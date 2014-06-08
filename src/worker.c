@@ -1,8 +1,4 @@
-#include "relay.h"
 #include "worker.h"
-#include "setproctitle.h"
-
-#define EXIT_FLAG 1
 
 static struct giant {
     /* macro to define a TAILQ head entry, empty first arg deliberate */

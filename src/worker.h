@@ -1,9 +1,13 @@
 #ifndef _WORKER_H
 #define _WORKER_H
 
+#include "relay.h"
+#include "setproctitle.h"
 #include "relay_threads.h"
 #include "blob.h"
 #include "abort.h"
+
+#define EXIT_FLAG 1
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -61,7 +65,7 @@ typedef struct worker worker_t;
 /* worker.c */
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
-void worker_init_static(int ac, char **av, int destroy);
+void worker_init_static(int argc, char **argv, int destroy);
 
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);
