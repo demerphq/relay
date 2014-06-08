@@ -35,7 +35,7 @@ int main(int ac, char **av) {
     if (ac < 2)
         SAYX(EXIT_FAILURE, "%s remote-ip:remote-port", av[0]);
     socketize(av[1], &s);
-    open_socket(&s, DO_NOTHING);
+    open_socket(&s, DO_NOTHING,0,0);
     if (ac > 2)
         do_max = atoi(av[2]);
 

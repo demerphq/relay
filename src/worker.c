@@ -94,7 +94,7 @@ void *worker_thread(void *arg) {
 again:
     while(
         !RELAY_ATOMIC_READ(self->exit) &&
-        !open_socket(s, DO_CONNECT | DO_NOT_EXIT)
+        !open_socket(s, DO_CONNECT | DO_NOT_EXIT,0,0)
     ) {
         w_wait(SLEEP_AFTER_DISASTER);
     }

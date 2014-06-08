@@ -27,6 +27,6 @@ typedef struct sock sock_t;
 
 /* util.c */
 void socketize(const char *arg, sock_t *s);
-int open_socket(sock_t *s, int do_bind);
+int open_socket(sock_t *s, int flags, int snd, int rcv);
 
 #endif

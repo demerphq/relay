@@ -45,7 +45,7 @@ void socketize(const char *arg, sock_t *s) {
     free(a);
 }
 
-int open_socket(sock_t *s, int flags) {
+int open_socket(sock_t *s, int flags,int snd, int rcv) {
 #define ERROR(fmt, arg...)          \
 do {                                \
     if (flags & DO_NOT_EXIT) {      \
@@ -89,6 +89,14 @@ do {                                \
             if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
                 ERROR("setsockopt[%s]", s->to_string);
         }
+    }
+    if (snd > 0) {
+        if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd)) < 0)
+            ERROR("setsockopt[%s]", s->to_string);
+    }
+    if (rcv > 0) {
+        if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv)) < 0)
+            ERROR("setsockopt[%s]", s->to_string);
     }
     return ok;
 #undef ERROR
