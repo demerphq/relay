@@ -111,14 +111,18 @@ void *udp_server(void *arg) {
         }
         packets++;
 #endif
-        if (received > 0) {
+        if (received < 0) {
+            break;
+        } else if (received == 0) {
+            /* ignore 0 byte packets */
+            if (0)
+                _E("Received 0 byte packet, not forwarding.");
+        } else {
             blob_t *b = b_new(received);
             received = recv(s->socket, BLOB_BUF(b), received, 0);
             if (received < 0)
                 break;
             enqueue_blob_for_transmission(b);
-        } else {
-            break;
         }
     }
     _ENO("recv failed");
