@@ -1,12 +1,19 @@
+export RELAY=../bin/clang/relay
 killall -9 relay
-../bin/clang/relay udp@localhost:10000 tcp@localhost:10001 &
-../bin/clang/relay tcp@localhost:10001 tcp@localhost:10002 &
-../bin/clang/relay tcp@localhost:10002 tcp@localhost:10003 &
-../bin/clang/relay tcp@localhost:10003 tcp@localhost:10004 &
-../bin/clang/relay tcp@localhost:10004 tcp@localhost:10005 &
-../bin/clang/relay tcp@localhost:10005 tcp@localhost:10006 &
-../bin/clang/relay tcp@localhost:10006 tcp@localhost:10007 &
-../bin/clang/relay tcp@localhost:10007 tcp@localhost:9003 &
+export THIS_PORT=10000
+export NEXT_PORT=10001
+export LAST_PORT=9003
+export PROTO=upd
+
+for NEXT_PORT in {10001..10001}
+do
+    $RELAY $PROTO@localhost:$THIS_PORT tcp@localhost:$NEXT_PORT &
+    THIS_PORT=$NEXT_PORT
+    PROTO=tcp
+done
+
+$RELAY tcp@localhost:$THIS_PORT tcp@localhost:$LAST_PORT &
 ps auwx | grep relay
 ../test/simple-listener.pl
 killall relay
+

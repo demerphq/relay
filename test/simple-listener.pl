@@ -24,6 +24,7 @@ my %HAS_HEADER = ();
 my $FULL_HEADER_SIZE = 4;
 my @DONE = ();
 my $NOW = int(time()); #in case of HiRes
+my $total = 0;
 while(1) {
     my @ready = $SELECT->can_read(1);
     for my $fh(@ready) {
@@ -57,7 +58,8 @@ while(1) {
     }
     if (int(time()) != $NOW) {
         $NOW = int(time());
-        print "got " . scalar(@DONE) . "\n";
+        $total += @DONE;
+        print "got " . scalar(@DONE) . "/ $total\n";
         for my $e(@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);

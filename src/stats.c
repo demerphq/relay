@@ -1,32 +1,57 @@
 #include "stats.h"
 
-stats_t STATS= { .packet_count= 0, .packets_per_second= 0, .accumulated= 0 };
+struct __stats {
+    volatile stats_count_t   sent_count;
+    volatile stats_count_t   sent_total;
+    volatile stats_count_t   sent_per_second;
 
-void inc_packets() {
-    RELAY_ATOMIC_INCREMENT(STATS.packet_count,1);
+    volatile stats_count_t   received_count;
+    volatile stats_count_t   received_total;
+    volatile stats_count_t   received_per_second;
+};
+typedef struct __stats stats_t;
+
+stats_t STATS= {
+    .sent_count= 0,
+    .sent_total= 0,
+    .sent_per_second= 0,
+
+    .received_count= 0,
+    .received_total= 0,
+    .received_per_second= 0
+};
+
+void inc_received_count() {
+    RELAY_ATOMIC_INCREMENT(STATS.received_count,1);
 }
 
-void reset_packets() {
+void inc_sent_count() {
+    RELAY_ATOMIC_INCREMENT(STATS.sent_count,1);
+}
+
+void mark_second_elapsed() {
     char str[MAX_BUF_LEN];
-    stats_count_t accumulated;
-    stats_count_t count;
-    
-    /* read the packet count */
-    count= RELAY_ATOMIC_READ(STATS.packet_count);
+    stats_count_t sent= RELAY_ATOMIC_READ(STATS.sent_count);
+    stats_count_t received= RELAY_ATOMIC_READ(STATS.received_count);
+    stats_count_t sent_total= sent;
+    stats_count_t received_total= received;
     
     /* and now remove the amount fetched from the counter */
-    RELAY_ATOMIC_DECREMENT(STATS.packet_count, count);
+    RELAY_ATOMIC_DECREMENT(STATS.sent_count, sent);
+    RELAY_ATOMIC_DECREMENT(STATS.received_count, received);
 
     /* increment the shared atomic counter */
-    accumulated= RELAY_ATOMIC_INCREMENT(STATS.accumulated, count);
-    /* mirror the update to our private var*/
-    accumulated+= count;
+    sent_total += RELAY_ATOMIC_INCREMENT(STATS.sent_total, sent);
+    received_total += RELAY_ATOMIC_INCREMENT(STATS.received_total, received);
 
-    /* overwrite the packets_per_second count */
-    STATS.packets_per_second= count;
+    STATS.sent_per_second= sent;
+    STATS.received_per_second= received;
 
     /* set it in the process name */
-    snprintf(str, MAX_BUF_LEN, STATSfmt " : " STATSfmt, count, accumulated );
+    snprintf(
+        str, MAX_BUF_LEN,
+        STATSfmt " : " STATSfmt " - " STATSfmt " : " STATSfmt,
+        received, sent, received_total, sent_total  );
     setproctitle(str);
 }
 

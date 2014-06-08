@@ -134,7 +134,6 @@ again:
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
     worker_t *w;
-    inc_packets();
     LOCK(&GIANT.lock);
     BLOB_REFCNT_set(b,GIANT.n_workers);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
@@ -149,6 +148,8 @@ int enqueue_blob_for_transmission(blob_t *b) {
     w_wakeup();
     if (i == 0) {
         _E("no living workers, not sure what to do"); // dump the packet on disk?
+    } else {
+        inc_sent_count();
     }
     return i;
 }

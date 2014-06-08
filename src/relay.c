@@ -113,16 +113,19 @@ void *udp_server(void *arg) {
 #endif
         if (received < 0) {
             break;
-        } else if (received == 0) {
-            /* ignore 0 byte packets */
-            if (0)
-                _E("Received 0 byte packet, not forwarding.");
         } else {
-            blob_t *b = b_new(received);
-            received = recv(s->socket, BLOB_BUF(b), received, 0);
-            if (received < 0)
-                break;
-            enqueue_blob_for_transmission(b);
+            inc_received_count();
+            if (received == 0) {
+            /* ignore 0 byte packets */
+                if (0)
+                    _E("Received 0 byte packet, not forwarding.");
+            } else {
+                blob_t *b = b_new(received);
+                received = recv(s->socket, BLOB_BUF(b), received, 0);
+                if (received < 0)
+                    break;
+                enqueue_blob_for_transmission(b);
+            }
         }
     }
     _ENO("recv failed");
@@ -141,6 +144,8 @@ void *tcp_worker(void *arg) {
             _ENO("failed to receive header for next packet, expected: %zu got: %d", sizeof(expected), rc);
             break;
         }
+
+        inc_received_count();
 
         if (expected > MAX_CHUNK_SIZE) {
             _ENO("requested packet(%d) > MAX_CHUNK_SIZE(%d)", expected, MAX_CHUNK_SIZE);
@@ -220,7 +225,7 @@ int main(int argc, char **argv) {
             reload_workers(1);
             unset_abort_bits(RELOAD);
         }
-        reset_packets();
+        mark_second_elapsed();
         sleep(1);
     }
     cleanup(server_tid);

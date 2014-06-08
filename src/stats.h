@@ -10,13 +10,9 @@
 
 #define STATSfmt "%lu"
 typedef uint64_t stats_count_t;
-struct __stats { 
-    stats_count_t   packet_count; 
-    stats_count_t   packets_per_second;
-    stats_count_t   accumulated;
-};
-typedef struct __stats stats_t;
-void inc_packets();
-void reset_packets();
+
+void inc_sent_count();
+void inc_received_count();
+void mark_second_elapsed();
 
 #endif

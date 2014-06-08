@@ -2,15 +2,16 @@ FILES=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/uti
 RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
-CLANG_FLAGS=-fsanitize=thread -fPIE -pie
+CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie
+GCC_FLAGS=-O3
 CC=gcc
-CFLAGS=-O0 -g3 -Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 all:
 	mkdir -p bin
-	$(CC) $(CFLAGS) -o bin/client $(CLIENT)
-	$(CC) $(CFLAGS) -DUSE_SERVER -o bin/server $(CLIENT)
-	$(CC) $(CFLAGS) -o bin/relay $(RELAY)
+	$(CC) $(CFLAGS) $(GCC_FLAGS) -o bin/client $(CLIENT)
+	$(CC) $(CFLAGS) $(GCC_FLAGS) -DUSE_SERVER -o bin/server $(CLIENT)
+	$(CC) $(CFLAGS) $(GCC_FLAGS) -o bin/relay $(RELAY)
 
 clang:
 	mkdir -p bin/clang
