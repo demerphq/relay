@@ -188,8 +188,13 @@ int main(int argc, char **argv) {
                           "\ttcp@remote-host:remote-port ...\n", argv[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
     socketize(CONFIG.argv[0], s_listen);
-    reload_workers(0);
+
+    /* must open the socket BEFORE we create the worker pool */
     open_socket(s_listen, DO_BIND);
+
+    /* create worker pool /after/ we open the socket, otherwise we
+     * might leak worker threads. */
+    reload_workers(0);
 
     if (s_listen->proto == IPPROTO_UDP)
         spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
