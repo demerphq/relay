@@ -207,9 +207,10 @@ void worker_destroy_locked(worker_t *worker) {
     if (old_exit & EXIT_FLAG)
         return;
 
-    close(worker->s_output.socket);
     w_wakeup();
     pthread_join(worker->tid, NULL);
+
+    close(worker->s_output.socket);
     deal_with_failed_send_locked(worker, &worker->queue);
     free(worker->arg);
     free(worker);
