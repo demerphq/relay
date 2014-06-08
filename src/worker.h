@@ -3,6 +3,7 @@
 
 #include "relay_threads.h"
 #include "blob.h"
+#include "abort.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>

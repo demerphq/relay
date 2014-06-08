@@ -1,13 +1,11 @@
 #include "relay.h"
 #include "worker.h"
 #include "setproctitle.h"
+#include "abort.h"
 
 static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
-volatile uint32_t ABORT = 0;
-#define DIE 1
-#define RELOAD 2
 
 struct config {
     char **argv;
@@ -15,29 +13,6 @@ struct config {
     char *file;
     pthread_mutex_t lock;
 } CONFIG;
-
-
-void set_abort_bits(uint32_t v) {
-    RELAY_ATOMIC_OR(ABORT, v);
-}
-
-void unset_abort_bits(uint32_t v) {
-    v= ~v;
-    RELAY_ATOMIC_AND(ABORT, v);
-}
-
-void set_aborted() {
-    set_abort_bits(DIE);
-}
-
-int get_abort_val() {
-    return RELAY_ATOMIC_READ(ABORT);
-}
-
-int not_aborted() {
-    uint32_t v= RELAY_ATOMIC_READ(ABORT);
-    return (v & DIE) == 0;
-}
 
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_t unused;
