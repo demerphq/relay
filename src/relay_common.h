@@ -4,7 +4,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <assert.h>
-
+#include <unistd.h>
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif
@@ -24,7 +24,7 @@
 #define INLINE
 #endif
 
-#define FORMAT(fmt, arg...) fmt " [%s():%s:%d @ %u]\n", ##arg, __func__, __FILE__, __LINE__, (unsigned int) time(NULL)
+#define FORMAT(fmt, arg...) fmt " [%s():%s:%d @ %u $$: %d]\n", ##arg, __func__, __FILE__, __LINE__, (unsigned int) time(NULL),getpid()
 #define _E(fmt, arg...) fprintf(stderr, FORMAT(fmt, ##arg))
 
 #define STMT_START do

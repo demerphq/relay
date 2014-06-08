@@ -53,6 +53,7 @@ do {                                \
     } else {                        \
         SAYPX(fmt, ##arg);          \
     }                               \
+    close(s->socket);               \
     ok = 0;                         \
 } while(0);
 
