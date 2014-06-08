@@ -24,10 +24,10 @@ uint32_t get_abort_val() {
 
 uint32_t not_aborted() {
     uint32_t v= RELAY_ATOMIC_READ(ABORT);
-    return (v & DIE) == 0 ? 1 : 0;
+    return (v & DIE) == 0;
 }
 
 uint32_t is_aborted() {
     uint32_t v= RELAY_ATOMIC_READ(ABORT);
-    return (v & DIE) == 0 ? 0 : 1;
+    return (v & DIE) == DIE;
 }
