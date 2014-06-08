@@ -92,7 +92,10 @@ void *worker_thread(void *arg) {
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
 
 again:
-    while(!RELAY_ATOMIC_READ(self->exit) && !open_socket(s, DO_CONNECT | DO_NOT_EXIT)) {
+    while(
+        !RELAY_ATOMIC_READ(self->exit) &&
+        !open_socket(s, DO_CONNECT | DO_NOT_EXIT)
+    ) {
         w_wait(SLEEP_AFTER_DISASTER);
     }
 
