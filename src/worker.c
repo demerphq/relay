@@ -110,21 +110,24 @@ again:
             q->count = 0;
             UNLOCK(&GIANT.lock);
         }
-        cork(s,1);
-        while ((b = hijacked_queue.head) != NULL) {
-            if (SEND(s,b) < 0) {
-                _ENO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
-                // race between destruction and this point, but worker_destroy
-                // will pthread_join() us, so no issue
-                deal_with_failed_send_locked(self, &hijacked_queue);
-                close(s->socket);
-                goto again;
+        if (hijacked_queue.head == NULL) {
+            w_wait(0);
+        } else {
+            cork(s,1);
+            while ((b = hijacked_queue.head) != NULL) {
+                if (SEND(s,b) < 0) {
+                    _ENO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
+                    // race between destruction and this point, but worker_destroy
+                    // will pthread_join() us, so no issue
+                    deal_with_failed_send_locked(self, &hijacked_queue);
+                    close(s->socket);
+                    goto again;
+                }
+                b_destroy( q_shift_nolock( &hijacked_queue ) );
+                self->sent++;
             }
-            b_destroy( q_shift_nolock( &hijacked_queue ) );
-            self->sent++;
+            cork(s,0);
         }
-        cork(s,0);
-        w_wait(0);
     }
     close(s->socket);
     _D("worker[%s] sent %llu packets in its lifetime", s->to_string, self->sent);
