@@ -274,6 +274,7 @@ static void cleanup(pthread_t server_tid) {
     close(s_listen->socket);
     pthread_join(server_tid, NULL);
     worker_destroy_static();
+    disk_writer_stop();
     int i;
     for (i = 0; i < CONFIG.argc; i++)
         free(CONFIG.argv[i]);

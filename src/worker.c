@@ -4,12 +4,13 @@ static struct giant {
     /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, worker) workers;
     LOCK_T lock;
+    worker_t *disk_writer;
     int n_workers;
 } GIANT;
 
 #ifdef TCP_CORK
 static INLINE void cork(struct sock *s,int flag) {
-    if (s->proto != IPPROTO_TCP)
+    if (!s || s->proto != IPPROTO_TCP)
         return;
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
         _ENO("setsockopt: %s", strerror(errno));
@@ -49,36 +50,42 @@ static void recreate_fallback_path(char *dir) {
         SAYX(EXIT_FAILURE,"mkdir of %s failed", dir);
 }
 
-int get_epoch_filehandle_locked(worker_t *worker) {
-    int fd;
-    if (snprintf(worker->fallback_file, PATH_MAX, "%s/%li.srlc",
-                 worker->fallback_path,
-                 (long int)time(NULL)) >= PATH_MAX)
-        SAYX(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
-    recreate_fallback_path(worker->fallback_path);
-    fd = open(worker->fallback_file, O_WRONLY|O_APPEND|O_CREAT, 0640);
-    if (fd < 0)
-        _ENO("failed to open '%s', everyting is lost!", worker->fallback_file);
-    return fd;
-}
-
-static void write_blob_to_disk_locked(worker_t *worker, int fd, blob_t *b) {
+static void write_blob_to_disk(blob_t *b) {
     assert(BLOB_REF_PTR(b));
+    assert(b->fallback);
+    char file[PATH_MAX];
+    int fd;
+    recreate_fallback_path(b->fallback);
+    if (snprintf(file, PATH_MAX, "%s/%li.srlc",
+                 b->fallback,
+                 (long int)time(NULL)) >= PATH_MAX) {
+        SAYX(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
+    }
+    fd = open(file, O_WRONLY|O_APPEND|O_CREAT, 0640);
+    if (fd < 0)
+        _ENO("failed to open '%s', everyting is lost!", file);
+
     if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
-        _ENO("failed to write '%s', everyting is lost!", worker->fallback_file);
+        _ENO("failed to write '%s', everyting is lost!", file);
+
+    if (fsync(fd))
+        _ENO("failed to fsync '%s', everyting is lost!", file);
+    if (close(fd))
+        _ENO("failed to close '%s', everyting is lost!", file);
 }
 
-static void deal_with_failed_send_locked(worker_t *worker, struct queue *q) {
+static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
+    b->fallback = strdup(worker->fallback_path);
+    LOCK(&GIANT.lock);
+    q_append_locked(GIANT.disk_writer,b);
+    UNLOCK(&GIANT.lock);
+}
+
+static void deal_with_failed_send(worker_t *worker, struct queue *q) {
     blob_t *b;
-    int fd= get_epoch_filehandle_locked(worker);
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
-        write_blob_to_disk_locked(worker, fd, b);
-        b_destroy(b);
+        enqueue_for_disk_writing(worker,b);
     }
-    if (fsync(fd))
-        _ENO("failed to fsync '%s', everyting is lost!", worker->fallback_file);
-    if (close(fd))
-        _ENO("failed to close '%s', everyting is lost!", worker->fallback_file);
 }
 
 void *worker_thread(void *arg) {
@@ -89,7 +96,6 @@ void *worker_thread(void *arg) {
     stats_count_t total_tmp;
     blob_t *b;
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
-
 again:
     while(
         !RELAY_ATOMIC_READ(self->exit) &&
@@ -116,9 +122,7 @@ again:
             while ((b = hijacked_queue.head) != NULL) {
                 if (SEND(s,b) < 0) {
                     _ENO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
-                    // race between destruction and this point, but worker_destroy
-                    // will pthread_join() us, so no issue
-                    deal_with_failed_send_locked(self, &hijacked_queue);
+                    deal_with_failed_send(self, &hijacked_queue);
                     close(s->socket);
                     goto again;
                 }
@@ -134,6 +138,34 @@ again:
     _D("worker[%s] sent " STATSfmt " packets in its lifetime", s->to_string, total_tmp);
     return NULL;
 }
+
+static void *disk_writer_thread(void *arg) {
+    worker_t *self = (worker_t *) arg;
+    struct queue hijacked_queue;
+    struct queue *q = &self->queue;
+    stats_count_t total_tmp;
+    blob_t *b;
+    _D("disk writer started");
+    memset(&hijacked_queue, 0, sizeof(hijacked_queue));
+    while(!RELAY_ATOMIC_READ(self->exit)) {
+        LOCK(&GIANT.lock);
+        memcpy(&hijacked_queue, q, sizeof(struct queue));
+        q->tail = q->head = NULL;
+        q->count = 0;
+        UNLOCK(&GIANT.lock);
+        while ((b = hijacked_queue.head) != NULL) {
+            write_blob_to_disk(b);
+            b_destroy( q_shift_nolock( &hijacked_queue ) );
+            RELAY_ATOMIC_INCREMENT(self->counters.count,1);
+        }
+        (void)snapshot_stats(&self->counters,&total_tmp);
+        w_wait(POLLING_INTERVAL_MS);
+    }
+    (void)snapshot_stats(&self->counters,&total_tmp);
+    _D("disk_writer saved " STATSfmt " packets in its lifetime", total_tmp);
+    return NULL;
+}
+
 
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
@@ -158,8 +190,7 @@ int enqueue_blob_for_transmission(blob_t *b) {
 void w_wait(int ms) {
     usleep(ms * 1000);
 }
-
-worker_t * worker_init_locked(char *arg) {
+worker_t *worker_new(void) {
     worker_t *worker = malloc_or_die(sizeof(*worker));
 
     /* wipe worker */
@@ -167,6 +198,11 @@ worker_t * worker_init_locked(char *arg) {
 
     /* setup flags */
     worker->exists = 1;
+    return worker;
+}
+worker_t * worker_init_locked(char *arg) {
+    worker_t *worker = worker_new();
+
     worker->arg = strdup(arg);
 
     /* socketize */
@@ -174,9 +210,8 @@ worker_t * worker_init_locked(char *arg) {
 
     /* setup fallback_path */
     if (snprintf(worker->fallback_path, PATH_MAX,FALLBACK_ROOT "/%s/", worker->s_output.to_string) >= PATH_MAX)
-	SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
+        SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
-
     /* and finally create the thread */
     pthread_create(&worker->tid, NULL, worker_thread, worker);
 
@@ -184,16 +219,17 @@ worker_t * worker_init_locked(char *arg) {
     return worker;
 }
 
-void worker_destroy_locked(worker_t *worker) {
+void worker_destroy(worker_t *worker) {
     uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit,EXIT_FLAG);
 
     if (old_exit & EXIT_FLAG)
         return;
 
     pthread_join(worker->tid, NULL);
-
-    close(worker->s_output.socket);
-    deal_with_failed_send_locked(worker, &worker->queue);
+    if (worker->s_output.socket) {
+        close(worker->s_output.socket);
+        deal_with_failed_send(worker, &worker->queue);
+    }
     free(worker->arg);
     free(worker);
 }
@@ -205,7 +241,7 @@ void worker_init_static(int argc, char **argv, int reload) {
     int n_workers = 0;
     if (reload) {
         LOCK(&GIANT.lock);
-        
+
         TAILQ_FOREACH(w, &GIANT.workers, entries) {
             w->exists = 0;
         }
@@ -225,7 +261,11 @@ void worker_init_static(int argc, char **argv, int reload) {
         TAILQ_FOREACH_SAFE(w,&GIANT.workers,entries,wtmp) {
             if (w->exists == 0) {
                 TAILQ_REMOVE(&GIANT.workers, w, entries);
-                worker_destroy_locked(w);
+                UNLOCK(&GIANT.lock);
+
+                worker_destroy(w); // might lock
+
+                LOCK(&GIANT.lock);
             } else {
                 n_workers++;
             }
@@ -235,6 +275,11 @@ void worker_init_static(int argc, char **argv, int reload) {
     } else {
         TAILQ_INIT(&GIANT.workers);
         LOCK_INIT(&GIANT.lock);
+
+        // spawn the disk writer thread
+        GIANT.disk_writer = worker_new();
+        pthread_create(&GIANT.disk_writer->tid, NULL, disk_writer_thread, GIANT.disk_writer);
+
         LOCK(&GIANT.lock);
         GIANT.n_workers = 0;
         for (i = 0; i < argc; i++) {
@@ -253,7 +298,15 @@ void worker_destroy_static(void) {
     LOCK(&GIANT.lock);
     while ((w = TAILQ_FIRST(&GIANT.workers)) != NULL) {
         TAILQ_REMOVE(&GIANT.workers, w, entries);
-        worker_destroy_locked(w);
+        UNLOCK(&GIANT.lock);
+
+        worker_destroy(w); // might lock
+
+        LOCK(&GIANT.lock);
     }
     UNLOCK(&GIANT.lock);
+}
+
+void disk_writer_stop(void) {
+    worker_destroy(GIANT.disk_writer);
 }

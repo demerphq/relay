@@ -75,7 +75,7 @@ worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);
 INLINE void w_wait(int delay);
 void *worker_thread(void *arg);
-
+void disk_writer_stop(void);
 #define SEND(S, B) (                                                                    \
     ((S)->type != SOCK_DGRAM)                                                           \
     ? send((S)->socket, BLOB_DATA_MBR_addr(B), BLOB_DATA_MBR_SIZE(B), MSG_NOSIGNAL)     \
