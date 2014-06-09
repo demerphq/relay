@@ -32,9 +32,12 @@
 #endif
 
 #ifndef SLEEP_AFTER_DISASTER
-#define SLEEP_AFTER_DISASTER 1
+#define SLEEP_AFTER_DISASTER_MS 1000
 #endif
 
+#ifndef POLLING_INTERVAL_MS
+#define POLLING_INTERVAL_MS 10
+#endif
 #define FALLBACK_ROOT "/tmp"
 
 #ifndef MAX_WORKERS
@@ -70,7 +73,6 @@ void worker_init_static(int argc, char **argv, int destroy);
 
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);
-INLINE void w_wakeup();
 INLINE void w_wait(int delay);
 void *worker_thread(void *arg);
 

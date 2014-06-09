@@ -4,8 +4,6 @@ static struct giant {
     /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, worker) workers;
     LOCK_T lock;
-    pthread_mutex_t cond_lock;
-    pthread_cond_t cond;
     int n_workers;
 } GIANT;
 
@@ -96,7 +94,7 @@ again:
         !RELAY_ATOMIC_READ(self->exit) &&
         !open_socket(s, DO_CONNECT | DO_NOT_EXIT,0,0)
     ) {
-        w_wait(SLEEP_AFTER_DISASTER);
+        w_wait(SLEEP_AFTER_DISASTER_MS);
     }
 
     while(!RELAY_ATOMIC_READ(self->exit)) {
@@ -111,7 +109,7 @@ again:
             UNLOCK(&GIANT.lock);
         }
         if (hijacked_queue.head == NULL) {
-            w_wait(0);
+            w_wait(POLLING_INTERVAL_MS);
         } else {
             cork(s,1);
             while ((b = hijacked_queue.head) != NULL) {
@@ -148,7 +146,6 @@ int enqueue_blob_for_transmission(blob_t *b) {
         i++;
     }
     UNLOCK(&GIANT.lock);
-    w_wakeup();
     if (i == 0) {
         _E("no living workers, not sure what to do"); // dump the packet on disk?
     } else {
@@ -157,26 +154,8 @@ int enqueue_blob_for_transmission(blob_t *b) {
     return i;
 }
 
-void w_wakeup(void) {
-    pthread_mutex_lock(&GIANT.cond_lock);
-    pthread_cond_broadcast(&GIANT.cond);
-    pthread_mutex_unlock(&GIANT.cond_lock);
-}
-
-void w_wait(int seconds) {
-    pthread_mutex_lock(&GIANT.cond_lock);
-    if (seconds > 0) {
-        struct timeval    tp;
-        struct timespec   ts;
-        gettimeofday(&tp, NULL);
-        ts.tv_sec  = tp.tv_sec;
-        ts.tv_nsec = tp.tv_usec * 1000;
-        ts.tv_sec += seconds;
-        pthread_cond_timedwait(&GIANT.cond, &GIANT.cond_lock,&ts);
-    } else {
-        pthread_cond_wait(&GIANT.cond, &GIANT.cond_lock);
-    }
-    pthread_mutex_unlock(&GIANT.cond_lock);
+void w_wait(int ms) {
+    usleep(ms * 1000);
 }
 
 worker_t * worker_init_locked(char *arg) {
@@ -210,7 +189,6 @@ void worker_destroy_locked(worker_t *worker) {
     if (old_exit & EXIT_FLAG)
         return;
 
-    w_wakeup();
     pthread_join(worker->tid, NULL);
 
     close(worker->s_output.socket);
@@ -256,8 +234,6 @@ void worker_init_static(int argc, char **argv, int reload) {
     } else {
         TAILQ_INIT(&GIANT.workers);
         LOCK_INIT(&GIANT.lock);
-        pthread_mutex_init(&GIANT.cond_lock, NULL);
-        pthread_cond_init(&GIANT.cond, NULL);
         LOCK(&GIANT.lock);
         GIANT.n_workers = 0;
         for (i = 0; i < argc; i++) {
@@ -267,7 +243,6 @@ void worker_init_static(int argc, char **argv, int reload) {
             TAILQ_INSERT_HEAD(&GIANT.workers, w, entries);
             GIANT.n_workers++;
         }
-        n_workers= GIANT.n_workers;
         UNLOCK(&GIANT.lock);
     }
 }
