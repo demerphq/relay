@@ -9,7 +9,7 @@ for size in 64 128 256 1024 16000 32000 40000 65000; do
 		PORT=$(($PORT + 2))
 		S1="tcp@localhost:$PORT"
 		S2="tcp@localhost:$(($PORT + 1))"
-		for sock in sock/fallback.sock $S1 $S2; do
+		for sock in $S1 $S2; do
 			../bin/server $sock 0 $size &
 		done
 		sleep 1
