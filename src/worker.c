@@ -19,6 +19,26 @@ static INLINE void cork(struct sock *s,int flag) {
 #define cork(a,b)
 #endif
 
+void add_worker_stats_to_ps_str(char *str, ssize_t len) {
+    worker_t *w;
+    int w_num= 0;
+    int wrote_len=0 ;
+    LOCK(&GIANT.lock);
+    TAILQ_FOREACH(w, &GIANT.workers, entries) {
+        if (!len) break;
+        if (w->counters.elapsed_usec)
+            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, w->counters.elapsed_usec / w->counters.total);
+        else
+            wrote_len= snprintf(str, len, " -1");
+
+        if (wrote_len < 0 || wrote_len >= len)
+            break;
+        str += wrote_len;
+        len -= wrote_len;
+    }
+    UNLOCK(&GIANT.lock);
+}
+
 int q_append_locked(worker_t *worker, blob_t *b) {
     struct queue *q = &worker->queue;
 
@@ -95,6 +115,7 @@ void *worker_thread(void *arg) {
     struct sock *s = &self->s_output;
     stats_count_t total_tmp;
     blob_t *b;
+
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
 again:
     while(
@@ -118,6 +139,11 @@ again:
         if (hijacked_queue.head == NULL) {
             w_wait(POLLING_INTERVAL_MS);
         } else {
+            struct timeval start_time;
+            struct timeval end_time;
+            uint32_t elapsed_usec= 0;
+
+            gettimeofday(&start_time, NULL);
             cork(s,1);
             while ((b = hijacked_queue.head) != NULL) {
                 if (SEND(s,b) < 0) {
@@ -130,7 +156,16 @@ again:
                 RELAY_ATOMIC_INCREMENT(self->counters.count,1);
             }
             cork(s,0);
-            (void)snapshot_stats(&self->counters,&total_tmp);
+            (void)snapshot_stats(&self->counters, &total_tmp);
+
+            gettimeofday(&end_time, NULL);
+
+            /* this assumes end_time >= start_time */
+            elapsed_usec= ( ( end_time.tv_sec - start_time.tv_sec) * 1000000 )
+                          + end_time.tv_usec - start_time.tv_usec;
+
+            RELAY_ATOMIC_INCREMENT(self->counters.elapsed_usec, elapsed_usec);
+
         }
     }
     close(s->socket);

@@ -70,6 +70,7 @@ typedef struct worker worker_t;
 int enqueue_blob_for_transmission(blob_t *b);
 void worker_destroy_static(void);
 void worker_init_static(int argc, char **argv, int destroy);
+void add_worker_stats_to_ps_str(char *str, ssize_t len);
 
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);

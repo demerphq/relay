@@ -27,14 +27,16 @@ void inc_received_count() {
 
 #define MAX_BUF_LEN 128
 void mark_second_elapsed() {
-    char str[MAX_BUF_LEN];
+    char str[MAX_BUF_LEN+1];
     stats_count_t received_total;
     stats_count_t received= snapshot_stats(&RECEIVED_STATS, &received_total);
     /* set it in the process name */
-    snprintf(
+    int wrote= snprintf(
         str, MAX_BUF_LEN,
         STATSfmt " : " STATSfmt,
         received, received_total );
+
+    add_worker_stats_to_ps_str(str + wrote, MAX_BUF_LEN - wrote);
     setproctitle(str);
 }
 

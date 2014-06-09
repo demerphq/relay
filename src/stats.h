@@ -14,6 +14,7 @@ struct stats_basic_counters {
     volatile stats_count_t count;
     volatile stats_count_t total;
     volatile stats_count_t per_second;
+    volatile stats_count_t elapsed_usec;
 };
 typedef struct stats_basic_counters stats_basic_counters_t;
 
