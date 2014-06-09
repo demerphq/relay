@@ -36,7 +36,7 @@
 #endif
 
 #ifndef POLLING_INTERVAL_MS
-#define POLLING_INTERVAL_MS 10
+#define POLLING_INTERVAL_MS 1
 #endif
 #define FALLBACK_ROOT "/tmp"
 
