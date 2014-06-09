@@ -55,12 +55,12 @@ typedef struct queue queue_t;
 struct worker {
     struct queue queue;
     pthread_t tid;
-    unsigned long long sent;
     volatile uint32_t exists;
     volatile uint32_t exit;
     TAILQ_ENTRY(worker) entries;
     sock_t s_output;
     char *arg;
+    stats_basic_counters_t counters;
     char fallback_path[PATH_MAX];
     char fallback_file[PATH_MAX];
 };

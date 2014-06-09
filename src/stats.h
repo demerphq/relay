@@ -6,13 +6,18 @@
 #include "setproctitle.h"
 #include <stdio.h>
 
-#define MAX_BUF_LEN 128
 
 #define STATSfmt "%lu"
 typedef uint64_t stats_count_t;
 
-void inc_sent_count();
-void inc_received_count();
-void mark_second_elapsed();
+struct stats_basic_counters {
+    volatile stats_count_t count;
+    volatile stats_count_t total;
+    volatile stats_count_t per_second;
+};
+typedef struct stats_basic_counters stats_basic_counters_t;
+
+void inc_stats_count(stats_basic_counters_t *stats);
+stats_count_t snapshot_stats(stats_basic_counters_t *stats, stats_count_t *total_addr);
 
 #endif

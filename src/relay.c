@@ -15,6 +15,28 @@ struct config {
     pthread_mutex_t lock;
 } CONFIG;
 
+stats_basic_counters_t RECEIVED_STATS= {
+    .count= 0,
+    .total= 0,
+    .per_second= 0,
+};
+
+void inc_received_count() {
+    inc_stats_count(&RECEIVED_STATS);
+}
+
+#define MAX_BUF_LEN 128
+void mark_second_elapsed() {
+    char str[MAX_BUF_LEN];
+    stats_count_t received_total;
+    stats_count_t received= snapshot_stats(&RECEIVED_STATS, &received_total);
+    /* set it in the process name */
+    snprintf(
+        str, MAX_BUF_LEN,
+        STATSfmt " : " STATSfmt,
+        received, received_total );
+    setproctitle(str);
+}
 
 
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {

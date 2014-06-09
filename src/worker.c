@@ -86,6 +86,7 @@ void *worker_thread(void *arg) {
     struct queue hijacked_queue;
     struct queue *q = &self->queue;
     struct sock *s = &self->s_output;
+    stats_count_t total_tmp;
     blob_t *b;
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
 
@@ -122,13 +123,15 @@ again:
                     goto again;
                 }
                 b_destroy( q_shift_nolock( &hijacked_queue ) );
-                self->sent++;
+                RELAY_ATOMIC_INCREMENT(self->counters.count,1);
             }
             cork(s,0);
+            (void)snapshot_stats(&self->counters,&total_tmp);
         }
     }
     close(s->socket);
-    _D("worker[%s] sent %llu packets in its lifetime", s->to_string, self->sent);
+    (void)snapshot_stats(&self->counters,&total_tmp);
+    _D("worker[%s] sent " STATSfmt " packets in its lifetime", s->to_string, total_tmp);
     return NULL;
 }
 
@@ -148,8 +151,6 @@ int enqueue_blob_for_transmission(blob_t *b) {
     UNLOCK(&GIANT.lock);
     if (i == 0) {
         _E("no living workers, not sure what to do"); // dump the packet on disk?
-    } else {
-        inc_sent_count();
     }
     return i;
 }
