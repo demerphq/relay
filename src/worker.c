@@ -173,9 +173,12 @@ int enqueue_blob_for_transmission(blob_t *b) {
     LOCK(&GIANT.lock);
     BLOB_REFCNT_set(b,GIANT.n_workers);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
-        if (w == TAILQ_FIRST(&GIANT.workers)) {
+        /* check if this item is no the last */
+        if ( TAILQ_NEXT(w, entries) == NULL ) {
+            /* this is the last item in the chain, just use b. */
             q_append_locked(w, b);
         } else {
+            /* not the last, so we need to clone the original object */
             q_append_locked(w, b_clone_no_refcnt_inc(b));
         }
         i++;
