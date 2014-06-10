@@ -48,6 +48,8 @@ void config_reload(void) {
                     CONFIG.polling_interval_ms = atoi(p);
                 } else if (strcmp("sleep_after_disaster_ms", line) == 0) {
                     CONFIG.sleep_after_disaster_ms = atoi(p);
+                } else if (strcmp("max_pps", line) == 0) {
+                    CONFIG.max_pps = atoi(p);
                 } else {
                     SAYPX("bad config option: %s",line);
                 }

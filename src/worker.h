@@ -38,10 +38,12 @@
 #ifndef POLLING_INTERVAL_MS
 #define POLLING_INTERVAL_MS 1
 #endif
+#ifndef FALLBACK_ROOT
 #define FALLBACK_ROOT "/tmp"
+#endif
 
-#ifndef MAX_WORKERS
-#define MAX_WORKERS 255
+#ifndef MAX_PPS
+#define MAX_PPS 0
 #endif
 
 struct queue {
@@ -62,7 +64,6 @@ struct worker {
     char *arg;
     stats_basic_counters_t counters;
     char fallback_path[PATH_MAX];
-    char fallback_file[PATH_MAX];
 };
 typedef struct worker worker_t;
 

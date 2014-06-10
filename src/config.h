@@ -9,6 +9,7 @@ struct config {
     char *file;
     int polling_interval_ms;
     int sleep_after_disaster_ms;
+    int max_pps;
     char *fallback_root;
 };
 void config_reload(void);

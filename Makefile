@@ -5,7 +5,7 @@ CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie
 GCC_FLAGS=-O3
 CC=gcc
-CFLAGS=-Wall -pthread -DMAX_WORKERS=2 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-Wall -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 all:
 	mkdir -p bin
@@ -21,6 +21,6 @@ clang:
 
 clean:
 	rm -f bin/relay* test/sock/*
-	
+
 run:
 	cd test && ./setup.sh
