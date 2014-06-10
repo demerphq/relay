@@ -7,7 +7,7 @@
 #include "blob.h"
 #include "abort.h"
 #include "stats.h"
-
+#include "config.h"
 #define EXIT_FLAG 1
 
 #include <fcntl.h>

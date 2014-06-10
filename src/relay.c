@@ -2,19 +2,12 @@
 #include "worker.h"
 #include "setproctitle.h"
 #include "abort.h"
-
+#include "config.h"
 #define MAX_BUF_LEN 128
 static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
-
-struct config {
-    char **argv;
-    int argc;
-    char *file;
-    pthread_mutex_t lock;
-} CONFIG;
-
+extern struct config CONFIG;
 stats_basic_counters_t RECEIVED_STATS= {
     .count= 0,
     .total= 0,
@@ -50,68 +43,6 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_attr_destroy(&attr);
 }
 
-void trim(char * s) {
-    char *p = s;
-    int l = strlen(p);
-
-    while(isspace(p[l - 1])) p[--l] = 0;
-    while(*p && isspace(*p)) ++p, --l;
-
-    memmove(s, p, l + 1);
-}
-
-void reload_config_file(void) {
-    if (!CONFIG.file)
-        return;
-    FILE *f;
-    char *line;
-    ssize_t read;
-    size_t len = 0;
-    int i;
-
-    f = fopen(CONFIG.file, "r");
-    if (f == NULL)
-        SAYPX("fopen");
-
-    if (CONFIG.argc > 0) {
-        for (i=0;i<CONFIG.argc;i++)
-            free(CONFIG.argv[i]);
-    }
-
-    CONFIG.argc = 0;
-    while ((read = getline(&line, &len, f)) != -1) {
-        char *p;
-        if ((p = strchr(line, '#')))
-            *p = '\0';
-
-        trim(line);
-        if (strlen(line) != 0) {
-            CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(line) * (CONFIG.argc + 1));
-            CONFIG.argv[CONFIG.argc] = strdup(line);
-            CONFIG.argc++;
-        }
-    }
-    if (line)
-        free(line);
-    _D("loading config file %s", CONFIG.file);
-}
-
-void load_config(int argc, char **argv) {
-    int i = 0;
-    CONFIG.argv = NULL;
-    CONFIG.argc = 0;
-    CONFIG.file = NULL;
-    if (argc == 2) {
-        CONFIG.file = argv[1];
-        reload_config_file();
-    } else {
-        CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(char *) * (argc));
-        for (i=0; i < argc - 1; i++) {
-            CONFIG.argv[i] = strdup(argv[i + 1]);
-        }
-        CONFIG.argc = i;
-    }
-}
 
 void reload_workers(int reload) {
     worker_init_static(CONFIG.argc - 1, &CONFIG.argv[1], reload);
@@ -213,7 +144,7 @@ int main(int argc, char **argv) {
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
 
-    load_config(argc, argv);
+    config_init(argc, argv);
 
     initproctitle(argc, argv);
     setproctitle("starting");
@@ -245,7 +176,7 @@ int main(int argc, char **argv) {
         }
         else
         if (abort & RELOAD) {
-            reload_config_file();
+            config_reload();
             reload_workers(1);
             unset_abort_bits(RELOAD);
         }
@@ -277,10 +208,7 @@ static void cleanup(pthread_t server_tid) {
     pthread_join(server_tid, NULL);
     worker_destroy_static();
     disk_writer_stop();
-    int i;
-    for (i = 0; i < CONFIG.argc; i++)
-        free(CONFIG.argv[i]);
-
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
+    config_destroy();
 }

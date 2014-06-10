@@ -7,7 +7,7 @@ static struct giant {
     worker_t *disk_writer;
     int n_workers;
 } GIANT;
-
+extern struct config CONFIG;
 #ifdef TCP_CORK
 static INLINE void cork(struct sock *s,int flag) {
     if (!s || s->proto != IPPROTO_TCP)
@@ -122,7 +122,7 @@ again:
         !RELAY_ATOMIC_READ(self->exit) &&
         !open_socket(s, DO_CONNECT | DO_NOT_EXIT,0,0)
     ) {
-        w_wait(SLEEP_AFTER_DISASTER_MS);
+        w_wait(CONFIG.sleep_after_disaster_ms);
     }
 
     while(!RELAY_ATOMIC_READ(self->exit)) {
@@ -137,7 +137,7 @@ again:
             UNLOCK(&GIANT.lock);
         }
         if (hijacked_queue.head == NULL) {
-            w_wait(POLLING_INTERVAL_MS);
+            w_wait(CONFIG.polling_interval_ms);
         } else {
             struct timeval start_time;
             struct timeval end_time;
@@ -194,7 +194,7 @@ static void *disk_writer_thread(void *arg) {
             RELAY_ATOMIC_INCREMENT(self->counters.count,1);
         }
         (void)snapshot_stats(&self->counters,&total_tmp);
-        w_wait(POLLING_INTERVAL_MS);
+        w_wait(CONFIG.polling_interval_ms);
     }
     (void)snapshot_stats(&self->counters,&total_tmp);
     _D("disk_writer saved " STATSfmt " packets in its lifetime", total_tmp);
@@ -247,7 +247,7 @@ worker_t * worker_init_locked(char *arg) {
     socketize(arg, &worker->s_output);
 
     /* setup fallback_path */
-    if (snprintf(worker->fallback_path, PATH_MAX,FALLBACK_ROOT "/%s/", worker->s_output.to_string) >= PATH_MAX)
+    if (snprintf(worker->fallback_path, PATH_MAX,"%s/%s/", CONFIG.fallback_root,worker->s_output.to_string) >= PATH_MAX)
         SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
     /* and finally create the thread */
