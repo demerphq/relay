@@ -31,7 +31,7 @@
 #endif
 #endif
 
-#ifndef SLEEP_AFTER_DISASTER
+#ifndef SLEEP_AFTER_DISASTER_MS
 #define SLEEP_AFTER_DISASTER_MS 1000
 #endif
 

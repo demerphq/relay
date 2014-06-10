@@ -14,7 +14,7 @@ void trim(char * s) {
 
 void config_reload(void) {
     if (!CONFIG.file)
-        return;
+        goto reset_default;
     FILE *f;
     char *line;
     ssize_t read;
@@ -64,6 +64,20 @@ void config_reload(void) {
     if (line)
         free(line);
     _D("loading config file %s", CONFIG.file);
+
+reset_default:
+    // assign some default settings
+
+    if (!CONFIG.fallback_root)
+        CONFIG.fallback_root = strdup(FALLBACK_ROOT);
+    if (CONFIG.polling_interval_ms <= 0)
+        CONFIG.polling_interval_ms = POLLING_INTERVAL_MS;
+    if (CONFIG.sleep_after_disaster_ms <= 0)
+        CONFIG.sleep_after_disaster_ms = SLEEP_AFTER_DISASTER_MS;
+    _D("fallback_root: %s", CONFIG.fallback_root);
+    _D("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
+    _D("sleep_after_disaster_ms: %d", CONFIG.sleep_after_disaster_ms);
+    _D("max_pps: %d", CONFIG.max_pps);
 }
 
 void config_init(int argc, char **argv) {
@@ -79,18 +93,6 @@ void config_init(int argc, char **argv) {
         CONFIG.argc = i;
     }
     config_reload();
-    // assign some default settings
-
-    if (!CONFIG.fallback_root)
-        CONFIG.fallback_root = strdup(FALLBACK_ROOT);
-    if (CONFIG.polling_interval_ms <= 0)
-        CONFIG.polling_interval_ms = POLLING_INTERVAL_MS;
-    if (CONFIG.sleep_after_disaster_ms <= 0)
-        CONFIG.sleep_after_disaster_ms = SLEEP_AFTER_DISASTER_MS;
-    _D("fallback_root: %s", CONFIG.fallback_root);
-    _D("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
-    _D("sleep_after_disaster_ms: %d", CONFIG.polling_interval_ms);
-
 }
 void config_destroy(void) {
     int i;
