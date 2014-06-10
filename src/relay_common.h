@@ -19,7 +19,6 @@
 #define DO_BIND         1
 #define DO_CONNECT      2
 #define DO_NOT_EXIT     4
-#define DO_SET_TIMEOUT  8
 #define SEND_TIMEOUT    2
 
 #ifndef NO_INLINE

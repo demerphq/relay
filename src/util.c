@@ -73,15 +73,6 @@ do {                                \
             if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
                 ERROR("connect[%s]", s->to_string);
 
-            if (flags & DO_SET_TIMEOUT) {
-                struct timeval tv;
-                tv.tv_sec = 2;
-                tv.tv_usec = 0;
-                if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) < 0)
-                    ERROR("setsockopt[%s]", s->to_string);
-            }
-        }
-        if (s->proto == IPPROTO_TCP) {
             struct timeval timeout;
             timeout.tv_sec = SEND_TIMEOUT;
             timeout.tv_usec = 0;
