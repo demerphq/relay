@@ -1,5 +1,7 @@
 #include "abort.h"
 #include "relay_threads.h"
+#define DIE 1
+#define RELOAD 2
 
 volatile uint32_t ABORT = 0;
 
@@ -13,7 +15,7 @@ void unset_abort_bits(uint32_t v) {
 }
 
 void set_aborted() {
-    set_abort_bits(STOP);
+    set_abort_bits(DIE);
 }
 
 uint32_t get_abort_val() {
@@ -22,10 +24,10 @@ uint32_t get_abort_val() {
 
 uint32_t not_aborted() {
     uint32_t v= RELAY_ATOMIC_READ(ABORT);
-    return (v & STOP) == 0;
+    return (v & DIE) == 0;
 }
 
 uint32_t is_aborted() {
     uint32_t v= RELAY_ATOMIC_READ(ABORT);
-    return (v & STOP) == STOP;
+    return (v & DIE) == DIE;
 }

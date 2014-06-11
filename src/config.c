@@ -22,7 +22,7 @@ void config_reload(void) {
 
     f = fopen(CONFIG.file, "r");
     if (f == NULL)
-        DIE("fopen: %s",CONFIG.file);
+        SAYPX("fopen: %s",CONFIG.file);
 
     int i,tmp;
     for (i = 0; i < CONFIG.argc; i++)
@@ -35,16 +35,20 @@ void config_reload(void) {
             *p = '\0';
 
         trim(line);
+#define WARN(opt,fmt,a,b)                                               \
+        do {                                                            \
+            _D("found different <" opt ">, restart is required for it to take effect. was: <" fmt ">, new: <" fmt ">",a,b); \
+    } while(0);
 
     if (strlen(line) != 0) {
             if ((p = strchr(line,'='))) {
                 if (strlen(p) == 1)
-                    DIE("bad config line: %s", line);
+                    SAYPX("bad config line: %s", line);
                 *p = '\0';
                 p++;
                 if (strcmp("fallback_root", line) == 0) {
                     if (CONFIG.fallback_root && strcmp(CONFIG.fallback_root,p) != 0)
-                        CONF_WARN("fallback_root","%s",CONFIG.fallback_root,p);
+                        WARN("fallback_root","%s",CONFIG.fallback_root,p);
                     free(CONFIG.fallback_root);
                     CONFIG.fallback_root = strdup(p);
                 } else if (strcmp("polling_interval_ms", line) == 0) {
@@ -56,15 +60,15 @@ void config_reload(void) {
                 } else if (strcmp("tcp_send_timeout", line) == 0) {
                     tmp = atoi(p);
                     if (CONFIG.tcp_send_timeout && CONFIG.tcp_send_timeout != tmp)
-                        CONF_WARN("tcp_send_timeout","%d",CONFIG.tcp_send_timeout,tmp);
+                        WARN("tcp_send_timeout","%d",CONFIG.tcp_send_timeout,tmp);
                     CONFIG.tcp_send_timeout = tmp;
                 } else if (strcmp("server_socket_rcvbuf", line) == 0) {
                     tmp = atoi(p);
                     if (CONFIG.server_socket_rcvbuf && CONFIG.server_socket_rcvbuf != tmp)
-                        CONF_WARN("server_socket_rcvbuf","%d",CONFIG.server_socket_rcvbuf,tmp);
+                        WARN("server_socket_rcvbuf","%d",CONFIG.server_socket_rcvbuf,tmp);
                     CONFIG.server_socket_rcvbuf = tmp;
                 } else {
-                    DIE("bad config option: %s",line);
+                    SAYPX("bad config option: %s",line);
                 }
             } else {
                 CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(line) * (CONFIG.argc + 1));
@@ -76,7 +80,7 @@ void config_reload(void) {
     fclose(f);
     if (line)
         free(line);
-    SAY("loading config file %s", CONFIG.file);
+    _D("loading config file %s", CONFIG.file);
 
 reset_default:
     // assign some default settings
@@ -91,12 +95,12 @@ reset_default:
         CONFIG.tcp_send_timeout = SEND_TIMEOUT;
     if (CONFIG.server_socket_rcvbuf <= 0)
         CONFIG.server_socket_rcvbuf = SERVER_SOCKET_RCVBUF;
-    SAY("fallback_root: %s", CONFIG.fallback_root);
-    SAY("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
-    SAY("sleep_after_disaster_ms: %d", CONFIG.sleep_after_disaster_ms);
-    SAY("max_pps: %d", CONFIG.max_pps);
-    SAY("tcp_send_timeout: %d", CONFIG.tcp_send_timeout);
-    SAY("server_socket_rcvbuf: %d", CONFIG.server_socket_rcvbuf);
+    _D("fallback_root: %s", CONFIG.fallback_root);
+    _D("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
+    _D("sleep_after_disaster_ms: %d", CONFIG.sleep_after_disaster_ms);
+    _D("max_pps: %d", CONFIG.max_pps);
+    _D("tcp_send_timeout: %d", CONFIG.tcp_send_timeout);
+    _D("server_socket_rcvbuf: %d", CONFIG.server_socket_rcvbuf);
 }
 
 void config_init(int argc, char **argv) {

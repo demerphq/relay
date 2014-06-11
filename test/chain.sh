@@ -21,5 +21,4 @@ $RELAY tcp@localhost:$THIS_PORT tcp@localhost:$LISTENER_PORT &
 ps auwx | grep relay
 ../test/simple-listener.pl
 killall relay
-sleep(3)
 

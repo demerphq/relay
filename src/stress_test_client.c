@@ -33,7 +33,7 @@ int main(int ac, char **av) {
 
     srand(time(NULL) + rdtsc());
     if (ac < 2)
-        DIE_RC(EXIT_FAILURE, "%s remote-ip:remote-port", av[0]);
+        SAYX(EXIT_FAILURE, "%s remote-ip:remote-port", av[0]);
     socketize(av[1], &s);
     open_socket(&s, DO_NOTHING,0,0);
     if (ac > 2)
@@ -42,27 +42,27 @@ int main(int ac, char **av) {
     if (ac > 3)
         data_size = atoi(av[3]);
     if (data_size < 32)
-        DIE_RC(EXIT_FAILURE, "data_size: %d is too small", data_size);
+        SAYX(EXIT_FAILURE, "data_size: %d is too small", data_size);
 
 #ifndef USE_SERVER
     if (ac > 4)
         sleep_us = 1e6/atoi(av[4]);
-    SAY("sending packets at %s (%d us sleep)", av[4], sleep_us);
+    _D("sending packets at %s (%d us sleep)", av[4], sleep_us);
 #endif
 
-    SAY("processing max %d with size %d", do_max, data_size);
+    _D("processing max %d with size %d", do_max, data_size);
 
 #ifdef USE_SERVER
     if (bind(s.socket, (struct sockaddr *) &s.sa.in, s.addrlen) )
-        DIE("bind %s", s.to_string);
+        SAYPX("bind %s", s.to_string);
     if (s.proto == IPPROTO_TCP) {
         if (listen(s.socket, 1))
-            DIE("listen");
+            SAYPX("listen");
         struct sockaddr_un local;
         socklen_t addrlen = sizeof(local);
         fd = accept(s.socket, (struct sockaddr *)&local, &addrlen);
         if (fd == -1)
-            DIE("accept");
+            SAYPX("accept");
     }
 #endif
     fd = fd ? fd : s.socket;
@@ -80,29 +80,29 @@ int main(int ac, char **av) {
         #ifdef USE_SERVER
             #ifdef RANDOM_DEATH
             if (s.type != SOCK_DGRAM && (random() % 100000000) == 42)
-                DIE_RC(EXIT_SUCCESS, "death decided by chance");
+                SAYX(EXIT_SUCCESS, "death decided by chance");
             #endif
             *magic_place = 0x11111111;
             if (recv(fd, &expected, 4, MSG_WAITALL) != 4)
-                DIE("recv");
+                SAYPX("recv");
             if (expected != sizeof(DATA))
-                DIE_RC(EXIT_FAILURE, "expected: %zu, got: %d", sizeof(DATA), expected);
+                SAYX(EXIT_FAILURE, "expected: %zu, got: %d", sizeof(DATA), expected);
             if ((rc = recv(fd, DATA, sizeof(DATA), MSG_WAITALL)) <= 0) {
                 if (rc == 0) // shutdown
                     break;
-                DIE("recv");
+                SAYPX("recv");
             }
             if (*magic_place != MAGIC)
-                DIE_RC(EXIT_FAILURE, "magic not found in the received packet %x recv: %d, data_size: %d", *magic_place, rc, data_size);
+                SAYX(EXIT_FAILURE, "magic not found in the received packet %x recv: %d, data_size: %d", *magic_place, rc, data_size);
         #else
             rc = sendto(fd, DATA, sizeof(DATA), 0, (struct sockaddr*) &s.sa.in, s.addrlen);
             if (rc < 0)
-                DIE("sendto");
+                SAYPX("sendto");
             if (sleep_us)
                 usleep(sleep_us);
         #endif
     }
     ms = (clock() - start) * 1000 / CLOCKS_PER_SEC;
-    SAY(PREFIX " %lu with size %d for %lu ms (expected %f per second)", i, data_size, ms, i/((double)ms/1000));
+    _D(PREFIX " %lu with size %d for %lu ms (expected %f per second)", i, data_size, ms, i/((double)ms/1000));
     return(0);
 }

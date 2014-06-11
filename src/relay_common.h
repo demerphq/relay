@@ -9,9 +9,6 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include "log.h"
-
-
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif
@@ -34,6 +31,22 @@
 #define INLINE
 #endif
 
+#define FORMAT(fmt, arg...) fmt " [%s():%s:%d @ %u $$: %u : %lu]\n", ##arg, __func__, __FILE__, __LINE__, (unsigned int) time(NULL), getpid(), pthread_self()
+#define _E(fmt, arg...) fprintf(stderr, FORMAT(fmt, ##arg))
+
+#define STMT_START do
+#define STMT_END while (0)
+
+#define SAYX(rc, fmt, arg...) STMT_START {  \
+    _E(fmt, ##arg);                         \
+    exit(rc);                               \
+} STMT_END
+
+#define _D(fmt, arg...) printf(FORMAT(fmt, ##arg))
+
+#define SAYPX(fmt, arg...) SAYX(EXIT_FAILURE, fmt " { %s }", ##arg, errno ? strerror(errno) : "undefined error");
+#define _ENO(fmt, arg...) _E(fmt " { %s }", ##arg, errno ? strerror(errno) : "undefined error");
+
 #define RELAY_ATOMIC_INCREMENT(__i, __cnt) __sync_fetch_and_add(&__i, __cnt);
 #define RELAY_ATOMIC_DECREMENT(__i, __cnt) __sync_fetch_and_sub(&__i, __cnt);
 #define RELAY_ATOMIC_READ(__p) __sync_fetch_and_add(&__p, 0)
@@ -42,8 +55,5 @@
 
 #define RELAY_ATOMIC_OR(__i, __flags) __sync_fetch_and_or(&__i, __flags);
 #define RELAY_ATOMIC_AND(__i, __flags) __sync_fetch_and_and(&__i, __flags);
-
-#define STMT_START do
-#define STMT_END while(0)
 
 #endif
