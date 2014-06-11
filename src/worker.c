@@ -100,7 +100,12 @@ static void write_blob_to_disk(blob_t *b) {
 }
 
 static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
-    b->fallback = strdup(worker->fallback_path);
+    b->fallback = strdup(worker->fallback_path); // the function shoild be called
+                                                 // only from/on not-destructed worker
+                                                 // and since the destruction path
+                                                 // requires that the worker is joined
+                                                 // we do not need to put that in the
+                                                 // critical section
     LOCK(&GIANT.lock);
     q_append_locked(GIANT.disk_writer,b);
     UNLOCK(&GIANT.lock);
