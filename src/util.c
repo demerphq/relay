@@ -27,7 +27,7 @@ void socketize(const char *arg, sock_t *s) {
         if (inet_aton(p, &ip) == 0) {
             struct hostent * host = gethostbyname2(p, AF_INET);
             if (!host)
-                SAYX(EXIT_FAILURE, "failed to parse/resolve %s", p);
+                DIE_RC(EXIT_FAILURE, "failed to parse/resolve %s", p);
 
             memcpy(&(s->sa.in.sin_addr), host->h_addr, host->h_length);
         } else {
@@ -36,27 +36,27 @@ void socketize(const char *arg, sock_t *s) {
 
         s->addrlen = sizeof(s->sa.in);
     } else {
-        SAYX(EXIT_FAILURE, "must specity tcp or udp");
+        DIE_RC(EXIT_FAILURE, "must specity tcp or udp");
     }
     s->proto = proto;
     snprintf(s->to_string, PATH_MAX,
                     "%s@%s:%d", (s->proto == IPPROTO_TCP ? "tcp" : "udp"),
                     inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
-    _D("%s", s->to_string);
+    SAY("%s", s->to_string);
     free(a);
 }
 
 int open_socket(sock_t *s, int flags,int snd, int rcv) {
 #define ERROR(fmt, arg...)          \
-do {                                \
+STMT_START {                        \
     if (flags & DO_NOT_EXIT) {      \
-        _ENO(fmt, ##arg);           \
+        WARN_ERRNO(fmt, ##arg);     \
     } else {                        \
-        SAYPX(fmt, ##arg);          \
+        DIE(fmt, ##arg);            \
     }                               \
     close(s->socket);               \
-    ok = 0;                         \
-} while(0);
+    return 0;                       \
+} STMT_END
 
     int ok = 1;
     if ((s->socket = socket(s->sa.in.sin_family, s->type, s->proto)) < 0)

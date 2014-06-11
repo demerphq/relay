@@ -5,7 +5,7 @@
 void *realloc_or_die(void *p, size_t size) {
     p = realloc(p, size);
     if (!p)
-        SAYX(EXIT_FAILURE, "unable to allocate %zu bytes", size);
+        DIE_RC(EXIT_FAILURE, "unable to allocate %zu bytes", size);
     return p;
 }
 
