@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     socketize(CONFIG.argv[0], s_listen);
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND, 0, 32 * 1024 * 1024);
+    open_socket(s_listen, DO_BIND, 0, CONFIG.server_socket_rcvbuf);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */

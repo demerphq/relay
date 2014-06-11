@@ -2,6 +2,7 @@
 #define _UTIL_H
 
 #include "relay_common.h"
+#include "config.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

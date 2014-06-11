@@ -3,7 +3,7 @@ RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie
-GCC_FLAGS=-O3
+GCC_FLAGS=-O0 -g3
 CC=gcc
 CFLAGS=-Wall -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 

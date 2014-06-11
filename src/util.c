@@ -1,4 +1,5 @@
 #include "util.h"
+extern struct config CONFIG;
 
 void socketize(const char *arg, sock_t *s) {
     char *a = strdup(arg);
@@ -72,13 +73,14 @@ do {                                \
         if (s->proto == IPPROTO_TCP) {
             if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
                 ERROR("connect[%s]", s->to_string);
+            if (CONFIG.tcp_send_timeout > 0) {
+                struct timeval timeout;
+                timeout.tv_sec = CONFIG.tcp_send_timeout;
+                timeout.tv_usec = 0;
 
-            struct timeval timeout;
-            timeout.tv_sec = SEND_TIMEOUT;
-            timeout.tv_usec = 0;
-
-            if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
-                ERROR("setsockopt[%s]", s->to_string);
+                if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+                    ERROR("setsockopt[%s]", s->to_string);
+            }
         }
     }
     if (snd > 0) {

@@ -9,6 +9,8 @@ struct config {
     char *file;
     int polling_interval_ms;
     int sleep_after_disaster_ms;
+    int tcp_send_timeout;
+    int server_socket_rcvbuf;
     int max_pps;
     char *fallback_root;
 };

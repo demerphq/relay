@@ -19,8 +19,12 @@
 #define DO_BIND         1
 #define DO_CONNECT      2
 #define DO_NOT_EXIT     4
+#ifndef SEND_TIMEOUT
 #define SEND_TIMEOUT    2
-
+#endif
+#ifndef SERVER_SOCKET_RCVBUF
+#define SERVER_SOCKET_RCVBUF (32 * 1024 * 1024)
+#endif
 #ifndef NO_INLINE
 #define INLINE inline
 #else
