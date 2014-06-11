@@ -1,5 +1,6 @@
 #include "worker.h"
 
+/* this is our GIANT lock and state object. aint globals lovely. :-)*/
 static struct giant {
     /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, worker) workers;
@@ -8,7 +9,10 @@ static struct giant {
     int n_workers;
 } GIANT;
 extern struct config CONFIG;
+
 #ifdef TCP_CORK
+/* try to get the OS to send our packets more efficiently when sending
+ * via TCP. */
 static INLINE void cork(struct sock *s,int flag) {
     if (!s || s->proto != IPPROTO_TCP)
         return;
@@ -19,6 +23,7 @@ static INLINE void cork(struct sock *s,int flag) {
 #define cork(a,b)
 #endif
 
+/* update the process status line with the send performce of the workers */
 void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     worker_t *w;
     int w_num= 0;
@@ -44,6 +49,7 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     UNLOCK(&GIANT.lock);
 }
 
+/* append an item to queue safely */
 int q_append_locked(worker_t *worker, blob_t *b) {
     struct queue *q = &worker->queue;
 
@@ -58,6 +64,7 @@ int q_append_locked(worker_t *worker, blob_t *b) {
     return 1;
 }
 
+/* shift an item out of a queue non-safely */
 blob_t *q_shift_nolock(struct queue *q) {
     blob_t *b= q->head;
     if (b) {
@@ -70,11 +77,15 @@ blob_t *q_shift_nolock(struct queue *q) {
     return b;
 }
 
+/* create a directory with the right permissions or throw an exception
+ * (not sure the exception makes sense)
+ */
 static void recreate_fallback_path(char *dir) {
     if (mkdir(dir,0750) == -1 && errno != EEXIST)
         DIE_RC(EXIT_FAILURE,"mkdir of %s failed", dir);
 }
 
+/* write a blob to disk */
 static void write_blob_to_disk(blob_t *b) {
     assert(BLOB_REF_PTR(b));
     assert(b->fallback);
@@ -99,6 +110,7 @@ static void write_blob_to_disk(blob_t *b) {
         WARN_ERRNO("failed to close '%s', everyting is lost!", file);
 }
 
+/* add an item to a disk worker queue */
 static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
     b->fallback = strdup(worker->fallback_path); // the function shoild be called
                                                  // only from/on not-destructed worker
@@ -111,6 +123,8 @@ static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
     UNLOCK(&GIANT.lock);
 }
 
+/* if a worker failed to send we need to write the item to the disk
+ * (so we can move on) */
 static void deal_with_failed_send(worker_t *worker, struct queue *q) {
     blob_t *b;
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
@@ -118,6 +132,8 @@ static void deal_with_failed_send(worker_t *worker, struct queue *q) {
     }
 }
 
+/* create a normal relay worker thread
+ * main loop for the worker process */
 void *worker_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
     struct queue hijacked_queue;
@@ -184,6 +200,9 @@ again:
     return NULL;
 }
 
+
+/* create a disk writer worker thread
+ * main loop for the disk writer worker process */
 static void *disk_writer_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
     struct queue hijacked_queue;
@@ -212,6 +231,9 @@ static void *disk_writer_thread(void *arg) {
 }
 
 
+/* add an item to all workers queues
+ * (not sure if this really belongs in worker.c)
+ */
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
     worker_t *w;
@@ -235,9 +257,13 @@ int enqueue_blob_for_transmission(blob_t *b) {
     return i;
 }
 
+/* worker sleeps while it waits for work
+ * this should be configurable */
 void w_wait(int ms) {
     usleep(ms * 1000);
 }
+
+/* create a new worker object */
 worker_t *worker_new(void) {
     worker_t *worker = malloc_or_die(sizeof(*worker));
 
@@ -248,6 +274,8 @@ worker_t *worker_new(void) {
     worker->exists = 1;
     return worker;
 }
+
+/* initialize a worker safely */
 worker_t * worker_init_locked(char *arg) {
     worker_t *worker = worker_new();
 
@@ -267,6 +295,7 @@ worker_t * worker_init_locked(char *arg) {
     return worker;
 }
 
+/* destroy a worker */
 void worker_destroy(worker_t *worker) {
     uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit,EXIT_FLAG);
 
@@ -282,6 +311,9 @@ void worker_destroy(worker_t *worker) {
     free(worker);
 }
 
+/* initialize a pool of worker
+ * imo this has a crap name
+ */
 void worker_init_static(int argc, char **argv, int reload) {
     int i;
     int must_add;
@@ -341,6 +373,7 @@ void worker_init_static(int argc, char **argv, int reload) {
     }
 }
 
+/* worker destory static, destroy all the workers in the pool */
 void worker_destroy_static(void) {
     worker_t *w;
     LOCK(&GIANT.lock);
@@ -355,6 +388,7 @@ void worker_destroy_static(void) {
     UNLOCK(&GIANT.lock);
 }
 
+/* shut down the disk writer thread */
 void disk_writer_stop(void) {
     worker_destroy(GIANT.disk_writer);
 }
