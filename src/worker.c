@@ -13,7 +13,7 @@ static INLINE void cork(struct sock *s,int flag) {
     if (!s || s->proto != IPPROTO_TCP)
         return;
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
-        _ENO("setsockopt: %s", strerror(errno));
+        WARN_ERRNO("setsockopt: %s", strerror(errno));
 }
 #else
 #define cork(a,b)
@@ -72,7 +72,7 @@ blob_t *q_shift_nolock(struct queue *q) {
 
 static void recreate_fallback_path(char *dir) {
     if (mkdir(dir,0750) == -1 && errno != EEXIST)
-        SAYX(EXIT_FAILURE,"mkdir of %s failed", dir);
+        DIE_RC(EXIT_FAILURE,"mkdir of %s failed", dir);
 }
 
 static void write_blob_to_disk(blob_t *b) {
@@ -84,19 +84,19 @@ static void write_blob_to_disk(blob_t *b) {
     if (snprintf(file, PATH_MAX, "%s/%li.srlc",
                  b->fallback,
                  (long int)time(NULL)) >= PATH_MAX) {
-        SAYX(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
+        DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
     }
     fd = open(file, O_WRONLY|O_APPEND|O_CREAT, 0640);
     if (fd < 0)
-        _ENO("failed to open '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to open '%s', everyting is lost!", file);
 
     if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
-        _ENO("failed to write '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to write '%s', everyting is lost!", file);
 
     if (fsync(fd))
-        _ENO("failed to fsync '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to fsync '%s', everyting is lost!", file);
     if (close(fd))
-        _ENO("failed to close '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to close '%s', everyting is lost!", file);
 }
 
 static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
@@ -157,7 +157,7 @@ again:
             cork(s,1);
             while ((b = hijacked_queue.head) != NULL) {
                 if (SEND(s,b) < 0) {
-                    _ENO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
+                    WARN_ERRNO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
                     deal_with_failed_send(self, &hijacked_queue);
                     close(s->socket);
                     goto again;
@@ -180,7 +180,7 @@ again:
     }
     close(s->socket);
     (void)snapshot_stats(&self->counters,&total_tmp);
-    _D("worker[%s] sent " STATSfmt " packets in its lifetime", s->to_string, total_tmp);
+    SAY("worker[%s] sent " STATSfmt " packets in its lifetime", s->to_string, total_tmp);
     return NULL;
 }
 
@@ -190,7 +190,7 @@ static void *disk_writer_thread(void *arg) {
     struct queue *q = &self->queue;
     stats_count_t total_tmp;
     blob_t *b;
-    _D("disk writer started");
+    SAY("disk writer started");
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
     while(!RELAY_ATOMIC_READ(self->exit)) {
         LOCK(&GIANT.lock);
@@ -207,7 +207,7 @@ static void *disk_writer_thread(void *arg) {
         w_wait(CONFIG.polling_interval_ms);
     }
     (void)snapshot_stats(&self->counters,&total_tmp);
-    _D("disk_writer saved " STATSfmt " packets in its lifetime", total_tmp);
+    SAY("disk_writer saved " STATSfmt " packets in its lifetime", total_tmp);
     return NULL;
 }
 
@@ -230,7 +230,7 @@ int enqueue_blob_for_transmission(blob_t *b) {
     }
     UNLOCK(&GIANT.lock);
     if (i == 0) {
-        _E("no living workers, not sure what to do"); // dump the packet on disk?
+        WARN("no living workers, not sure what to do"); // dump the packet on disk?
     }
     return i;
 }
@@ -258,7 +258,7 @@ worker_t * worker_init_locked(char *arg) {
 
     /* setup fallback_path */
     if (snprintf(worker->fallback_path, PATH_MAX,"%s/%s/", CONFIG.fallback_root,worker->s_output.to_string) >= PATH_MAX)
-        SAYX(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
+        DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
     recreate_fallback_path(worker->fallback_path);
     /* and finally create the thread */
     pthread_create(&worker->tid, NULL, worker_thread, worker);

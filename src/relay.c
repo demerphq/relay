@@ -54,13 +54,13 @@ static inline int recv_and_enqueue(int fd, int expected, int flags) {
     if (expected == 0) {
         /* ignore 0 byte packets */
         if (0)
-            _E("Received 0 byte packet, not forwarding.");
+            WARN("Received 0 byte packet, not forwarding.");
     } else {
         inc_received_count();
         b = b_new(expected);
         rc = recv(fd, BLOB_BUF_addr(b), expected, flags);
         if (rc != BLOB_BUF_SIZE(b)) {
-            _ENO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
+            WARN_ERRNO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
             b_destroy(b);
             return 0;
         }
@@ -81,7 +81,7 @@ void *udp_server(void *arg) {
         received = recv(s->socket, buf, MAX_CHUNK_SIZE, MSG_PEEK);
 #ifdef PACKETS_PER_SECOND
         if ((epoch = time(0)) != prev_epoch) {
-            _D("packets: %d", packets - prev_packets);
+            SAY("packets: %d", packets - prev_packets);
             prev_epoch = epoch;
             prev_packets = packets;
         }
@@ -91,24 +91,24 @@ void *udp_server(void *arg) {
             break;
         }
     }
-    _ENO("recv failed");
+    WARN_ERRNO("recv failed");
     set_aborted();
     pthread_exit(NULL);
 }
 
 void *tcp_worker(void *arg) {
     int fd = (int )arg;
-    _D("new tcp worker for fd: %d", fd);
+    SAY("new tcp worker for fd: %d", fd);
     while (not_aborted()) {
         uint32_t expected;
         int rc = recv(fd, &expected, sizeof(expected), MSG_WAITALL);
         if (rc != sizeof(expected)) {
-            _ENO("failed to receive header for next packet, expected: %zu got: %d", sizeof(expected), rc);
+            WARN_ERRNO("failed to receive header for next packet, expected: %zu got: %d", sizeof(expected), rc);
             break;
         }
 
         if (expected > MAX_CHUNK_SIZE) {
-            _ENO("requested packet(%d) > MAX_CHUNK_SIZE(%d)", expected, MAX_CHUNK_SIZE);
+            WARN_ERRNO("requested packet(%d) > MAX_CHUNK_SIZE(%d)", expected, MAX_CHUNK_SIZE);
             break;
         }
 
@@ -127,7 +127,7 @@ void *tcp_server(void *arg) {
         int fd = accept(s->socket, NULL, NULL);
         if (fd < 0) {
             set_aborted();
-            _ENO("accept");
+            WARN_ERRNO("accept");
             break;
         }
         spawn(NULL, tcp_worker, (void *)fd, PTHREAD_CREATE_DETACHED);
@@ -150,9 +150,9 @@ int main(int argc, char **argv) {
     setproctitle("starting");
 
     if (CONFIG.argc < 2)
-        SAYX(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"     \
-                          "or file with socket description per day like:\n"                 \
-                          "\tlocal-host:local-port\n"                                       \
+        DIE_RC(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"       \
+                          "or file with socket description per day like:\n"                     \
+                          "\tlocal-host:local-port\n"                                           \
                           "\ttcp@remote-host:remote-port ...\n", argv[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
     socketize(CONFIG.argv[0], s_listen);
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 
     for (;;) {
         int abort= get_abort_val();
-        if (abort & DIE) {
+        if (abort & STOP) {
             break;
         }
         else
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
         sleep(1);
     }
     cleanup(server_tid);
-    _D("bye");
+    SAY("bye");
     return(0);
 }
 
@@ -198,7 +198,7 @@ static void sig_handler(int signum) {
             set_aborted();
             break;
         default:
-            _E("IGNORE: unexpected signal %d", signum);
+            WARN("IGNORE: unexpected signal %d", signum);
     }
 }
 
