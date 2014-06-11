@@ -34,7 +34,7 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
         if (elapsed_usec && total)
             wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, elapsed_usec / total);
         else
-            wrote_len= snprintf(str, len, " -1");
+            wrote_len= snprintf(str, len, " w%d:-1", ++w_num);
 
         if (wrote_len < 0 || wrote_len >= len)
             break;
