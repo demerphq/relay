@@ -93,11 +93,14 @@ reset_default:
         CONFIG.sleep_after_disaster_ms = SLEEP_AFTER_DISASTER_MS;
     if (CONFIG.tcp_send_timeout <= 0)
         CONFIG.tcp_send_timeout = SEND_TIMEOUT;
+    if (CONFIG.server_socket_rcvbuf <= 0)
+        CONFIG.server_socket_rcvbuf = SERVER_SOCKET_RCVBUF;
     _D("fallback_root: %s", CONFIG.fallback_root);
     _D("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
     _D("sleep_after_disaster_ms: %d", CONFIG.sleep_after_disaster_ms);
     _D("max_pps: %d", CONFIG.max_pps);
     _D("tcp_send_timeout: %d", CONFIG.tcp_send_timeout);
+    _D("server_socket_rcvbuf: %d", CONFIG.server_socket_rcvbuf);
 }
 
 void config_init(int argc, char **argv) {
