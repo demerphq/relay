@@ -23,11 +23,16 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     worker_t *w;
     int w_num= 0;
     int wrote_len=0 ;
+    stats_count_t elapsed_usec;
+    stats_count_t total;
+
     LOCK(&GIANT.lock);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
         if (!len) break;
-        if (w->counters.elapsed_usec)
-            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, w->counters.elapsed_usec / w->counters.total);
+        elapsed_usec= RELAY_ATOMIC_READ(w->counters.elapsed_usec);
+        total= RELAY_ATOMIC_READ(w->counters.total);
+        if (elapsed_usec && total)
+            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, elapsed_usec / total);
         else
             wrote_len= snprintf(str, len, " -1");
 
