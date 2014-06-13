@@ -139,12 +139,13 @@ void *tcp_server(void *arg) {
 int main(int argc, char **argv) {
     pthread_t server_tid;
 
+    config_init(argc, argv);
+
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
 
-    config_init(argc, argv);
 
     initproctitle(argc, argv);
     setproctitle("starting");

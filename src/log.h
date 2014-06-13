@@ -12,7 +12,9 @@
 #define FORMAT(type, fmt, arg...) "[$$: %u epoch: %u" DEBUG_FMT " %s ] " fmt "\n", \
     getpid(), (unsigned int) time(NULL) _DEBUG_ARGS, (type), ## arg
 
-#define PERR(type, fmt, arg...) fprintf(stderr, FORMAT(type,fmt, ## arg))
+#include "config.h"
+extern struct config CONFIG;
+#define PERR(type, fmt, arg...) fprintf( CONFIG.logfh, FORMAT(type,fmt, ## arg))
 
 #define WARN(fmt, arg...) PERR("WARN",fmt, ## arg)
 #define SAY(fmt, arg...) PERR("INFO",fmt, ## arg)

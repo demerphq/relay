@@ -102,6 +102,7 @@ reset_default:
 void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
+    CONFIG.logfh= stderr;
     if (argc == 2) {
         CONFIG.file = strdup(argv[1]);
     } else {

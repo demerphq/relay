@@ -13,7 +13,10 @@ struct config {
     int server_socket_rcvbuf;
     int max_pps;
     char *fallback_root;
+
+    FILE *logfh;
 };
+
 void config_reload(void);
 void config_init(int argc, char **argv);
 void config_destroy(void);
