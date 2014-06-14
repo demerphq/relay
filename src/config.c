@@ -36,7 +36,7 @@ void config_reload(void) {
 
         trim(line);
 
-    if (strlen(line) != 0) {
+        if (strlen(line) != 0) {
             if ((p = strchr(line,'='))) {
                 if (strlen(p) == 1)
                     DIE("bad config line: %s", line);
