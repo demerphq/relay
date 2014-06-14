@@ -15,6 +15,8 @@ struct config {
     char *fallback_root;
 
     FILE *logfh;
+    char *logdir;
+    char *logfile;
     char last_log_epoch;
 };
 

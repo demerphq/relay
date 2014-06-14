@@ -1,4 +1,4 @@
-FILES=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/util.c src/config.c
+FILES=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/util.c src/config.c src/log.c
 RELAY=src/relay.c $(FILES)
 CLIENT=src/stress_test_client.c $(FILES)
 CLANG=clang
