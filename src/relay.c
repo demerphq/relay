@@ -3,6 +3,7 @@
 #include "setproctitle.h"
 #include "abort.h"
 #include "config.h"
+#include "timer.h"
 #define MAX_BUF_LEN 128
 static void cleanup();
 static void sig_handler(int signum);
