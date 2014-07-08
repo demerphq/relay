@@ -24,6 +24,7 @@ INLINE blob_t * b_new(size_t size) {
     BLOB_REF_PTR_set(b, malloc_or_die(sizeof(_refcnt_blob_t) + size));
     BLOB_REFCNT_set(b, 1); /* overwritten in enqueue_blob_for_transmision */
     BLOB_BUF_SIZE_set(b, size);
+    (void)get_time(&BLOB_RECEIVED_TIME(b));
 
     return b;
 }

@@ -3,7 +3,7 @@
 
 #include "relay_common.h"
 #include "relay_threads.h"
-
+#include "timer.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -23,6 +23,7 @@ typedef struct __data_blob __data_blob_t;
  * the lock to guard refcnt modifications */
 struct _refcnt_blob {
     volatile int32_t refcnt;
+    mytime_t received_time;
     __data_blob_t data;
 };
 typedef struct _refcnt_blob _refcnt_blob_t;
@@ -42,6 +43,7 @@ typedef struct blob blob_t;
 #define BLOB_DATA_MBR_addr(B)       (&BLOB_DATA_MBR(B))
 
 #define BLOB_REFCNT(B)              (BLOB_REF_PTR(B)->refcnt)
+#define BLOB_RECEIVED_TIME(B)       (BLOB_REF_PTR(B)->received_time)
 
 #define BLOB_BUF_SIZE(B)            (BLOB_DATA_MBR(B).size)
 #define BLOB_BUF(B)                 (BLOB_DATA_MBR(B).buf)
