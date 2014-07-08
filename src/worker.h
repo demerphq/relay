@@ -8,6 +8,7 @@
 #include "abort.h"
 #include "stats.h"
 #include "config.h"
+#include "timer.h"
 #define EXIT_FLAG 1
 
 #include <fcntl.h>
@@ -46,16 +47,9 @@
 #define MAX_PPS 0
 #endif
 
-struct queue {
-    blob_t *head;
-    blob_t *tail;
-    LOCK_T lock;
-    unsigned int count;
-};
-typedef struct queue queue_t;
 
 struct worker {
-    struct queue queue;
+    queue_t queue;
     pthread_t tid;
     volatile uint32_t exists;
     volatile uint32_t exit;
@@ -63,6 +57,7 @@ struct worker {
     sock_t s_output;
     char *arg;
     stats_basic_counters_t counters;
+    stats_basic_counters_t totals;
     char fallback_path[PATH_MAX];
 };
 typedef struct worker worker_t;
