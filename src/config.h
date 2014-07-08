@@ -13,11 +13,6 @@ struct config {
     int server_socket_rcvbuf;
     int max_pps;
     char *fallback_root;
-
-    FILE *logfh;
-    char *logdir;
-    char *logfile;
-    char last_log_epoch;
 };
 
 void config_reload(void);

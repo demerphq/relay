@@ -1,5 +1,10 @@
 #include "config.h"
 #include "worker.h"
+
+#include "log.h"
+
+static const char *OUR_NAME= "event-relay";
+
 struct config CONFIG;
 
 void trim(char * s) {
@@ -102,7 +107,6 @@ reset_default:
 void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
-    CONFIG.logfh= stderr;
     if (argc == 2) {
         CONFIG.file = strdup(argv[1]);
     } else {
@@ -113,6 +117,7 @@ void config_init(int argc, char **argv) {
         }
         CONFIG.argc = i;
     }
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
     config_reload();
 }
 void config_destroy(void) {
