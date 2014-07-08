@@ -187,6 +187,7 @@ int main(int argc, char **argv) {
     }
     cleanup(server_tid);
     SAY("bye");
+    closelog();
     return(0);
 }
 
