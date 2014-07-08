@@ -2,4 +2,5 @@
 test/perl
 test/sock
 test/*.txt
+test/out.srl
 bin/
