@@ -49,33 +49,6 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     UNLOCK(&GIANT.lock);
 }
 
-/* append an item to queue safely */
-int q_append_locked(worker_t *worker, blob_t *b) {
-    struct queue *q = &worker->queue;
-
-    if (q->head == NULL)
-        q->head = b;
-    else
-        BLOB_NEXT_set(q->tail,b);
-
-    q->tail = b;
-    BLOB_NEXT_set(b,NULL);
-    q->count++;
-    return 1;
-}
-
-/* shift an item out of a queue non-safely */
-blob_t *q_shift_nolock(struct queue *q) {
-    blob_t *b= q->head;
-    if (b) {
-        if (BLOB_NEXT(b))
-            q->head = BLOB_NEXT(b);
-        else
-            q->head = q->tail = NULL;
-        q->count--;
-    }
-    return b;
-}
 
 /* create a directory with the right permissions or throw an exception
  * (not sure the exception makes sense)
@@ -118,9 +91,7 @@ static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
                                                  // requires that the worker is joined
                                                  // we do not need to put that in the
                                                  // critical section
-    LOCK(&GIANT.lock);
-    q_append_locked(GIANT.disk_writer,b);
-    UNLOCK(&GIANT.lock);
+    q_append(&GIANT.disk_writer->queue, b, &GIANT.lock);
 }
 
 /* if a worker failed to send we need to write the item to the disk
@@ -212,11 +183,9 @@ static void *disk_writer_thread(void *arg) {
     SAY("disk writer started");
     memset(&hijacked_queue, 0, sizeof(hijacked_queue));
     while(!RELAY_ATOMIC_READ(self->exit)) {
-        LOCK(&GIANT.lock);
-        memcpy(&hijacked_queue, q, sizeof(struct queue));
-        q->tail = q->head = NULL;
-        q->count = 0;
-        UNLOCK(&GIANT.lock);
+
+        q_hijack(q, &hijacked_queue, &GIANT.lock);
+
         while ((b = hijacked_queue.head) != NULL) {
             write_blob_to_disk(b);
             b_destroy( q_shift_nolock( &hijacked_queue ) );
@@ -237,17 +206,20 @@ static void *disk_writer_thread(void *arg) {
 int enqueue_blob_for_transmission(blob_t *b) {
     int i = 0;
     worker_t *w;
+    blob_t *to_enqueue;
     LOCK(&GIANT.lock);
     BLOB_REFCNT_set(b,GIANT.n_workers);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
         /* check if this item is no the last */
         if ( TAILQ_NEXT(w, entries) == NULL ) {
             /* this is the last item in the chain, just use b. */
-            q_append_locked(w, b);
+            to_enqueue= b;
         } else {
             /* not the last, so we need to clone the original object */
-            q_append_locked(w, b_clone_no_refcnt_inc(b));
+            to_enqueue= b_clone_no_refcnt_inc(b);
         }
+        q_append_nolock(&w->queue, to_enqueue);
+
         i++;
     }
     UNLOCK(&GIANT.lock);

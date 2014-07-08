@@ -1,5 +1,4 @@
 #include "blob.h"
-
 /* reallocate a buffer or die - (wonder if we should be more graceful
  * when we shutdown? */
 void *realloc_or_die(void *p, size_t size) {
@@ -61,3 +60,67 @@ void b_destroy(blob_t *b) {
     free(b->fallback);
     free(b);
 }
+
+
+/* append an item to queue non-safely */
+uint32_t q_append_nolock(queue_t *q, blob_t *b) {
+    if (q->head == NULL)
+        q->head = b;
+    else
+        BLOB_NEXT_set(q->tail,b);
+
+    q->tail = b;
+    BLOB_NEXT_set(b,NULL);
+    return ++(q->count);
+}
+
+/* append an item, optionally locked */
+uint32_t q_append(queue_t *q, blob_t *b, LOCK_T *lock) {
+    uint32_t count;
+    LOCK(lock);
+    count= q_append_nolock(q, b);
+    UNLOCK(lock);
+    return count;
+}
+
+/* shift an item out of a queue non-safely */
+blob_t *q_shift_nolock(queue_t *q) {
+    blob_t *b= q->head;
+    if (b) {
+        if (BLOB_NEXT(b))
+            q->head = BLOB_NEXT(b);
+        else
+            q->head = q->tail = NULL;
+        q->count--;
+    }
+    return b;
+}
+
+/* shift an item out of a queue, optionally locked*/
+blob_t *q_shift(queue_t *q, LOCK_T *lock) {
+    blob_t *b;
+    LOCK(lock);
+    b= q_shift_nolock(q);
+    UNLOCK(lock);
+    return b;
+}
+
+/* hijack a queue into a separate structure, return the number of items
+ * hijacked */
+uint32_t q_hijack_nolock(queue_t *q, queue_t *hijacked_queue) {
+    memcpy(hijacked_queue, q, sizeof(queue_t));
+    q->tail = q->head = NULL;
+    q->count = 0;
+    return hijacked_queue->count;
+}
+
+/* hijack a queue with optional locks */
+uint32_t q_hijack(queue_t *q, queue_t *hijacked_queue, LOCK_T *lock) {
+    uint32_t count;
+    LOCK(lock);
+    count= q_hijack_nolock(q, hijacked_queue);
+    UNLOCK(lock);
+    return count;
+}
+
+
