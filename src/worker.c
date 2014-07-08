@@ -176,19 +176,19 @@ again:
  * main loop for the disk writer worker process */
 static void *disk_writer_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
-    struct queue hijacked_queue;
-    struct queue *q = &self->queue;
+    queue_t private_queue;
+    queue_t *main_queue = &self->queue;
     stats_count_t total_tmp;
     blob_t *b;
     SAY("disk writer started");
-    memset(&hijacked_queue, 0, sizeof(hijacked_queue));
+    memset(&private_queue, 0, sizeof(private_queue));
     while(!RELAY_ATOMIC_READ(self->exit)) {
 
-        q_hijack(q, &hijacked_queue, &GIANT.lock);
+        q_hijack(main_queue, &private_queue, &GIANT.lock);
 
-        while ((b = hijacked_queue.head) != NULL) {
+        while ((b = private_queue.head) != NULL) {
             write_blob_to_disk(b);
-            b_destroy( q_shift_nolock( &hijacked_queue ) );
+            b_destroy( q_shift_nolock( &private_queue) );
             RELAY_ATOMIC_INCREMENT(self->counters.count,1);
         }
         (void)snapshot_stats(&self->counters,&total_tmp);
