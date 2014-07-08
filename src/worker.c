@@ -96,7 +96,7 @@ static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
 
 /* if a worker failed to send we need to write the item to the disk
  * (so we can move on) */
-static void deal_with_failed_send(worker_t *worker, struct queue *q) {
+static void deal_with_failed_send(worker_t *worker, queue_t *q) {
     blob_t *b;
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
         enqueue_for_disk_writing(worker,b);
