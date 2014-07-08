@@ -11,14 +11,16 @@
 typedef uint64_t stats_count_t;
 
 struct stats_basic_counters {
-    volatile stats_count_t count;
-    volatile stats_count_t total;
-    volatile stats_count_t per_second;
-    volatile stats_count_t elapsed_usec;
+    volatile stats_count_t received_count;       /* number of items we have received */
+    volatile stats_count_t sent_count;           /* number of items we have sent */
+    volatile stats_count_t partial_count;        /* number of items we have spilled */
+    volatile stats_count_t spilled_count;        /* number of items we have spilled */
+    volatile stats_count_t error_count;          /* number of items that had an error */
+
+    volatile stats_count_t send_elapsed_usec;    /* elapsed time in microseconds that we spent sending data */
 };
 typedef struct stats_basic_counters stats_basic_counters_t;
 
-void inc_stats_count(stats_basic_counters_t *stats);
-stats_count_t snapshot_stats(stats_basic_counters_t *stats, stats_count_t *total_addr);
+void snapshot_stats(stats_basic_counters_t *counters, stats_basic_counters_t *totals);
 
 #endif

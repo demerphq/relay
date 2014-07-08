@@ -15,9 +15,6 @@ stats_basic_counters_t RECEIVED_STATS= {
     .per_second= 0,
 };
 
-void inc_received_count() {
-    inc_stats_count(&RECEIVED_STATS);
-}
 
 #define MAX_BUF_LEN 128
 void mark_second_elapsed() {
@@ -57,7 +54,7 @@ static inline int recv_and_enqueue(int fd, int expected, int flags) {
         if (0)
             WARN("Received 0 byte packet, not forwarding.");
     } else {
-        inc_received_count();
+        RELAY_ATOMIC_INCREMENT(stats->received_count,1);
         b = b_new(expected);
         rc = recv(fd, BLOB_BUF_addr(b), expected, flags);
         if (rc != BLOB_BUF_SIZE(b)) {
