@@ -73,11 +73,5 @@ void worker_destroy(worker_t *worker);
 INLINE void w_wait(int delay);
 void *worker_thread(void *arg);
 void disk_writer_stop(void);
-#define SEND(S, B) (                                                                    \
-    ((S)->type != SOCK_DGRAM)                                                           \
-    ? send((S)->socket, BLOB_DATA_MBR_addr(B), BLOB_DATA_MBR_SIZE(B), MSG_NOSIGNAL)     \
-    : sendto((S)->socket, BLOB_BUF_addr(B), BLOB_BUF_SIZE(B), MSG_NOSIGNAL,             \
-             (struct sockaddr*) &(S)->sa.in, (S)->addrlen)                              \
-)
 
 #endif

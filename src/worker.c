@@ -107,67 +107,117 @@ static void deal_with_failed_send(worker_t *worker, queue_t *q) {
  * main loop for the worker process */
 void *worker_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
-    struct queue hijacked_queue;
-    struct queue *q = &self->queue;
-    struct sock *s = &self->s_output;
-    stats_count_t total_tmp;
-    blob_t *b;
+    queue_t private_queue;
+    queue_t *main_queue = &self->queue;
+    struct sock *sck= NULL;
 
-    memset(&hijacked_queue, 0, sizeof(hijacked_queue));
-again:
-    while(
-        !RELAY_ATOMIC_READ(self->exit) &&
-        !open_socket(s, DO_CONNECT | DO_NOT_EXIT,0,0)
-    ) {
-        w_wait(CONFIG.sleep_after_disaster_ms);
-    }
+    blob_t *cur_blob;
+
+    memset(&private_queue, 0, sizeof(private_queue));
 
     while(!RELAY_ATOMIC_READ(self->exit)) {
-        /* hijack the queue - copy the queue state into our private copy
-         * and then reset the queue state to empty. So the formerly
-         * shared queue is now private. We only do this if necessary. */
-        if (hijacked_queue.head == NULL) {
-            LOCK(&GIANT.lock);
-            memcpy(&hijacked_queue, q, sizeof(struct queue));
-            q->tail = q->head = NULL;
-            q->count = 0;
-            UNLOCK(&GIANT.lock);
-        }
-        if (hijacked_queue.head == NULL) {
-            w_wait(CONFIG.polling_interval_ms);
-        } else {
-            struct timeval start_time;
-            struct timeval end_time;
-            uint32_t elapsed_usec= 0;
+        mytime_t send_start_time;
+        mytime_t send_end_time;
+        mytime_t now;
+        uint64_t usec;
 
-            gettimeofday(&start_time, NULL);
-            cork(s,1);
-            while ((b = hijacked_queue.head) != NULL) {
-                if (SEND(s,b) < 0) {
-                    WARN_ERRNO("ABORT: send to %s failed %ld",s->to_string, BLOB_DATA_MBR_SIZE(b));
-                    deal_with_failed_send(self, &hijacked_queue);
-                    close(s->socket);
-                    goto again;
-                }
-                b_destroy( q_shift_nolock( &hijacked_queue ) );
-                RELAY_ATOMIC_INCREMENT(self->counters.count,1);
+        /* check if we have a usable socket */
+        if (!sck) {
+            /* nope, so lets try to open one */
+            if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+                /* success, setup sck variable as a flag and save on some indirection */
+                sck = &self->s_output;
+            } else {
+                /* no socket - wait a while, and then redo the loop */
+                w_wait(CONFIG.sleep_after_disaster_ms);
+                continue;
             }
-            cork(s,0);
-            (void)snapshot_stats(&self->counters, &total_tmp);
-
-            gettimeofday(&end_time, NULL);
-
-            /* this assumes end_time >= start_time */
-            elapsed_usec= ( ( end_time.tv_sec - start_time.tv_sec) * 1000000 )
-                          + end_time.tv_usec - start_time.tv_usec;
-
-            RELAY_ATOMIC_INCREMENT(self->counters.elapsed_usec, elapsed_usec);
-
         }
+        assert(sck);
+
+        /* if we dont have anything in our local queue we need to hijack the main one */
+        if (private_queue.head == NULL) {
+            /* hijack the queue - copy the queue state into our private copy
+             * and then reset the queue state to empty. So the formerly
+             * shared queue is now private. We only do this if necessary.
+             */
+            if ( !q_hijack(main_queue, &private_queue, &GIANT.lock) ) {
+                /* nothing to do, so sleep a while and redo the loop */
+                w_wait(CONFIG.polling_interval_ms);
+                continue;
+            }
+        }
+
+        /* ok, so we have something in our queue to process */
+        assert(private_queue.head);
+
+        get_time(&send_start_time);
+
+        cork(s,1);
+        while ( ( cur_blob = q_shift_nolock( &private_queue ) ) != NULL) {
+            ssize_t bytes_sent= -2;
+            ssize_t bytes_to_send= 0;
+
+            get_time(&now);
+            usec= elapsed_usec(&BLOB_RECEIVED_TIME(b),&now);
+            if (usec <= 1000000) {
+                if (sck->type == SOCK_DGRAM) {
+                    bytes_to_send= BLOB_BUF_SIZE(cur_blob);
+                    bytes_sent= sendto(sck->socket, BLOB_BUF_addr(cur_blob), bytes_to_send,
+                            MSG_NOSIGNAL, (struct sockaddr*) &sck->sa.in, sck->addrlen)
+                } else {
+                    bytes_to_send= BLOB_DATA_MBR_SIZE(cur_blob);
+                    bytes_sent= sendto(sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send,
+                            MSG_NOSIGNAL, NULL, 0);
+                }
+            }
+
+            if (bytes_sent == -1) {
+                WARN_ERRNO("Send to %s failed %ld",sck->to_string, BLOB_DATA_MBR_SIZE(cur_blob));
+                enqueue_for_disk_writing(worker, cur_blob);
+                close(sck->socket);
+                RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
+                sck= NULL;
+                break; /* stop sending from the hijacked queue */
+            }
+            else
+            if (bytes_sent == -2) {
+                WARN("Item is %d which is over spill threshold, writing to disk", usec);
+                enqueue_for_disk_writing(worker, cur_blob);
+                RELAY_ATOMIC_INCREMENT(self->counters.spill_count, 1);
+            }
+            else {
+                if (bytes_sent < bytes_to_send) {
+                    WARN("We wrote only %d of %d bytes to the socket?", bytes_sent, bytes_to_send);
+                    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
+                } else {
+                    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
+                }
+                b_destroy(cur_blob);
+            }
+        }
+        cork(sck,0);
+
+        get_time(&send_end_time);
+
+        /* this assumes end_time >= start_time */
+        usec= elapsed_usec(&send_start_time, &send_end_time);
+        RELAY_ATOMIC_INCREMENT(self->counters.elapsed_usec, usec);
+
+        (void)snapshot_stats(&self->counters, &self->totals);
+
+        /*
+        SAY("worker[%s] count: " STATSfmt " sent usec: " STATSfmt,
+                sck->to_string, sent_count, usec/sent_count);
+        */
     }
-    close(s->socket);
-    (void)snapshot_stats(&self->counters,&total_tmp);
-    SAY("worker[%s] sent " STATSfmt " packets in its lifetime", s->to_string, total_tmp);
+    if (sck)
+        close(sck->socket);
+
+    (void)snapshot_stats( &self->counters, &self->totals );
+
+    SAY("worker[%s] processed " STATSfmt " packets in its lifetime",
+            sck->to_string, RELAY_ATOMIC_READ(self->totals.received_count));
     return NULL;
 }
 
