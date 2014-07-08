@@ -22,7 +22,7 @@ close($fh);
 
 my $i = 0;
 my $last= 0;
-my $now = time();
+my $start= my $now = time();
 my $remote = IO::Socket::INET->new(Proto => 'udp',PeerAddr => $host,PeerPort => $port) or die $!;
 while (1) {
     if (int($now) != int(time())) {
@@ -35,3 +35,5 @@ while (1) {
     last if $count and $i >= $count;
     nanosleep($ns) if $ns;
 }
+$now = time();
+printf "Sent %d packets at %.2f packets per second\n", $i, $i / ($now - $start);
