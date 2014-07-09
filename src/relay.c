@@ -9,23 +9,30 @@ static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
 extern struct config CONFIG;
+
 stats_basic_counters_t RECEIVED_STATS= {
-    .count= 0,
-    .total= 0,
-    .per_second= 0,
+    .received_count= 0,       /* number of items we have received */
+    .sent_count= 0,           /* number of items we have sent */
+    .partial_count= 0,        /* number of items we have spilled */
+    .spilled_count= 0,        /* number of items we have spilled */
+    .error_count= 0,          /* number of items that had an error */
+    .disk_count= 0,           /* number of items we have written to disk */
+
+    .send_elapsed_usec=0,    /* elapsed time in microseconds that we spent sending data */
 };
 
 
 #define MAX_BUF_LEN 128
 void mark_second_elapsed() {
     char str[MAX_BUF_LEN+1];
-    stats_count_t received_total;
-    stats_count_t received= snapshot_stats(&RECEIVED_STATS, &received_total);
+    stats_basic_counters_t received_total;
+
+    snapshot_stats(&RECEIVED_STATS, &received_total);
     /* set it in the process name */
     int wrote= snprintf(
         str, MAX_BUF_LEN,
-        STATSfmt " : " STATSfmt,
-        received, received_total );
+        STATSfmt " ",
+        received_total.received_count );
 
     add_worker_stats_to_ps_str(str + wrote, MAX_BUF_LEN - wrote);
     setproctitle(str);
@@ -46,18 +53,18 @@ void reload_workers(int reload) {
     worker_init_static(CONFIG.argc - 1, &CONFIG.argv[1], reload);
 }
 
-static inline int recv_and_enqueue(int fd, int expected, int flags) {
+static inline int recv_and_enqueue( int fd, int expected, int flags ) {
     int rc;
     blob_t *b;
-    if (expected == 0) {
+    if ( expected == 0 ) {
         /* ignore 0 byte packets */
         if (0)
             WARN("Received 0 byte packet, not forwarding.");
     } else {
-        RELAY_ATOMIC_INCREMENT(stats->received_count,1);
-        b = b_new(expected);
-        rc = recv(fd, BLOB_BUF_addr(b), expected, flags);
-        if (rc != BLOB_BUF_SIZE(b)) {
+        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
+        b = b_new( expected );
+        rc = recv( fd, BLOB_BUF_addr(b), expected, flags );
+        if ( rc != BLOB_BUF_SIZE(b) ) {
             WARN_ERRNO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
             b_destroy(b);
             return 0;

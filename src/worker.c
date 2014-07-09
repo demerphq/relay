@@ -28,16 +28,16 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     worker_t *w;
     int w_num= 0;
     int wrote_len=0 ;
-    stats_count_t elapsed_usec;
+    stats_count_t send_elapsed_usec;
     stats_count_t total;
 
     LOCK(&GIANT.lock);
     TAILQ_FOREACH(w, &GIANT.workers, entries) {
         if (!len) break;
-        elapsed_usec= RELAY_ATOMIC_READ(w->counters.elapsed_usec);
-        total= RELAY_ATOMIC_READ(w->counters.total);
-        if (elapsed_usec && total)
-            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, elapsed_usec / total);
+        send_elapsed_usec= RELAY_ATOMIC_READ(w->totals.send_elapsed_usec);
+        total= RELAY_ATOMIC_READ(w->totals.sent_count);
+        if (send_elapsed_usec && total)
+            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, send_elapsed_usec / total);
         else
             wrote_len= snprintf(str, len, " w%d:-1", ++w_num);
 
@@ -105,7 +105,7 @@ static void deal_with_failed_send(worker_t *worker, queue_t *q) {
 
 /* create a normal relay worker thread
  * main loop for the worker process */
-void *worker_thread(void *arg) {
+void *worker_thread( void *arg ) {
     worker_t *self = (worker_t *) arg;
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
@@ -113,98 +113,98 @@ void *worker_thread(void *arg) {
 
     blob_t *cur_blob;
 
-    memset(&private_queue, 0, sizeof(private_queue));
+    memset( &private_queue, 0, sizeof( private_queue ) );
 
-    while(!RELAY_ATOMIC_READ(self->exit)) {
+    while( !RELAY_ATOMIC_READ(self->exit) ) {
         mytime_t send_start_time;
         mytime_t send_end_time;
         mytime_t now;
         uint64_t usec;
 
         /* check if we have a usable socket */
-        if (!sck) {
+        if ( !sck ) {
             /* nope, so lets try to open one */
-            if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+            if ( open_socket( &self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0 ) ) {
                 /* success, setup sck variable as a flag and save on some indirection */
                 sck = &self->s_output;
             } else {
                 /* no socket - wait a while, and then redo the loop */
-                w_wait(CONFIG.sleep_after_disaster_ms);
+                w_wait( CONFIG.sleep_after_disaster_ms );
                 continue;
             }
         }
-        assert(sck);
+        assert( sck );
 
         /* if we dont have anything in our local queue we need to hijack the main one */
-        if (private_queue.head == NULL) {
+        if ( private_queue.head == NULL ) {
             /* hijack the queue - copy the queue state into our private copy
              * and then reset the queue state to empty. So the formerly
              * shared queue is now private. We only do this if necessary.
              */
-            if ( !q_hijack(main_queue, &private_queue, &GIANT.lock) ) {
+            if ( !q_hijack( main_queue, &private_queue, &GIANT.lock ) ) {
                 /* nothing to do, so sleep a while and redo the loop */
-                w_wait(CONFIG.polling_interval_ms);
+                w_wait( CONFIG.polling_interval_ms );
                 continue;
             }
         }
 
         /* ok, so we have something in our queue to process */
-        assert(private_queue.head);
+        assert( private_queue.head );
 
-        get_time(&send_start_time);
+        get_time( &send_start_time );
 
         cork(s,1);
-        while ( ( cur_blob = q_shift_nolock( &private_queue ) ) != NULL) {
+        while ( ( cur_blob = q_shift_nolock( &private_queue ) ) != NULL ) {
             ssize_t bytes_sent= -2;
             ssize_t bytes_to_send= 0;
 
             get_time(&now);
-            usec= elapsed_usec(&BLOB_RECEIVED_TIME(b),&now);
-            if (usec <= 1000000) {
-                if (sck->type == SOCK_DGRAM) {
-                    bytes_to_send= BLOB_BUF_SIZE(cur_blob);
-                    bytes_sent= sendto(sck->socket, BLOB_BUF_addr(cur_blob), bytes_to_send,
-                            MSG_NOSIGNAL, (struct sockaddr*) &sck->sa.in, sck->addrlen)
+            usec= elapsed_usec( &BLOB_RECEIVED_TIME(cur_blob), &now );
+            if ( usec <= 1000000 ) {
+                if ( sck->type == SOCK_DGRAM ) {
+                    bytes_to_send= BLOB_BUF_SIZE( cur_blob );
+                    bytes_sent= sendto( sck->socket, BLOB_BUF_addr(cur_blob), bytes_to_send,
+                            MSG_NOSIGNAL, (struct sockaddr*) &sck->sa.in, sck->addrlen );
                 } else {
                     bytes_to_send= BLOB_DATA_MBR_SIZE(cur_blob);
-                    bytes_sent= sendto(sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send,
-                            MSG_NOSIGNAL, NULL, 0);
+                    bytes_sent= sendto( sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send,
+                            MSG_NOSIGNAL, NULL, 0 );
                 }
             }
 
-            if (bytes_sent == -1) {
+            if ( bytes_sent == -1 ) {
                 WARN_ERRNO("Send to %s failed %ld",sck->to_string, BLOB_DATA_MBR_SIZE(cur_blob));
-                enqueue_for_disk_writing(worker, cur_blob);
+                enqueue_for_disk_writing( self, cur_blob );
                 close(sck->socket);
-                RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
+                RELAY_ATOMIC_INCREMENT( self->counters.error_count, 1 );
                 sck= NULL;
                 break; /* stop sending from the hijacked queue */
             }
             else
-            if (bytes_sent == -2) {
-                WARN("Item is %d which is over spill threshold, writing to disk", usec);
-                enqueue_for_disk_writing(worker, cur_blob);
-                RELAY_ATOMIC_INCREMENT(self->counters.spill_count, 1);
+            if ( bytes_sent == -2 ) {
+                WARN( "Item is " STATSfmt " which is over spill threshold, writing to disk", usec );
+                enqueue_for_disk_writing( self, cur_blob );
+                RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, 1 );
             }
             else {
-                if (bytes_sent < bytes_to_send) {
-                    WARN("We wrote only %d of %d bytes to the socket?", bytes_sent, bytes_to_send);
-                    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
+                if ( bytes_sent < bytes_to_send ) {
+                    WARN( "We wrote only %zd of %zd bytes to the socket?", bytes_sent, bytes_to_send );
+                    RELAY_ATOMIC_INCREMENT( self->counters.partial_count, 1 );
                 } else {
-                    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
+                    RELAY_ATOMIC_INCREMENT( self->counters.sent_count, 1 );
                 }
-                b_destroy(cur_blob);
+                b_destroy( cur_blob );
             }
         }
-        cork(sck,0);
+        cork( sck, 0 );
 
-        get_time(&send_end_time);
+        get_time( &send_end_time );
 
         /* this assumes end_time >= start_time */
-        usec= elapsed_usec(&send_start_time, &send_end_time);
-        RELAY_ATOMIC_INCREMENT(self->counters.elapsed_usec, usec);
+        usec= elapsed_usec( &send_start_time, &send_end_time );
+        RELAY_ATOMIC_INCREMENT( self->counters.send_elapsed_usec, usec );
 
-        (void)snapshot_stats(&self->counters, &self->totals);
+        (void)snapshot_stats( &self->counters, &self->totals );
 
         /*
         SAY("worker[%s] count: " STATSfmt " sent usec: " STATSfmt,
@@ -212,12 +212,12 @@ void *worker_thread(void *arg) {
         */
     }
     if (sck)
-        close(sck->socket);
+        close( sck->socket );
 
     (void)snapshot_stats( &self->counters, &self->totals );
 
-    SAY("worker[%s] processed " STATSfmt " packets in its lifetime",
-            sck->to_string, RELAY_ATOMIC_READ(self->totals.received_count));
+    SAY( "worker[%s] processed " STATSfmt " packets in its lifetime",
+            sck->to_string, RELAY_ATOMIC_READ( self->totals.received_count ) );
     return NULL;
 }
 
@@ -228,7 +228,6 @@ static void *disk_writer_thread(void *arg) {
     worker_t *self = (worker_t *) arg;
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
-    stats_count_t total_tmp;
     blob_t *b;
     SAY("disk writer started");
     memset(&private_queue, 0, sizeof(private_queue));
@@ -239,13 +238,13 @@ static void *disk_writer_thread(void *arg) {
         while ((b = private_queue.head) != NULL) {
             write_blob_to_disk(b);
             b_destroy( q_shift_nolock( &private_queue) );
-            RELAY_ATOMIC_INCREMENT(self->counters.count,1);
+            RELAY_ATOMIC_INCREMENT( self->counters.disk_count, 1 );
         }
-        (void)snapshot_stats(&self->counters,&total_tmp);
-        w_wait(CONFIG.polling_interval_ms);
+        (void)snapshot_stats( &self->counters, &self->totals );
+        w_wait( CONFIG.polling_interval_ms );
     }
-    (void)snapshot_stats(&self->counters,&total_tmp);
-    SAY("disk_writer saved " STATSfmt " packets in its lifetime", total_tmp);
+    (void)snapshot_stats( &self->counters, &self->totals );
+    SAY("disk_writer saved " STATSfmt " packets in its lifetime", self->totals.disk_count);
     return NULL;
 }
 
