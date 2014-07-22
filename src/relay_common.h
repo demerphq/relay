@@ -46,4 +46,38 @@
 #define STMT_START do
 #define STMT_END while(0)
 
+/* this defines things like TAILQ_ENTRY() see man TAILQ_ENTRY for details */
+#include <sys/queue.h>
+/* fixups for stuff that might be missing from sys/queue.h */
+#ifdef __linux__
+#define TAILQ_EMPTY(head)       ((head)->tqh_first == NULL)
+#define TAILQ_FIRST(head)       ((head)->tqh_first)
+#ifndef TAILQ_END
+#define        TAILQ_END(head)                        NULL
+#endif
+#ifndef TAILQ_FOREACH_SAFE
+#define TAILQ_FOREACH_SAFE(var, head, field, tvar)      \
+        for ((var) = TAILQ_FIRST(head);                 \
+            (var) != TAILQ_END(head) &&                 \
+            ((tvar) = TAILQ_NEXT(var, field), 1);       \
+            (var) = (tvar))
+#endif
+#endif
+
+#define EXIT_FLAG 1
+#ifndef SLEEP_AFTER_DISASTER_MS
+#define SLEEP_AFTER_DISASTER_MS 1000
+#endif
+
+#ifndef POLLING_INTERVAL_MS
+#define POLLING_INTERVAL_MS 1
+#endif
+#ifndef FALLBACK_ROOT
+#define FALLBACK_ROOT "/tmp"
+#endif
+
+#ifndef MAX_PPS
+#define MAX_PPS 0
+#endif
+
 #endif

@@ -25,14 +25,13 @@ stats_basic_counters_t RECEIVED_STATS= {
 #define MAX_BUF_LEN 128
 void mark_second_elapsed() {
     char str[MAX_BUF_LEN+1];
-    stats_basic_counters_t received_total;
+    stats_count_t received= RELAY_ATOMIC_READ(RECEIVED_STATS.received_count);
 
-    snapshot_stats(&RECEIVED_STATS, &received_total);
     /* set it in the process name */
     int wrote= snprintf(
         str, MAX_BUF_LEN,
-        STATSfmt " ",
-        received_total.received_count );
+        STATSfmt " ", received
+    );
 
     add_worker_stats_to_ps_str(str + wrote, MAX_BUF_LEN - wrote);
     setproctitle(str);

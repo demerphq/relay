@@ -1,27 +1,15 @@
 #include "worker.h"
+#include "worker_pool.h"
 
-/* this is our GIANT lock and state object. aint globals lovely. :-)*/
-static struct giant {
-    /* macro to define a TAILQ head entry, empty first arg deliberate */
-    TAILQ_HEAD(, worker) workers;
-    LOCK_T lock;
-    worker_t *disk_writer;
-    int n_workers;
-} GIANT;
+/* this is our POOL lock and state object. aint globals lovely. :-) */
+extern worker_pool_t POOL;
 extern struct config CONFIG;
 
-#ifdef TCP_CORK
-/* try to get the OS to send our packets more efficiently when sending
- * via TCP. */
-static INLINE void cork(struct sock *s,int flag) {
-    if (!s || s->proto != IPPROTO_TCP)
-        return;
-    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
-        WARN_ERRNO("setsockopt: %s", strerror(errno));
+/* worker sleeps while it waits for work
+ * this should be configurable */
+void w_wait(int ms) {
+    usleep(ms * 1000);
 }
-#else
-#define cork(a,b)
-#endif
 
 /* update the process status line with the send performce of the workers */
 void add_worker_stats_to_ps_str(char *str, ssize_t len) {
@@ -31,8 +19,8 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
     stats_count_t send_elapsed_usec;
     stats_count_t total;
 
-    LOCK(&GIANT.lock);
-    TAILQ_FOREACH(w, &GIANT.workers, entries) {
+    LOCK(&POOL.lock);
+    TAILQ_FOREACH(w, &POOL.workers, entries) {
         if (!len) break;
         send_elapsed_usec= RELAY_ATOMIC_READ(w->totals.send_elapsed_usec);
         total= RELAY_ATOMIC_READ(w->totals.sent_count);
@@ -46,7 +34,7 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
         str += wrote_len;
         len -= wrote_len;
     }
-    UNLOCK(&GIANT.lock);
+    UNLOCK(&POOL.lock);
 }
 
 
@@ -58,40 +46,16 @@ static void recreate_fallback_path(char *dir) {
         DIE_RC(EXIT_FAILURE,"mkdir of %s failed", dir);
 }
 
-/* write a blob to disk */
-static void write_blob_to_disk(blob_t *b) {
-    assert(BLOB_REF_PTR(b));
-    assert(b->fallback);
-    char file[PATH_MAX];
-    int fd;
-    recreate_fallback_path(b->fallback);
-    if (snprintf(file, PATH_MAX, "%s/%li.srlc",
-                 b->fallback,
-                 (long int)time(NULL)) >= PATH_MAX) {
-        DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
-    }
-    fd = open(file, O_WRONLY|O_APPEND|O_CREAT, 0640);
-    if (fd < 0)
-        WARN_ERRNO("failed to open '%s', everyting is lost!", file);
-
-    if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
-        WARN_ERRNO("failed to write '%s', everyting is lost!", file);
-
-    if (fsync(fd))
-        WARN_ERRNO("failed to fsync '%s', everyting is lost!", file);
-    if (close(fd))
-        WARN_ERRNO("failed to close '%s', everyting is lost!", file);
-}
 
 /* add an item to a disk worker queue */
 static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
-    b->fallback = strdup(worker->fallback_path); // the function shoild be called
+    b->fallback = strdup(worker->fallback_path); // the function shoyld be called
                                                  // only from/on not-destructed worker
                                                  // and since the destruction path
                                                  // requires that the worker is joined
                                                  // we do not need to put that in the
                                                  // critical section
-    q_append(&GIANT.disk_writer->queue, b, &GIANT.lock);
+    q_append(&POOL.disk_writer->queue, b, &POOL.lock);
 }
 
 /* if a worker failed to send we need to write the item to the disk
@@ -107,13 +71,18 @@ static void deal_with_failed_send(worker_t *worker, queue_t *q) {
  * main loop for the worker process */
 void *worker_thread( void *arg ) {
     worker_t *self = (worker_t *) arg;
+
     queue_t private_queue;
+    queue_t spill_queue;
+
     queue_t *main_queue = &self->queue;
     struct sock *sck= NULL;
 
     blob_t *cur_blob;
+    int join_err;
 
     memset( &private_queue, 0, sizeof( private_queue ) );
+    memset( &spill_queue, 0, sizeof( spill_queue ) );
 
     while( !RELAY_ATOMIC_READ(self->exit) ) {
         mytime_t send_start_time;
@@ -141,7 +110,7 @@ void *worker_thread( void *arg ) {
              * and then reset the queue state to empty. So the formerly
              * shared queue is now private. We only do this if necessary.
              */
-            if ( !q_hijack( main_queue, &private_queue, &GIANT.lock ) ) {
+            if ( !q_hijack( main_queue, &private_queue, &POOL.lock ) ) {
                 /* nothing to do, so sleep a while and redo the loop */
                 w_wait( CONFIG.polling_interval_ms );
                 continue;
@@ -154,22 +123,50 @@ void *worker_thread( void *arg ) {
         get_time( &send_start_time );
 
         cork(s,1);
-        while ( ( cur_blob = q_shift_nolock( &private_queue ) ) != NULL ) {
+        while ( private_queue.head != NULL ) {
             ssize_t bytes_sent= -2;
             ssize_t bytes_to_send= 0;
-
             get_time(&now);
-            usec= elapsed_usec( &BLOB_RECEIVED_TIME(cur_blob), &now );
-            if ( usec <= 1000000 ) {
-                if ( sck->type == SOCK_DGRAM ) {
-                    bytes_to_send= BLOB_BUF_SIZE( cur_blob );
-                    bytes_sent= sendto( sck->socket, BLOB_BUF_addr(cur_blob), bytes_to_send,
-                            MSG_NOSIGNAL, (struct sockaddr*) &sck->sa.in, sck->addrlen );
-                } else {
-                    bytes_to_send= BLOB_DATA_MBR_SIZE(cur_blob);
-                    bytes_sent= sendto( sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send,
-                            MSG_NOSIGNAL, NULL, 0 );
+
+            cur_blob= private_queue.head;
+
+            if (
+                elapsed_usec( &BLOB_RECEIVED_TIME(cur_blob), &now) >= 1000000
+            ) {
+                spill_queue.head= cur_blob;
+                while ( BLOB_NEXT(cur_blob) &&
+                        elapsed_usec( &BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now ) >= 1000000
+                ) {
+                    cur_blob= BLOB_NEXT(cur_blob);
+                    spill_queue.count++;
                 }
+                spill_queue.tail= cur_blob;
+                private_queue.head= cur_blob.next;
+                private_queue.count -= spill_queue.count;
+                cur_blob.next= NULL;
+                cur_blob= private_queue.head;
+
+                /* XXX */
+                WARN( "Encountered %lu items which were over spill threshold, writing to disk",
+                        spill_queue.count );
+
+                enqueue_for_disk_writing( self, spill_queue.head );
+
+                RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, spill_queue.count );
+
+                if (!cur_blob)
+                    continue;
+            }
+
+
+            if ( sck->type == SOCK_DGRAM ) {
+                bytes_to_send= BLOB_BUF_SIZE( cur_blob );
+                bytes_sent= sendto( sck->socket, BLOB_BUF_addr(cur_blob), bytes_to_send,
+                        MSG_NOSIGNAL, (struct sockaddr*) &sck->sa.in, sck->addrlen );
+            } else {
+                bytes_to_send= BLOB_DATA_MBR_SIZE(cur_blob);
+                bytes_sent= sendto( sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send,
+                        MSG_NOSIGNAL, NULL, 0 );
             }
 
             if ( bytes_sent == -1 ) {
@@ -180,21 +177,13 @@ void *worker_thread( void *arg ) {
                 sck= NULL;
                 break; /* stop sending from the hijacked queue */
             }
-            else
-            if ( bytes_sent == -2 ) {
-                WARN( "Item is " STATSfmt " which is over spill threshold, writing to disk", usec );
-                enqueue_for_disk_writing( self, cur_blob );
-                RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, 1 );
+            else if ( bytes_sent < bytes_to_send ) {
+                WARN( "We wrote only %zd of %zd bytes to the socket?", bytes_sent, bytes_to_send );
+                RELAY_ATOMIC_INCREMENT( self->counters.partial_count, 1 );
+            } else {
+                RELAY_ATOMIC_INCREMENT( self->counters.sent_count, 1 );
             }
-            else {
-                if ( bytes_sent < bytes_to_send ) {
-                    WARN( "We wrote only %zd of %zd bytes to the socket?", bytes_sent, bytes_to_send );
-                    RELAY_ATOMIC_INCREMENT( self->counters.partial_count, 1 );
-                } else {
-                    RELAY_ATOMIC_INCREMENT( self->counters.sent_count, 1 );
-                }
-                b_destroy( cur_blob );
-            }
+            b_destroy( cur_blob );
         }
         cork( sck, 0 );
 
@@ -211,6 +200,7 @@ void *worker_thread( void *arg ) {
                 sck->to_string, sent_count, usec/sent_count);
         */
     }
+
     if (sck)
         close( sck->socket );
 
@@ -218,99 +208,75 @@ void *worker_thread( void *arg ) {
 
     SAY( "worker[%s] processed " STATSfmt " packets in its lifetime",
             sck->to_string, RELAY_ATOMIC_READ( self->totals.received_count ) );
+
+    /* we are done so shut down our "pet" disk worker, and then exit with a message */
+    RELAY_ATOMIC_OR( self->disk_writer->exit, EXIT_FLAG );
+
+    /* XXX handle failure of the disk_write shutdown */
+    join_err= pthread_join( self->disk_writer->tid, NULL );
+
+    if (join_err)
+        WARN( "shutting down disk_writer thread error: %d", join_err );
+
     return NULL;
 }
 
-
-/* create a disk writer worker thread
- * main loop for the disk writer worker process */
-static void *disk_writer_thread(void *arg) {
-    worker_t *self = (worker_t *) arg;
-    queue_t private_queue;
-    queue_t *main_queue = &self->queue;
-    blob_t *b;
-    SAY("disk writer started");
-    memset(&private_queue, 0, sizeof(private_queue));
-    while(!RELAY_ATOMIC_READ(self->exit)) {
-
-        q_hijack(main_queue, &private_queue, &GIANT.lock);
-
-        while ((b = private_queue.head) != NULL) {
-            write_blob_to_disk(b);
-            b_destroy( q_shift_nolock( &private_queue) );
-            RELAY_ATOMIC_INCREMENT( self->counters.disk_count, 1 );
-        }
-        (void)snapshot_stats( &self->counters, &self->totals );
-        w_wait( CONFIG.polling_interval_ms );
-    }
-    (void)snapshot_stats( &self->counters, &self->totals );
-    SAY("disk_writer saved " STATSfmt " packets in its lifetime", self->totals.disk_count);
-    return NULL;
-}
-
-
-/* add an item to all workers queues
- * (not sure if this really belongs in worker.c)
- */
-int enqueue_blob_for_transmission(blob_t *b) {
-    int i = 0;
-    worker_t *w;
-    blob_t *to_enqueue;
-    LOCK(&GIANT.lock);
-    BLOB_REFCNT_set(b,GIANT.n_workers);
-    TAILQ_FOREACH(w, &GIANT.workers, entries) {
-        /* check if this item is no the last */
-        if ( TAILQ_NEXT(w, entries) == NULL ) {
-            /* this is the last item in the chain, just use b. */
-            to_enqueue= b;
-        } else {
-            /* not the last, so we need to clone the original object */
-            to_enqueue= b_clone_no_refcnt_inc(b);
-        }
-        q_append_nolock(&w->queue, to_enqueue);
-
-        i++;
-    }
-    UNLOCK(&GIANT.lock);
-    if (i == 0) {
-        WARN("no living workers, not sure what to do"); // dump the packet on disk?
-    }
-    return i;
-}
-
-/* worker sleeps while it waits for work
- * this should be configurable */
-void w_wait(int ms) {
-    usleep(ms * 1000);
-}
-
-/* create a new worker object */
-worker_t *worker_new(void) {
-    worker_t *worker = malloc_or_die(sizeof(*worker));
-
-    /* wipe worker */
-    memset(worker,0,sizeof(*worker));
-
-    /* setup flags */
-    worker->exists = 1;
-    return worker;
-}
 
 /* initialize a worker safely */
-worker_t * worker_init_locked(char *arg) {
-    worker_t *worker = worker_new();
+worker_t * worker_init(char *arg) {
+    worker_t *worker = mallocz_or_die(sizeof(*worker));
+    disk_writer_t *disk_writer= mallocz_or_die(sizeof(disk_writer_t));
+    int create_err;
 
+    worker->exists = 1;
     worker->arg = strdup(arg);
 
     /* socketize */
     socketize(arg, &worker->s_output);
 
+    worker->disk_writer= disk_writer;
+
     /* setup fallback_path */
-    if (snprintf(worker->fallback_path, PATH_MAX,"%s/%s/", CONFIG.fallback_root,worker->s_output.to_string) >= PATH_MAX)
+    if ( snprintf(disk_writer->fallback_path, PATH_MAX,
+                "%s/%s/", CONFIG.fallback_root, worker->s_output.to_string) >= PATH_MAX )
         DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
-    recreate_fallback_path(worker->fallback_path);
+
+    recreate_fallback_path(disk_writer->fallback_path);
+
+    /* Create the disk_writer before we create the main worker.
+     * We do this because the disk_writer only consumes things
+     * that have been handled by the main worker, and vice versa
+     * when the main worker fails to send then it might want to give
+     * the item to the disk worker. If we did it the other way round
+     * we might have something to assign to the disk worker but no
+     * disk worker to assign it to.
+     */
+    create_err= pthread_create( &disk_writer->tid, NULL, disk_writer_thread, disk_writer );
+    if ( create_err )
+        DIE_RC( EXIT_FAILURE, "failed to create disk worker errno: %d", create_err );
+
     /* and finally create the thread */
-    pthread_create(&worker->tid, NULL, worker_thread, worker);
+    create_err= pthread_create( &worker->tid, NULL, worker_thread, worker );
+    if ( create_err ) {
+        int join_err;
+
+        /* we died, so shut down our "pet" disk worker, and then exit with a message */
+        RELAY_ATOMIC_OR( disk_writer->exit, EXIT_FLAG );
+
+        /* have to handle failure of the shutdown too */
+        join_err= pthread_join( disk_writer->tid, NULL );
+
+        if (join_err) {
+            DIE_RC( EXIT_FAILURE,
+                    "failed to create socket worker, errno: %d, and also failed to join disk worker, errno: %d",
+                    create_err, join_err );
+        } else {
+            DIE_RC( EXIT_FAILURE,
+                    "failed to create socket worker, errno: %d, disk worker shut down ok",
+                    create_err );
+
+        }
+    }
 
     /* return the worker */
     return worker;
@@ -318,98 +284,19 @@ worker_t * worker_init_locked(char *arg) {
 
 /* destroy a worker */
 void worker_destroy(worker_t *worker) {
-    uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit,EXIT_FLAG);
+    uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit, EXIT_FLAG);
 
     if (old_exit & EXIT_FLAG)
         return;
 
     pthread_join(worker->tid, NULL);
+
+    /* huh? why do we do this in the parent thread? */
     if (worker->s_output.socket) {
         close(worker->s_output.socket);
-        deal_with_failed_send(worker, &worker->queue);
+        deal_with_failed_send(worker, &worker->queue); /* XXX: cant be right! */
     }
     free(worker->arg);
     free(worker);
 }
 
-/* initialize a pool of worker
- * imo this has a crap name
- */
-void worker_init_static(int argc, char **argv, int reload) {
-    int i;
-    int must_add;
-    worker_t *w,*wtmp;
-    int n_workers = 0;
-    if (reload) {
-        LOCK(&GIANT.lock);
-
-        TAILQ_FOREACH(w, &GIANT.workers, entries) {
-            w->exists = 0;
-        }
-        for (i = 0; i < argc; i++) {
-            must_add = 1;
-            TAILQ_FOREACH(w, &GIANT.workers, entries) {
-                if (strcmp(argv[i], w->arg) == 0) {
-                    w->exists = 1;
-                    must_add = 0;
-                }
-            }
-            if (must_add) {
-                w = worker_init_locked(argv[i]);
-                TAILQ_INSERT_TAIL(&GIANT.workers, w, entries);
-            }
-        }
-        TAILQ_FOREACH_SAFE(w,&GIANT.workers,entries,wtmp) {
-            if (w->exists == 0) {
-                TAILQ_REMOVE(&GIANT.workers, w, entries);
-                UNLOCK(&GIANT.lock);
-
-                worker_destroy(w); // might lock
-
-                LOCK(&GIANT.lock);
-            } else {
-                n_workers++;
-            }
-        }
-        GIANT.n_workers = n_workers;
-        UNLOCK(&GIANT.lock);
-    } else {
-        TAILQ_INIT(&GIANT.workers);
-        LOCK_INIT(&GIANT.lock);
-
-        // spawn the disk writer thread
-        GIANT.disk_writer = worker_new();
-        pthread_create(&GIANT.disk_writer->tid, NULL, disk_writer_thread, GIANT.disk_writer);
-
-        LOCK(&GIANT.lock);
-        GIANT.n_workers = 0;
-        for (i = 0; i < argc; i++) {
-            if (is_aborted())
-                break;
-            w = worker_init_locked(argv[i]);
-            TAILQ_INSERT_HEAD(&GIANT.workers, w, entries);
-            GIANT.n_workers++;
-        }
-        UNLOCK(&GIANT.lock);
-    }
-}
-
-/* worker destory static, destroy all the workers in the pool */
-void worker_destroy_static(void) {
-    worker_t *w;
-    LOCK(&GIANT.lock);
-    while ((w = TAILQ_FIRST(&GIANT.workers)) != NULL) {
-        TAILQ_REMOVE(&GIANT.workers, w, entries);
-        UNLOCK(&GIANT.lock);
-
-        worker_destroy(w); // might lock
-
-        LOCK(&GIANT.lock);
-    }
-    UNLOCK(&GIANT.lock);
-}
-
-/* shut down the disk writer thread */
-void disk_writer_stop(void) {
-    worker_destroy(GIANT.disk_writer);
-}

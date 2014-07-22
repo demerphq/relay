@@ -2,7 +2,7 @@
 #define _RELAY_H 
 
 #include "relay_common.h"
-#include "util.h"
+#include "socket_util.h"
 
 #include <unistd.h>
 #include <signal.h>

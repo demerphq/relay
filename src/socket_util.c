@@ -1,4 +1,4 @@
-#include "util.h"
+#include "socket_util.h"
 extern struct config CONFIG;
 
 void socketize(const char *arg, sock_t *s) {

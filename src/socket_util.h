@@ -1,5 +1,5 @@
-#ifndef _UTIL_H
-#define _UTIL_H
+#ifndef _SOCKET_UTIL_H
+#define _SOCKET_UTIL_H
 
 #include "relay_common.h"
 #include "config.h"
@@ -29,5 +29,18 @@ typedef struct sock sock_t;
 /* util.c */
 void socketize(const char *arg, sock_t *s);
 int open_socket(sock_t *s, int flags, int snd, int rcv);
+
+#ifdef TCP_CORK
+/* try to get the OS to send our packets more efficiently when sending
+ * via TCP. */
+static INLINE void cork(struct sock *s,int flag) {
+    if (!s || s->proto != IPPROTO_TCP)
+        return;
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK , (char *) &flag, sizeof(int)) < 0)
+        WARN_ERRNO("setsockopt: %s", strerror(errno));
+}
+#else
+#define cork(a,b)
+#endif
 
 #endif

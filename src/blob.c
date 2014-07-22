@@ -13,6 +13,13 @@ void *malloc_or_die(size_t size) {
     return realloc_or_die(NULL, size);
 }
 
+/* malloc a buffer or die - via realloc_or_die() */
+void *mallocz_or_die(size_t size) {
+    void *ptr= realloc_or_die(NULL, size);
+    memset(ptr, 0, size);
+    return ptr;
+}
+
 /* blob= b_new(size) - create a new empty blob with space for size bytes */
 INLINE blob_t * b_new(size_t size) {
     blob_t *b;
@@ -95,6 +102,9 @@ blob_t *q_shift_nolock(queue_t *q) {
     }
     return b;
 }
+
+
+
 
 /* shift an item out of a queue, optionally locked*/
 blob_t *q_shift(queue_t *q, LOCK_T *lock) {
