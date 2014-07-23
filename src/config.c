@@ -87,26 +87,30 @@ reset_default:
     // assign some default settings
 
     if (!CONFIG.fallback_root)
-        CONFIG.fallback_root = strdup(FALLBACK_ROOT);
+        CONFIG.fallback_root = strdup(DEFAULT_FALLBACK_ROOT);
     if (CONFIG.polling_interval_ms <= 0)
-        CONFIG.polling_interval_ms = POLLING_INTERVAL_MS;
+        CONFIG.polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
     if (CONFIG.sleep_after_disaster_ms <= 0)
-        CONFIG.sleep_after_disaster_ms = SLEEP_AFTER_DISASTER_MS;
+        CONFIG.sleep_after_disaster_ms = DEFAULT_SLEEP_AFTER_DISASTER_MS;
     if (CONFIG.tcp_send_timeout <= 0)
-        CONFIG.tcp_send_timeout = SEND_TIMEOUT;
+        CONFIG.tcp_send_timeout = DEFAULT_SEND_TIMEOUT;
     if (CONFIG.server_socket_rcvbuf <= 0)
-        CONFIG.server_socket_rcvbuf = SERVER_SOCKET_RCVBUF;
+        CONFIG.server_socket_rcvbuf = DEFAULT_SERVER_SOCKET_RCVBUF;
+    if (CONFIG.spill_usec <= 0)
+        CONFIG.spill_usec = DEFAULT_SPILL_USEC;
     SAY("fallback_root: %s", CONFIG.fallback_root);
     SAY("polling_intraval_ms: %d", CONFIG.polling_interval_ms);
     SAY("sleep_after_disaster_ms: %d", CONFIG.sleep_after_disaster_ms);
     SAY("max_pps: %d", CONFIG.max_pps);
     SAY("tcp_send_timeout: %d", CONFIG.tcp_send_timeout);
     SAY("server_socket_rcvbuf: %d", CONFIG.server_socket_rcvbuf);
+    SAY("spill_usec: %d", CONFIG.spill_usec);
 }
 
 void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
+
     if (argc == 2) {
         CONFIG.file = strdup(argv[1]);
     } else {

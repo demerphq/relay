@@ -16,7 +16,6 @@ struct stats_basic_counters {
     volatile stats_count_t partial_count;        /* number of items we have spilled */
     volatile stats_count_t spilled_count;        /* number of items we have spilled */
     volatile stats_count_t error_count;          /* number of items that had an error */
-
     volatile stats_count_t disk_count;           /* number of items we have written to disk */
 
     volatile stats_count_t send_elapsed_usec;    /* elapsed time in microseconds that we spent sending data */

@@ -22,12 +22,8 @@
 #define DO_BIND         1
 #define DO_CONNECT      2
 #define DO_NOT_EXIT     4
-#ifndef SEND_TIMEOUT
-#define SEND_TIMEOUT    2
-#endif
-#ifndef SERVER_SOCKET_RCVBUF
-#define SERVER_SOCKET_RCVBUF (32 * 1024 * 1024)
-#endif
+
+
 #ifndef NO_INLINE
 #define INLINE inline
 #else
@@ -65,19 +61,5 @@
 #endif
 
 #define EXIT_FLAG 1
-#ifndef SLEEP_AFTER_DISASTER_MS
-#define SLEEP_AFTER_DISASTER_MS 1000
-#endif
-
-#ifndef POLLING_INTERVAL_MS
-#define POLLING_INTERVAL_MS 1
-#endif
-#ifndef FALLBACK_ROOT
-#define FALLBACK_ROOT "/tmp"
-#endif
-
-#ifndef MAX_PPS
-#define MAX_PPS 0
-#endif
 
 #endif
