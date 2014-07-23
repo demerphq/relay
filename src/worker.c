@@ -223,7 +223,7 @@ worker_t * worker_init(char *arg) {
 
     /* setup fallback_path */
     if ( snprintf(disk_writer->fallback_path, PATH_MAX,
-                "%s/%s/", CONFIG.fallback_root, worker->s_output.to_string) >= PATH_MAX )
+                "%s/%s", CONFIG.fallback_root, worker->s_output.to_string) >= PATH_MAX )
         DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", disk_writer->fallback_path);
 
 

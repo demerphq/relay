@@ -27,9 +27,10 @@ static void setup_for_epoch(disk_writer_t *self, time_t blob_epoch) {
     }
     if (blob_epoch) {
         if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
-                     self->fallback_path,
-                     (long int)BLOB_RECEIVED_TIME(b).tv_sec) >= PATH_MAX) {
-            WARN_RC(EXIT_FAILURE,"filename was truncated to %d bytes: '%s'",
+                     self->fallback_path, blob_epoch) >= PATH_MAX
+        ) {
+            /* XXX: should this really die? */
+            DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes: '%s'",
                     PATH_MAX, self->last_file_path);
         }
         recreate_fallback_path(self->fallback_path);
@@ -46,12 +47,14 @@ static void setup_for_epoch(disk_writer_t *self, time_t blob_epoch) {
 static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
     assert(BLOB_REF_PTR(b));
     
-    setup_for_epoch(BLOB_RECEIVED_TIME(b).tv_sec);
+    setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec);
 
-    if ( self->fd >= 0 &&
-         0 != write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b)
-    ) {
-        WARN_ERRNO("failed to write '%s', everyting is lost!", self->last_file_path);
+    if ( self->fd >= 0 ) {
+        ssize_t wrote= write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b));
+        if (wrote != BLOB_BUF_SIZE(b) ) {
+            WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:",
+                    wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+        }
     }
 }
 
@@ -64,6 +67,7 @@ void *disk_writer_thread(void *arg) {
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
     blob_t *b;
+    int done_work= 0;
     
     recreate_fallback_path(self->fallback_path);
     SAY("disk writer started using path '%s' for files", self->fallback_path);
@@ -76,6 +80,11 @@ void *disk_writer_thread(void *arg) {
         b= private_queue.head;
 
         if ( b == NULL ) {
+            if (done_work) {
+                SAY("cleared disk queue");
+                done_work= 0;
+            }
+
             setup_for_epoch(self, 0);
             if (RELAY_ATOMIC_READ(self->exit)) {
                 /* nothing to do and we have been asked to exit, so break from the loop */
@@ -85,6 +94,7 @@ void *disk_writer_thread(void *arg) {
                 w_wait( CONFIG.polling_interval_ms );
             }
         } else {
+            done_work= 1;
             do {
                 write_blob_to_disk(self, b);
                 b_destroy( q_shift_nolock( &private_queue) );

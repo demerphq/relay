@@ -120,6 +120,7 @@ void config_init(int argc, char **argv) {
     openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
     config_reload();
 }
+
 void config_destroy(void) {
     int i;
     for (i = 0; i < CONFIG.argc; i++)
