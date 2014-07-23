@@ -17,5 +17,6 @@ void worker_pool_init_static(int argc, char **argv);
 void worker_pool_reload_static(int argc, char **argv);
 void worker_pool_destroy_static(void);
 int enqueue_blob_for_transmission(blob_t *b);
+void add_worker_stats_to_ps_str(char *str, ssize_t len);
 
 #endif

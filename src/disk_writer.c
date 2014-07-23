@@ -67,7 +67,7 @@ void *disk_writer_thread(void *arg) {
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
     blob_t *b;
-    int done_work= 0;
+    uint32_t done_work= 0;
     
     recreate_fallback_path(self->fallback_path);
     SAY("disk writer started using path '%s' for files", self->fallback_path);
@@ -81,7 +81,7 @@ void *disk_writer_thread(void *arg) {
 
         if ( b == NULL ) {
             if (done_work) {
-                SAY("cleared disk queue");
+                SAY("cleared disk queue of %d items", done_work);
                 done_work= 0;
             }
 
@@ -94,8 +94,8 @@ void *disk_writer_thread(void *arg) {
                 w_wait( CONFIG.polling_interval_ms );
             }
         } else {
-            done_work= 1;
             do {
+                done_work++;
                 write_blob_to_disk(self, b);
                 b_destroy( q_shift_nolock( &private_queue) );
                 RELAY_ATOMIC_INCREMENT( self->counters.disk_count, 1 );

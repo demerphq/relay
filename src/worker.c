@@ -11,34 +11,6 @@ void w_wait(int ms) {
     usleep(ms * 1000);
 }
 
-/* update the process status line with the send performce of the workers */
-void add_worker_stats_to_ps_str(char *str, ssize_t len) {
-    worker_t *w;
-    int w_num= 0;
-    int wrote_len=0 ;
-    stats_count_t send_elapsed_usec;
-    stats_count_t total;
-
-    LOCK(&POOL.lock);
-    TAILQ_FOREACH(w, &POOL.workers, entries) {
-        if (!len) break;
-        send_elapsed_usec= RELAY_ATOMIC_READ(w->totals.send_elapsed_usec);
-        total= RELAY_ATOMIC_READ(w->totals.sent_count);
-        if (send_elapsed_usec && total)
-            wrote_len= snprintf(str, len, " w%d:" STATSfmt, ++w_num, send_elapsed_usec / total);
-        else
-            wrote_len= snprintf(str, len, " w%d:-1", ++w_num);
-
-        if (wrote_len < 0 || wrote_len >= len)
-            break;
-        str += wrote_len;
-        len -= wrote_len;
-    }
-    UNLOCK(&POOL.lock);
-}
-
-
-
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(worker_t *worker, struct blob *b) {
     q_append(&worker->disk_writer->queue, b, &POOL.lock); /* XXX: change this to a worker level lock */
@@ -72,6 +44,7 @@ void *worker_thread( void *arg ) {
         mytime_t send_end_time;
         mytime_t now;
         uint64_t usec;
+        stats_count_t spilled= 0;
 
         /* check if we have a usable socket */
         if ( !sck ) {
@@ -130,14 +103,11 @@ void *worker_thread( void *arg ) {
                 private_queue.count -= spill_queue.count;
                 BLOB_NEXT_set(cur_blob,NULL);
 
-                /* XXX */
-                WARN( "Encountered %u items which were over spill threshold, writing to disk",
-                        spill_queue.count );
-
-                enqueue_queue_for_disk_writing( self, &spill_queue );
+                spilled += spill_queue.count;
 
                 RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, spill_queue.count );
 
+                enqueue_queue_for_disk_writing( self, &spill_queue );
             }
 
             cur_blob = q_shift_nolock( &private_queue );
@@ -173,6 +143,11 @@ void *worker_thread( void *arg ) {
         cork( sck, 0 );
 
         get_time( &send_end_time );
+        if (spilled) {
+            WARN( "Wrote " STATSfmt " items which were over spill threshold",
+                    spilled );
+            spilled= 0;
+        }
 
         /* this assumes end_time >= start_time */
         usec= elapsed_usec( &send_start_time, &send_end_time );

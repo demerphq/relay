@@ -2,6 +2,31 @@
 
 worker_pool_t POOL;
 
+/* update the process status line with the send performce of the workers */
+void add_worker_stats_to_ps_str(char *str, ssize_t len) {
+    worker_t *w;
+    int w_num= 0;
+    int wrote_len=0 ;
+
+    LOCK(&POOL.lock);
+    TAILQ_FOREACH(w, &POOL.workers, entries) {
+        if (!len) break;
+
+        wrote_len= snprintf(str, len, " w%d:" STATSfmt ":" STATSfmt ":" STATSfmt,
+                ++w_num,
+                RELAY_ATOMIC_READ(w->totals.sent_count),
+                RELAY_ATOMIC_READ(w->totals.spilled_count),
+                RELAY_ATOMIC_READ(w->disk_writer->totals.disk_count)
+        );
+
+        if (wrote_len < 0 || wrote_len >= len)
+            break;
+        str += wrote_len;
+        len -= wrote_len;
+    }
+    UNLOCK(&POOL.lock);
+}
+
 /* add an item to all workers queues
  * (not sure if this really belongs in worker.c)
  */

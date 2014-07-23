@@ -20,7 +20,9 @@ void socketize(const char *arg, sock_t *s) {
             } else
                 proto = IPPROTO_UDP;
         } else {
-            p = a;
+            p= a;
+            proto = IPPROTO_TCP;
+            s->type = SOCK_STREAM;
         }
 
         struct in_addr ip;
@@ -36,7 +38,7 @@ void socketize(const char *arg, sock_t *s) {
 
         s->addrlen = sizeof(s->sa.in);
     } else {
-        DIE_RC(EXIT_FAILURE, "must specity tcp or udp");
+        DIE_RC(EXIT_FAILURE, "must specify a port");
     }
     s->proto = proto;
     snprintf(s->to_string, PATH_MAX,
