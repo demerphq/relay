@@ -31,7 +31,6 @@ typedef struct _refcnt_blob _refcnt_blob_t;
 /* this structure is private to each thread */
 struct blob {
     struct blob *next;
-    char *fallback;
     _refcnt_blob_t *ref;
 };
 typedef struct blob blob_t;

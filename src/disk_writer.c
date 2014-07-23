@@ -15,14 +15,15 @@ static void recreate_fallback_path(char *dir) {
 }
 
 /* write a blob to disk */
-static void write_blob_to_disk(blob_t *b) {
-    assert(BLOB_REF_PTR(b));
-    assert(b->fallback);
+static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
     char file[PATH_MAX];
     int fd;
-    recreate_fallback_path(b->fallback);
+    
+    assert(BLOB_REF_PTR(b));
+    recreate_fallback_path(self->fallback_path);
+    
     if (snprintf(file, PATH_MAX, "%s/%li.srlc",
-                 b->fallback,
+                 self->fallback_path,
                  (long int)BLOB_RECEIVED_TIME(b).tv_sec) >= PATH_MAX) {
         DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
     }
@@ -96,7 +97,7 @@ void *disk_writer_thread(void *arg) {
             }
         } else {
             do {
-                write_blob_to_disk(b);
+                write_blob_to_disk(self, b);
                 b_destroy( q_shift_nolock( &private_queue) );
                 RELAY_ATOMIC_INCREMENT( self->counters.disk_count, 1 );
             } while ((b = private_queue.head) != NULL);

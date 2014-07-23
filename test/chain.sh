@@ -12,11 +12,13 @@ export PROTO=upd
 
 for NEXT_PORT in $(seq $FIRST_PORT_PLUS_ONE $LAST_PORT)
 do
+    echo $RELAY $PROTO@localhost:$THIS_PORT tcp@localhost:$NEXT_PORT 
     $RELAY $PROTO@localhost:$THIS_PORT tcp@localhost:$NEXT_PORT &
     THIS_PORT=$NEXT_PORT
     PROTO=tcp
 done
 
+echo $RELAY tcp@localhost:$THIS_PORT tcp@localhost:$LISTENER_PORT
 $RELAY tcp@localhost:$THIS_PORT tcp@localhost:$LISTENER_PORT &
 ps auwx | grep relay
 ../test/simple-listener.pl

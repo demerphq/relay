@@ -25,7 +25,6 @@ INLINE blob_t * b_new(size_t size) {
     blob_t *b;
 
     b = malloc_or_die(sizeof(blob_t));
-    b->fallback = NULL;
     BLOB_NEXT_set(b, NULL);
     BLOB_REF_PTR_set(b, malloc_or_die(sizeof(_refcnt_blob_t) + size));
     BLOB_REFCNT_set(b, 1); /* overwritten in enqueue_blob_for_transmision */
@@ -42,7 +41,6 @@ INLINE blob_t * b_clone_no_refcnt_inc(blob_t *b) {
     blob_t *clone;
 
     clone= malloc_or_die(sizeof(blob_t));
-    clone->fallback = NULL;
     BLOB_NEXT_set(clone, NULL);
 
     /* Note we assume that BLOB_REFCNT(b) is setup externally
@@ -64,7 +62,6 @@ void b_destroy(blob_t *b) {
             free(BLOB_REF_PTR(b));
         }
     }
-    free(b->fallback);
     free(b);
 }
 
