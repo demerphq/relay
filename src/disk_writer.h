@@ -20,6 +20,8 @@ struct disk_writer {
 
     char fallback_path[PATH_MAX];
     char last_file_path[PATH_MAX];
+    time_t last_epoch;
+    int last_fd;
 };
 typedef struct disk_writer disk_writer_t;
 

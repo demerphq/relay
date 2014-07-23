@@ -14,29 +14,45 @@ static void recreate_fallback_path(char *dir) {
         DIE_RC(EXIT_FAILURE,"mkdir of %s failed", dir);
 }
 
+static void setup_for_epoch(disk_writer_t *self, time_t blob_epoch) {
+    if (self->last_epoch == blob_epoch)
+        return;
+    if (self->last_epoch) {
+        if (fsync(self->fd)) {
+            WARN_ERRNO("failed to fsync '%s', everyting is lost!", self->last_file_path);
+        }
+        if (close(self->fd)) {
+            WARN_ERRNO("failed to close '%s', everyting is lost!", self->last_file_path);
+        }
+    }
+    if (blob_epoch) {
+        if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
+                     self->fallback_path,
+                     (long int)BLOB_RECEIVED_TIME(b).tv_sec) >= PATH_MAX) {
+            WARN_RC(EXIT_FAILURE,"filename was truncated to %d bytes: '%s'",
+                    PATH_MAX, self->last_file_path);
+        }
+        recreate_fallback_path(self->fallback_path);
+        self->fd = open(self->last_file_path, O_WRONLY|O_APPEND|O_CREAT, 0640);
+        if (self->fd < 0) {
+            WARN_ERRNO("failed to open '%s', everyting is lost!", self->last_file_path);
+            blob_epoch= 0;
+        }
+    }
+    self->last_epoch= blob_epoch;
+}
+
 /* write a blob to disk */
 static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
-    int fd;
-    
     assert(BLOB_REF_PTR(b));
-    recreate_fallback_path(self->fallback_path);
     
-    if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
-                 self->fallback_path,
-                 (long int)BLOB_RECEIVED_TIME(b).tv_sec) >= PATH_MAX) {
-        DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
-    }
-    fd = open(self->last_file_path, O_WRONLY|O_APPEND|O_CREAT, 0640);
-    if (fd < 0)
-        WARN_ERRNO("failed to open '%s', everyting is lost!", self->last_file_path);
+    setup_for_epoch(BLOB_RECEIVED_TIME(b).tv_sec);
 
-    if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
+    if ( self->fd >= 0 &&
+         0 != write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b)
+    ) {
         WARN_ERRNO("failed to write '%s', everyting is lost!", self->last_file_path);
-
-    if (fsync(fd))
-        WARN_ERRNO("failed to fsync '%s', everyting is lost!", self->last_file_path);
-    if (close(fd))
-        WARN_ERRNO("failed to close '%s', everyting is lost!", self->last_file_path);
+    }
 }
 
 
@@ -60,6 +76,7 @@ void *disk_writer_thread(void *arg) {
         b= private_queue.head;
 
         if ( b == NULL ) {
+            setup_for_epoch(self, 0);
             if (RELAY_ATOMIC_READ(self->exit)) {
                 /* nothing to do and we have been asked to exit, so break from the loop */
                 break;
