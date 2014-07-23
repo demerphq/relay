@@ -19,6 +19,7 @@ struct disk_writer {
     stats_basic_counters_t totals;
 
     char fallback_path[PATH_MAX];
+    char last_file_path[PATH_MAX];
 };
 typedef struct disk_writer disk_writer_t;
 

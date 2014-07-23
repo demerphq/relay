@@ -16,28 +16,27 @@ static void recreate_fallback_path(char *dir) {
 
 /* write a blob to disk */
 static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
-    char file[PATH_MAX];
     int fd;
     
     assert(BLOB_REF_PTR(b));
     recreate_fallback_path(self->fallback_path);
     
-    if (snprintf(file, PATH_MAX, "%s/%li.srlc",
+    if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
                  self->fallback_path,
                  (long int)BLOB_RECEIVED_TIME(b).tv_sec) >= PATH_MAX) {
         DIE_RC(EXIT_FAILURE,"filename was truncated to %d bytes", PATH_MAX);
     }
-    fd = open(file, O_WRONLY|O_APPEND|O_CREAT, 0640);
+    fd = open(self->last_file_path, O_WRONLY|O_APPEND|O_CREAT, 0640);
     if (fd < 0)
-        WARN_ERRNO("failed to open '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to open '%s', everyting is lost!", self->last_file_path);
 
     if (write(fd, BLOB_BUF(b), BLOB_BUF_SIZE(b)) != BLOB_BUF_SIZE(b))
-        WARN_ERRNO("failed to write '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to write '%s', everyting is lost!", self->last_file_path);
 
     if (fsync(fd))
-        WARN_ERRNO("failed to fsync '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to fsync '%s', everyting is lost!", self->last_file_path);
     if (close(fd))
-        WARN_ERRNO("failed to close '%s', everyting is lost!", file);
+        WARN_ERRNO("failed to close '%s', everyting is lost!", self->last_file_path);
 }
 
 
