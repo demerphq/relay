@@ -47,10 +47,7 @@ static void enqueue_blob_for_disk_writing(worker_t *worker, struct blob *b) {
 /* if a worker failed to send we need to write the item to the disk */
 /* XXX */
 static void enqueue_queue_for_disk_writing(worker_t *worker, queue_t *q) {
-    blob_t *b;
-    for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
-        enqueue_blob_for_disk_writing(worker,b);
-    }
+    q_append_q(&worker->disk_writer->queue, q, &POOL.lock); /* XXX: change this to a worker level lock */
 }
 
 /* create a normal relay worker thread
@@ -112,6 +109,7 @@ void *worker_thread( void *arg ) {
         while ( private_queue.head != NULL ) {
             ssize_t bytes_sent= -2;
             ssize_t bytes_to_send= 0;
+
             get_time(&now);
 
             cur_blob= private_queue.head;
@@ -130,7 +128,6 @@ void *worker_thread( void *arg ) {
                 private_queue.head= BLOB_NEXT(cur_blob);
                 private_queue.count -= spill_queue.count;
                 BLOB_NEXT_set(cur_blob,NULL);
-                cur_blob= private_queue.head;
 
                 /* XXX */
                 WARN( "Encountered %u items which were over spill threshold, writing to disk",
@@ -140,10 +137,11 @@ void *worker_thread( void *arg ) {
 
                 RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, spill_queue.count );
 
-                if (!cur_blob)
-                    continue;
             }
 
+            cur_blob = q_shift_nolock( &private_queue );
+            if (!cur_blob)
+                break;
 
             if ( sck->type == SOCK_DGRAM ) {
                 bytes_to_send= BLOB_BUF_SIZE( cur_blob );

@@ -81,7 +81,31 @@ uint32_t q_append_nolock(queue_t *q, blob_t *b) {
     return ++(q->count);
 }
 
-/* append an item, optionally locked */
+uint32_t q_append_q_nolock(queue_t *q, queue_t *tail) {
+
+    if (q->head == NULL)
+        q->head = tail->head;
+    else
+        BLOB_NEXT_set(q->tail,tail->head);
+
+    q->tail = tail->tail;
+    q->count += tail->count;
+
+    tail->head= NULL;
+    tail->tail= NULL;
+    tail->count= 0;
+
+    return q->count;
+}
+
+uint32_t q_append_q(queue_t *q, queue_t *tail, LOCK_T *lock) {
+    uint32_t count;
+    LOCK(lock);
+    count= q_append_q_nolock(q, tail);
+    UNLOCK(lock);
+    return count;
+}
+
 uint32_t q_append(queue_t *q, blob_t *b, LOCK_T *lock) {
     uint32_t count;
     LOCK(lock);
