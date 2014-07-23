@@ -38,32 +38,18 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
 }
 
 
-/* create a directory with the right permissions or throw an exception
- * (not sure the exception makes sense)
- */
-static void recreate_fallback_path(char *dir) {
-    if (mkdir(dir,0750) == -1 && errno != EEXIST)
-        DIE_RC(EXIT_FAILURE,"mkdir of %s failed", dir);
-}
-
 
 /* add an item to a disk worker queue */
-static void enqueue_for_disk_writing(worker_t *worker, struct blob *b) {
-    b->fallback = strdup(worker->fallback_path); // the function shoyld be called
-                                                 // only from/on not-destructed worker
-                                                 // and since the destruction path
-                                                 // requires that the worker is joined
-                                                 // we do not need to put that in the
-                                                 // critical section
-    q_append(&POOL.disk_writer->queue, b, &POOL.lock);
+static void enqueue_blob_for_disk_writing(worker_t *worker, struct blob *b) {
+    q_append(&worker->disk_writer->queue, b, &POOL.lock); /* XXX: change this to a worker level lock */
 }
 
-/* if a worker failed to send we need to write the item to the disk
- * (so we can move on) */
-static void deal_with_failed_send(worker_t *worker, queue_t *q) {
+/* if a worker failed to send we need to write the item to the disk */
+/* XXX */
+static void enqueue_queue_for_disk_writing(worker_t *worker, queue_t *q) {
     blob_t *b;
     for (b = q_shift_nolock(q); b != NULL; b = q_shift_nolock(q)) {
-        enqueue_for_disk_writing(worker,b);
+        enqueue_blob_for_disk_writing(worker,b);
     }
 }
 
@@ -141,16 +127,16 @@ void *worker_thread( void *arg ) {
                     spill_queue.count++;
                 }
                 spill_queue.tail= cur_blob;
-                private_queue.head= cur_blob.next;
+                private_queue.head= BLOB_NEXT(cur_blob);
                 private_queue.count -= spill_queue.count;
-                cur_blob.next= NULL;
+                BLOB_NEXT_set(cur_blob,NULL);
                 cur_blob= private_queue.head;
 
                 /* XXX */
-                WARN( "Encountered %lu items which were over spill threshold, writing to disk",
+                WARN( "Encountered %u items which were over spill threshold, writing to disk",
                         spill_queue.count );
 
-                enqueue_for_disk_writing( self, spill_queue.head );
+                enqueue_queue_for_disk_writing( self, &spill_queue );
 
                 RELAY_ATOMIC_INCREMENT( self->counters.spilled_count, spill_queue.count );
 
@@ -171,7 +157,7 @@ void *worker_thread( void *arg ) {
 
             if ( bytes_sent == -1 ) {
                 WARN_ERRNO("Send to %s failed %ld",sck->to_string, BLOB_DATA_MBR_SIZE(cur_blob));
-                enqueue_for_disk_writing( self, cur_blob );
+                enqueue_blob_for_disk_writing( self, cur_blob );
                 close(sck->socket);
                 RELAY_ATOMIC_INCREMENT( self->counters.error_count, 1 );
                 sck= NULL;
@@ -239,9 +225,8 @@ worker_t * worker_init(char *arg) {
     /* setup fallback_path */
     if ( snprintf(disk_writer->fallback_path, PATH_MAX,
                 "%s/%s/", CONFIG.fallback_root, worker->s_output.to_string) >= PATH_MAX )
-        DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", worker->fallback_path);
+        DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", disk_writer->fallback_path);
 
-    recreate_fallback_path(disk_writer->fallback_path);
 
     /* Create the disk_writer before we create the main worker.
      * We do this because the disk_writer only consumes things
@@ -286,16 +271,12 @@ worker_t * worker_init(char *arg) {
 void worker_destroy(worker_t *worker) {
     uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit, EXIT_FLAG);
 
+    /* why is this needed */
     if (old_exit & EXIT_FLAG)
         return;
 
     pthread_join(worker->tid, NULL);
 
-    /* huh? why do we do this in the parent thread? */
-    if (worker->s_output.socket) {
-        close(worker->s_output.socket);
-        deal_with_failed_send(worker, &worker->queue); /* XXX: cant be right! */
-    }
     free(worker->arg);
     free(worker);
 }

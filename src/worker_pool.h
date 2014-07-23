@@ -1,5 +1,9 @@
 #ifndef _WORKER_POOL_H
 #define _WORKER_POOL_H
+
+#include "relay_common.h"
+#include "worker.h"
+
 /* this is our GIANT lock and state object. aint globals lovely. :-)*/
 struct worker_pool {
     /* macro to define a TAILQ head entry, empty first arg deliberate */

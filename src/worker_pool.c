@@ -1,5 +1,6 @@
 #include "worker_pool.h"
-static worker_pool_t POOL;
+
+worker_pool_t POOL;
 
 /* initialize a pool of workers
  */

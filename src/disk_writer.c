@@ -1,4 +1,4 @@
-#include "disk_worker.h"
+#include "disk_writer.h"
 #include "worker_pool.h"
 #include "config.h"
 
@@ -70,13 +70,16 @@ int enqueue_blob_for_transmission(blob_t *b) {
 
 /* create a disk writer worker thread
  * main loop for the disk writer worker process */
-static void *disk_writer_thread(void *arg) {
+void *disk_writer_thread(void *arg) {
     disk_writer_t *self = (disk_writer_t *)arg;
 
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
     blob_t *b;
-    SAY("disk writer started");
+    
+    recreate_fallback_path(self->fallback_path);
+    SAY("disk writer started using path '%s' for files", self->fallback_path);
+
     memset(&private_queue, 0, sizeof(private_queue));
 
     while( 1 ){

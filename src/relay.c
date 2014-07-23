@@ -48,9 +48,6 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
 }
 
 
-void reload_workers(int reload) {
-    worker_init_static(CONFIG.argc - 1, &CONFIG.argv[1], reload);
-}
 
 static inline int recv_and_enqueue( int fd, int expected, int flags ) {
     int rc;
@@ -167,7 +164,7 @@ int main(int argc, char **argv) {
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
-    reload_workers(0);
+    worker_pool_init_static(CONFIG.argc - 1, &CONFIG.argv[1]);
 
     if (s_listen->proto == IPPROTO_UDP)
         spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
@@ -182,7 +179,7 @@ int main(int argc, char **argv) {
         else
         if (abort & RELOAD) {
             config_reload();
-            reload_workers(1);
+            worker_pool_reload_static(CONFIG.argc - 1, &CONFIG.argv[1]);
             unset_abort_bits(RELOAD);
         }
         mark_second_elapsed();
@@ -212,8 +209,7 @@ static void cleanup(pthread_t server_tid) {
     shutdown(s_listen->socket, SHUT_RDWR);
     close(s_listen->socket);
     pthread_join(server_tid, NULL);
-    worker_destroy_static();
-    disk_writer_stop();
+    worker_pool_destroy_static();
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
     config_destroy();
