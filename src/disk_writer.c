@@ -57,8 +57,9 @@ void *disk_writer_thread(void *arg) {
     while( 1 ){
 
         q_hijack(main_queue, &private_queue, &POOL.lock);
+        b= private_queue.head;
 
-        if (private_queue.head == NULL) {
+        if ( b == NULL ) {
             if (RELAY_ATOMIC_READ(self->exit)) {
                 /* nothing to do and we have been asked to exit, so break from the loop */
                 break;
