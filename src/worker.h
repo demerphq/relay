@@ -37,7 +37,6 @@ struct worker {
 typedef struct worker worker_t;
 
 /* worker.c */
-int enqueue_blob_for_transmission(blob_t *b);
 void add_worker_stats_to_ps_str(char *str, ssize_t len);
 worker_t * worker_init(char *arg);
 void worker_destroy(worker_t *worker);

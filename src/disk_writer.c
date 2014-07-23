@@ -40,34 +40,6 @@ static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
         WARN_ERRNO("failed to close '%s', everyting is lost!", file);
 }
 
-/* add an item to all workers queues
- * (not sure if this really belongs in worker.c)
- */
-int enqueue_blob_for_transmission(blob_t *b) {
-    int i = 0;
-    worker_t *w;
-    blob_t *to_enqueue;
-    LOCK(&POOL.lock);
-    BLOB_REFCNT_set(b,POOL.n_workers);
-    TAILQ_FOREACH(w, &POOL.workers, entries) {
-        /* check if this item is no the last */
-        if ( TAILQ_NEXT(w, entries) == NULL ) {
-            /* this is the last item in the chain, just use b. */
-            to_enqueue= b;
-        } else {
-            /* not the last, so we need to clone the original object */
-            to_enqueue= b_clone_no_refcnt_inc(b);
-        }
-        q_append_nolock(&w->queue, to_enqueue);
-
-        i++;
-    }
-    UNLOCK(&POOL.lock);
-    if (i == 0) {
-        WARN("no living workers, not sure what to do"); // dump the packet on disk?
-    }
-    return i;
-}
 
 /* create a disk writer worker thread
  * main loop for the disk writer worker process */

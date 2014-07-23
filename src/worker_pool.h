@@ -16,5 +16,6 @@ typedef struct worker_pool worker_pool_t;
 void worker_pool_init_static(int argc, char **argv);
 void worker_pool_reload_static(int argc, char **argv);
 void worker_pool_destroy_static(void);
+int enqueue_blob_for_transmission(blob_t *b);
 
 #endif
