@@ -118,6 +118,7 @@ void *worker_thread( void *arg ) {
                 elapsed_usec( &BLOB_RECEIVED_TIME(cur_blob), &now) >= 1000000
             ) {
                 spill_queue.head= cur_blob;
+                spill_queue.count= 1;
                 while ( BLOB_NEXT(cur_blob) &&
                         elapsed_usec( &BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now ) >= 1000000
                 ) {
