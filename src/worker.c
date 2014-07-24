@@ -193,8 +193,7 @@ worker_t * worker_init(char *arg) {
     worker->exists = 1;
     worker->arg = strdup(arg);
 
-    /* socketize */
-    socketize(arg, &worker->s_output);
+    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND);
 
     worker->disk_writer= disk_writer;
 

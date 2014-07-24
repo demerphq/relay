@@ -153,11 +153,11 @@ int main(int argc, char **argv) {
 
     if (CONFIG.argc < 2)
         DIE_RC(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"       \
-                          "or file with socket description per day like:\n"                     \
+                          "or file with socket description like:\n"                             \
                           "\tlocal-host:local-port\n"                                           \
                           "\ttcp@remote-host:remote-port ...\n", argv[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
-    socketize(CONFIG.argv[0], s_listen);
+    socketize(CONFIG.argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND );
 
     /* must open the socket BEFORE we create the worker pool */
     open_socket(s_listen, DO_BIND, 0, CONFIG.server_socket_rcvbuf);

@@ -15,6 +15,9 @@
 #include <netdb.h>
 #include <string.h>
 
+#define RELAY_CONN_IS_INBOUND   0
+#define RELAY_CONN_IS_OUTBOUND  1
+
 struct sock {
     union sa {
         struct sockaddr_un un;
@@ -29,7 +32,7 @@ struct sock {
 typedef struct sock sock_t;
 
 /* util.c */
-void socketize(const char *arg, sock_t *s);
+void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir );
 int open_socket(sock_t *s, int flags, int snd, int rcv);
 
 /* try to get the OS to send our packets more efficiently when sending

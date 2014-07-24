@@ -34,7 +34,7 @@ int main(int ac, char **av) {
     srand(time(NULL) + rdtsc());
     if (ac < 2)
         DIE_RC(EXIT_FAILURE, "%s remote-ip:remote-port", av[0]);
-    socketize(av[1], &s);
+    socketize(av[1], &s, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND);
     open_socket(&s, DO_NOTHING,0,0);
     if (ac > 2)
         do_max = atoi(av[2]);

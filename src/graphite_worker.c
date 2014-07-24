@@ -10,7 +10,7 @@ void *graphite_worker_thread(void *arg) {
     ssize_t sent_bytes;
     time_t this_epoch;
 
-    socketize(self->arg, &self->s_output);
+    socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND);
     self->buffer= mallocz_or_die(GRAPHITE_BUFFER_MAX);
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
