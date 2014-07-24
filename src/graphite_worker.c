@@ -1,15 +1,23 @@
+#include "graphite_worker.h"
+
+/* this is our POOL lock and state object. aint globals lovely. :-) */
+extern worker_pool_t POOL;
+extern struct config CONFIG;
+
 void *graphite_worker_thread(void *arg) {
     struct sock *sck= NULL;
     graphite_worker_t *self = (graphite_worker_t *)arg;
-    char buffer[GRAPHITE_BUFFER_MAX];
-    char *str= buffer;
-    ssize_t len= GRAPHITE_BUFFER_MAX;
     ssize_t sent_bytes;
     time_t this_epoch;
 
-    socketize(self->arg, self->s_output);
+    socketize(self->arg, &self->s_output);
+    self->buffer= mallocz_or_die(GRAPHITE_BUFFER_MAX);
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
+        char *str= self->buffer;            /* current position in buffer */
+        ssize_t len= GRAPHITE_BUFFER_MAX;   /* amount remaining to use */
+        worker_t *w;
+
         if ( !sck ) {
             /* nope, so lets try to open one */
             if ( open_socket( &self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0 ) ) {
@@ -34,26 +42,30 @@ void *graphite_worker_thread(void *arg) {
         TAILQ_FOREACH(w, &POOL.workers, entries) {
             int wrote_len;
             stats_basic_counters_t totals;
-            memset(totals,0,sizeof(stats_basic_counters));
+            memset(&totals,0,sizeof(stats_basic_counters_t));
 
-            snapshot_stats(&w->totals, totals);
+            snapshot_stats(&w->totals, &totals);
 
             if (len >= 1000) {
                 wrote_len= snprintf(
                     str, len,
-                    "%s.%s.received_count: "   STATSfmt " %d\n"
-                    "%s.%s.sent_count: "       STATSfmt " %d\n"
-                    "%s.%s.partial_count: "    STATSfmt " %d\n"
-                    "%s.%s.spilled_count: "    STATSfmt " %d\n"
-                    "%s.%s.error_count: "      STATSfmt " %d\n"
-                    "%s.%s.disk_count: "       STATSfmt " %d\n"
+                    "%s.%s.received_count: "   STATSfmt " %lu\n"
+                    "%s.%s.sent_count: "       STATSfmt " %lu\n"
+                    "%s.%s.partial_count: "    STATSfmt " %lu\n"
+                    "%s.%s.spilled_count: "    STATSfmt " %lu\n"
+                    "%s.%s.error_count: "      STATSfmt " %lu\n"
+                    "%s.%s.disk_count: "       STATSfmt " %lu\n"
+                    "%s.%s.disk_error_count: " STATSfmt " %lu\n"
+                    "%s"
                     ,
-                    self->root, w->s_output.to_string, totals->received_count,  this_epoch,
-                    self->root, w->s_output.to_string, totals->sent_count,      this_epoch,
-                    self->root, w->s_output.to_string, totals->partial_count,   this_epoch,
-                    self->root, w->s_output.to_string, totals->spilled_count,   this_epoch,
-                    self->root, w->s_output.to_string, totals->error_count,     this_epoch,
-                    self->root, w->s_output.to_string, totals->disk_count,      this_epoch
+                    self->root, w->s_output.to_string, totals.received_count,  this_epoch,
+                    self->root, w->s_output.to_string, totals.sent_count,      this_epoch,
+                    self->root, w->s_output.to_string, totals.partial_count,   this_epoch,
+                    self->root, w->s_output.to_string, totals.spilled_count,   this_epoch,
+                    self->root, w->s_output.to_string, totals.error_count,     this_epoch,
+                    self->root, w->s_output.to_string, totals.disk_count,      this_epoch,
+                    self->root, w->s_output.to_string, totals.disk_error_count,this_epoch,
+                    ""
                 );
 
                 if (wrote_len < 0 || wrote_len >= len) {
@@ -66,21 +78,27 @@ void *graphite_worker_thread(void *arg) {
         }
         UNLOCK(&POOL.lock);
 
+        /* convert len from "amount remaining" to "amount used" */
         len = GRAPHITE_BUFFER_MAX - len;
-        str = buffer;
 
-        /* scrub the string */
-        while (str= strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n"))
+        /* and reset the buffer pointer */
+        str = self->buffer;
+
+        /* scrub the string of unfortunate characters */
+        while ( NULL != (str= strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")) )
             *str++= '_';
 
-        sent_bytes= sendto(sck->socket, buffer, len, 0, NULL, 0);
+        /* send it */
+        sent_bytes= sendto(sck->socket, self->buffer, len, 0, NULL, 0);
         if (sent_bytes != len) {
-            close(sck);
+            close(sck->socket);
             sck= NULL;
         }
         w_wait(60000);
     }
     if (sck)
-        close(sck);
+        close(sck->socket);
+
+    return NULL;
 }
 
