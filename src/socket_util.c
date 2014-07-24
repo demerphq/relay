@@ -2,28 +2,38 @@
 extern struct config CONFIG;
 
 void socketize(const char *arg, sock_t *s) {
-    char *a = strdup(arg);
-    char *p;
+    char *arg_copy = strdup(arg);
+    char *a= arg_copy;
+    char *p= arg_copy;
     int proto = 0;
     s->type = SOCK_DGRAM;
+
+    if ((p = strchr(a, '@')) != NULL) {
+        *p++ = '\0';
+        if (strcmp("tcp", a) == 0) {
+            proto = IPPROTO_TCP;
+            s->type = SOCK_STREAM;
+        } else if (strcmp("file", a) == 0) {
+            proto = -1;
+            assert(IPPROTO_TCP != proto && IPPROTO_UDP != proto);
+        } else if (strcmp("udp", a) == 0) {
+            proto = IPPROTO_UDP;
+        } else {
+            DIE_RC(FATAL_EXIT, "Bad protocol '%s'", a);
+        }
+        a = p;
+    } else {
+        proto = IPPROTO_UDP;
+    }
+
     if ((p = strchr(a, ':')) != NULL) {
+
+        if (proto == -1)
+            DIE_RC(EXIT_FAILURE, "colon in file protocol definition is illegal");
 
         s->sa.in.sin_family = AF_INET;
         s->sa.in.sin_port = htons(atoi( p + 1 )); /* skip the : */
         *p = '\0';
-
-        if ((p = strchr(a, '@')) != NULL) {
-            *p++ = '\0'; /* get rid of the @ */
-            if (strcmp("tcp", a) == 0) {
-                proto = IPPROTO_TCP;
-                s->type = SOCK_STREAM;
-            } else
-                proto = IPPROTO_UDP;
-        } else {
-            p= a;
-            proto = IPPROTO_TCP;
-            s->type = SOCK_STREAM;
-        }
 
         struct in_addr ip;
         if (inet_aton(p, &ip) == 0) {
@@ -37,13 +47,19 @@ void socketize(const char *arg, sock_t *s) {
         }
 
         s->addrlen = sizeof(s->sa.in);
+    } else if (proto == -1) {
+        s->socket= open(a, O_WRONLY|O_APPEND|O_CREAT, 0640);
     } else {
         DIE_RC(EXIT_FAILURE, "must specify a port");
     }
     s->proto = proto;
-    snprintf(s->to_string, PATH_MAX,
-                    "%s@%s:%d", (s->proto == IPPROTO_TCP ? "tcp" : "udp"),
-                    inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
+    if (proto != -1) {
+        snprintf(s->to_string, PATH_MAX,
+                        "%s@%s:%d", (s->proto == IPPROTO_TCP ? "tcp" : "udp"),
+                        inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
+    } else {
+        snprintf(s->to_string, PATH_MAX,"file@%s", a);
+    }
     SAY("%s", s->to_string);
     free(a);
 }
