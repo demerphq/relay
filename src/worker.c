@@ -78,7 +78,7 @@ void *worker_thread( void *arg ) {
 
         get_time( &send_start_time );
 
-        cork(s,1);
+        cork(sck, 1);
         while ( private_queue.head != NULL ) {
             ssize_t bytes_sent= -2;
             ssize_t bytes_to_send= 0;
