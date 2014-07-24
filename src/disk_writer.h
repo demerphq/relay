@@ -15,8 +15,8 @@ struct disk_writer {
 
     volatile uint32_t exit;
 
-    stats_basic_counters_t counters;
-    stats_basic_counters_t totals;
+    stats_basic_counters_t *pcounters;
+    stats_basic_counters_t *ptotals;
 
     char fallback_path[PATH_MAX];
     char last_file_path[PATH_MAX];

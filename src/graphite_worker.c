@@ -21,6 +21,14 @@ void *graphite_worker_thread(void *arg) {
                 continue;
             }
         }
+
+        /* Because of the POOL lock here we build up the full graphite send packet
+         * in one buffer and send it using a single sendto() call.
+         *
+         * We could also use a smaller buffer and use cork() on the socket. But I
+         * don't want to hold the POOL lock for the duration of the sendto() call.
+         */
+
         LOCK(&POOL.lock);
         this_epoch= time(NULL);
         TAILQ_FOREACH(w, &POOL.workers, entries) {

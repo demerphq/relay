@@ -16,7 +16,7 @@ void add_worker_stats_to_ps_str(char *str, ssize_t len) {
                 ++w_num,
                 RELAY_ATOMIC_READ(w->totals.sent_count),
                 RELAY_ATOMIC_READ(w->totals.spilled_count),
-                RELAY_ATOMIC_READ(w->disk_writer->totals.disk_count)
+                RELAY_ATOMIC_READ(w->totals.disk_count)
         );
 
         if (wrote_len < 0 || wrote_len >= len)

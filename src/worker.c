@@ -71,6 +71,8 @@ void *worker_thread( void *arg ) {
                 w_wait( CONFIG.polling_interval_ms );
                 continue;
             }
+        } else {
+            RELAY_ATOMIC_INCREMENT( self->counters.received_count, private_queue.count );
         }
 
         /* ok, so we have something in our queue to process */
@@ -195,6 +197,9 @@ worker_t * worker_init(char *arg) {
     socketize(arg, &worker->s_output);
 
     worker->disk_writer= disk_writer;
+
+    disk_writer->pcounters= &worker->counters;
+    disk_writer->ptotals= &worker->totals;
 
     /* setup fallback_path */
     if ( snprintf(disk_writer->fallback_path, PATH_MAX,

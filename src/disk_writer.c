@@ -51,11 +51,15 @@ static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
 
     if ( self->fd >= 0 ) {
         ssize_t wrote= write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b));
-        if (wrote != BLOB_BUF_SIZE(b) ) {
-            WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:",
-                    wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+        if ( wrote == BLOB_BUF_SIZE(b) ) {
+            RELAY_ATOMIC_INCREMENT( self->pcounters->disk_count, 1 );
+            return;
         }
+        WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:",
+                wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+
     }
+    RELAY_ATOMIC_INCREMENT( self->pcounters->disk_error_count, 1 );
 }
 
 
@@ -98,16 +102,15 @@ void *disk_writer_thread(void *arg) {
                 done_work++;
                 write_blob_to_disk(self, b);
                 b_destroy( q_shift_nolock( &private_queue) );
-                RELAY_ATOMIC_INCREMENT( self->counters.disk_count, 1 );
             } while ((b = private_queue.head) != NULL);
 
-            (void)snapshot_stats( &self->counters, &self->totals );
+            (void)snapshot_stats( self->pcounters, self->ptotals );
         }
     }
 
-    (void)snapshot_stats( &self->counters, &self->totals );
+    (void)snapshot_stats( self->pcounters, self->ptotals );
 
-    SAY("disk_writer saved " STATSfmt " packets in its lifetime", self->totals.disk_count);
+    SAY("disk_writer saved " STATSfmt " packets in its lifetime", self->ptotals->disk_count);
 
     return NULL;
 }
