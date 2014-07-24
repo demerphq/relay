@@ -25,32 +25,36 @@ void *graphite_worker_thread(void *arg) {
         this_epoch= time(NULL);
         TAILQ_FOREACH(w, &POOL.workers, entries) {
             int wrote_len;
-            if (len < 1000) break; /* crude attempt to avoid partial buffers */
-            w->s_output.to_string,
+            stats_basic_counters_t totals;
+            memset(totals,0,sizeof(stats_basic_counters));
 
-            wrote_len= snprintf(
-                str, len,
-                "%s.%s.received_count: "   STATSfmt " %d\n"
-                "%s.%s.sent_count: "       STATSfmt " %d\n"
-                "%s.%s.partial_count: "    STATSfmt " %d\n"
-                "%s.%s.spilled_count: "    STATSfmt " %d\n"
-                "%s.%s.error_count: "      STATSfmt " %d\n"
-                "%s.%s.disk_count: "       STATSfmt " %d\n"
-                ,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->received_count),  this_epoch,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->sent_count),      this_epoch,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->partial_count),   this_epoch,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->spilled_count),   this_epoch,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->error_count),     this_epoch,
-                self->root, w->s_output.to_string, RELAY_ATOMIC_READ(w->totals->disk_count),      this_epoch
-            );
+            snapshot_stats(&w->totals, totals);
 
-            if (wrote_len < 0 || wrote_len >= len) {
-                /* should we warn? */
-                break;
+            if (len >= 1000) {
+                wrote_len= snprintf(
+                    str, len,
+                    "%s.%s.received_count: "   STATSfmt " %d\n"
+                    "%s.%s.sent_count: "       STATSfmt " %d\n"
+                    "%s.%s.partial_count: "    STATSfmt " %d\n"
+                    "%s.%s.spilled_count: "    STATSfmt " %d\n"
+                    "%s.%s.error_count: "      STATSfmt " %d\n"
+                    "%s.%s.disk_count: "       STATSfmt " %d\n"
+                    ,
+                    self->root, w->s_output.to_string, totals->received_count,  this_epoch,
+                    self->root, w->s_output.to_string, totals->sent_count,      this_epoch,
+                    self->root, w->s_output.to_string, totals->partial_count,   this_epoch,
+                    self->root, w->s_output.to_string, totals->spilled_count,   this_epoch,
+                    self->root, w->s_output.to_string, totals->error_count,     this_epoch,
+                    self->root, w->s_output.to_string, totals->disk_count,      this_epoch
+                );
+
+                if (wrote_len < 0 || wrote_len >= len) {
+                    /* should we warn? */
+                    break;
+                }
+                str += wrote_len;
+                len -= wrote_len;
             }
-            str += wrote_len;
-            len -= wrote_len;
         }
         UNLOCK(&POOL.lock);
 
@@ -65,10 +69,8 @@ void *graphite_worker_thread(void *arg) {
         if (sent_bytes != len) {
             close(sck);
             sck= NULL;
-            continue;
-        } else {
-            w_wait(60000);
         }
+        w_wait(60000);
     }
     if (sck)
         close(sck);
