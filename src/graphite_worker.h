@@ -2,10 +2,8 @@
 #define _GRAPHITE_WORKER_H
 
 #define GRAPHITE_BUFFER_MAX 10000
-
-#include "worker.h"
-#include "config.h"
-#include "worker_pool.h"
+#include <pthread.h>
+#include "socket_util.h"
 
 struct graphite_worker {
     pthread_t tid;
@@ -18,8 +16,9 @@ struct graphite_worker {
     char *root;
     char *buffer;
 };
-typedef struct graphite_worker graphite_worker_t;
 
+typedef struct graphite_worker graphite_worker_t;
+void graphite_worker_destroy(graphite_worker_t *worker);
 void *graphite_worker_thread(void *arg);
 
 #endif

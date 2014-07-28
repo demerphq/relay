@@ -5,20 +5,20 @@
 #include <stdio.h>
 #include <stdint.h>
 struct config {
-    /* original argv/argc, or synethisized from config file */
-    char **argv;
+    /* original argc/argv, or synethisized from config file */
     int argc;
+    char **argv;
 
     /* config filename itself */
     char *file;
 
     /* various meta data used for sending, etc */
-    uint32_t spill_usec;
     int polling_interval_ms;
     int sleep_after_disaster_ms;
+    int max_pps;
     int tcp_send_timeout;
     int server_socket_rcvbuf;
-    int max_pps;
+    uint32_t spill_usec;
 
     /* root directory for where we write failed sends,
      * and "spilled" data */
@@ -27,6 +27,7 @@ struct config {
     /* host:port for sending data to graphite */
     char *graphite_arg;
 };
+
 typedef struct config config_t;
 
 
@@ -58,7 +59,13 @@ typedef struct config config_t;
 #define DEFAULT_SERVER_SOCKET_RCVBUF (32 * 1024 * 1024)
 #endif
 
-void config_reload(void);
+#ifndef DEFAULT_GRAPHITE_ARG
+#define DEFAULT_GRAPHITE_ARG "/tmp/relay.graphite"
+#endif
+
+void config_reload(config_t *config);
+void config_set_defaults(config_t *config);
 void config_init(int argc, char **argv);
+void config_die_args(int argc, char **argv);
 void config_destroy(void);
 #endif

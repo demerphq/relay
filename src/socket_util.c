@@ -75,7 +75,6 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
     free(a);
 }
 
-int open_socket(sock_t *s, int flags,int snd, int rcv) {
 #define ERROR(fmt, arg...)          \
 STMT_START {                        \
     if (flags & DO_NOT_EXIT) {      \
@@ -87,7 +86,20 @@ STMT_START {                        \
     return 0;                       \
 } STMT_END
 
+int open_socket(sock_t *s, int flags, int snd, int rcv) {
     int ok = 1;
+
+    if (s->proto == -2) {
+        /* its actually a file! */
+        s->socket= open(s->to_string, O_WRONLY|O_APPEND|O_CREAT, 0640);
+        if (s->socket < 0) {
+            WARN_ERRNO("failed to open file '%s' (as a fake socket)", s->to_string);
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
     if ((s->socket = socket(s->sa.in.sin_family, s->type, s->proto)) < 0)
         ERROR("socket[%s]", s->to_string);
 
@@ -111,6 +123,11 @@ STMT_START {                        \
                     ERROR("setsockopt[%s]", s->to_string);
             }
         }
+    }
+    if ( flags & DO_REUSEADDR) {
+        int optval= 1;
+        if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+            ERROR("setsockopt[REUSEADDR]");
     }
     if (snd > 0) {
         if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd)) < 0)

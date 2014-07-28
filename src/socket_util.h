@@ -14,9 +14,18 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #define RELAY_CONN_IS_INBOUND   0
 #define RELAY_CONN_IS_OUTBOUND  1
+
+#define DO_NOTHING      0x00
+#define DO_BIND         0x01
+#define DO_CONNECT      0x02
+#define DO_NOT_EXIT     0x04
+#define DO_REUSEADDR    0x08
 
 struct sock {
     union sa {

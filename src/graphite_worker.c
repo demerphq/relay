@@ -1,8 +1,24 @@
 #include "graphite_worker.h"
+#include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
 extern config_t CONFIG;
+
+void graphite_worker_destroy(graphite_worker_t *worker) {
+    uint32_t old_exit= RELAY_ATOMIC_OR(worker->exit, EXIT_FLAG);
+
+    /* why is this needed */
+    if (old_exit & EXIT_FLAG)
+        return;
+
+    pthread_join(worker->tid, NULL);
+
+    free(worker->arg);
+    free(worker->root);
+    free(worker->buffer);
+    free(worker);
+}
 
 void *graphite_worker_thread(void *arg) {
     struct sock *sck= NULL;

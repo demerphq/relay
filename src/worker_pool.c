@@ -58,19 +58,23 @@ int enqueue_blob_for_transmission(blob_t *b) {
 
 /* initialize a pool of workers
  */
-void worker_pool_init_static(int argc, char **argv) {
+void worker_pool_init_static(config_t *config) {
     int i;
     worker_t *new_worker;
 
     TAILQ_INIT(&POOL.workers);
     LOCK_INIT(&POOL.lock);
 
+    POOL.graphite_worker= mallocz_or_die(sizeof(graphite_worker_t));
+    POOL.graphite_worker->arg= strdup(config->graphite_arg);
+    pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
+
     LOCK(&POOL.lock);
     POOL.n_workers = 0;
-    for (i = 0; i < argc; i++) {
+    for (i = 1; i < config->argc; i++) {
         if (is_aborted())
             break;
-        new_worker = worker_init(argv[i]);
+        new_worker = worker_init(config->argv[i]);
         TAILQ_INSERT_HEAD(&POOL.workers, new_worker, entries);
         POOL.n_workers++;
     }
@@ -79,12 +83,19 @@ void worker_pool_init_static(int argc, char **argv) {
 
 /* re-initialize a pool of workers
  */
-void worker_pool_reload_static(int argc, char **argv) {
+void worker_pool_reload_static(config_t *config) {
     int i;
     int must_add;
     worker_t *w;
     worker_t *wtmp;
     int n_workers = 0;
+
+    /* XXX: check me */
+    /* check and see if we need to stop the old graphite processor and replace it */
+    if (strcmp(POOL.graphite_worker->arg, config->graphite_arg) != 0) {
+        graphite_worker_destroy(POOL.graphite_worker);
+        pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
+    }
 
     LOCK(&POOL.lock);
 
@@ -95,17 +106,17 @@ void worker_pool_reload_static(int argc, char **argv) {
 
     /* scan through each argument, and see if we need
      * to add a new worker for it, or if we already have it */
-    for (i = 0; i < argc; i++) {
+    for (i = 1; i < config->argc; i++) {
         must_add = 1;
         TAILQ_FOREACH(w, &POOL.workers, entries) {
-            if ( !w->exists && strcmp(argv[i], w->arg) == 0 ) {
+            if ( !w->exists && strcmp(config->argv[i], w->arg) == 0 ) {
                 w->exists = 1;
                 must_add = 0;
                 break;
             }
         }
         if (must_add) {
-            w = worker_init(argv[i]); /* w will have w->exists == 1 */
+            w = worker_init(config->argv[i]); /* w will have w->exists == 1 */
             TAILQ_INSERT_TAIL(&POOL.workers, w, entries);
         }
     }

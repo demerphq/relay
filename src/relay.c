@@ -1,5 +1,6 @@
 #include "relay.h"
 #include "worker.h"
+#include "worker_pool.h"
 #include "setproctitle.h"
 #include "abort.h"
 #include "config.h"
@@ -137,34 +138,35 @@ void *tcp_server(void *arg) {
     pthread_exit(NULL);
 }
 
-int main(int argc, char **argv) {
-    pthread_t server_tid;
+int _main(config_t *config);
 
+int main(int argc, char **argv) {
     config_init(argc, argv);
+    initproctitle(argc, argv);
+
+    return _main(&CONFIG);
+}
+
+int _main(config_t *config) {
+    pthread_t server_tid;
 
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
     signal(SIGPIPE, sig_handler);
     signal(SIGHUP, sig_handler);
 
-
-    initproctitle(argc, argv);
     setproctitle("starting");
 
-    if (CONFIG.argc < 2)
-        DIE_RC(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"       \
-                          "or file with socket description like:\n"                             \
-                          "\tlocal-host:local-port\n"                                           \
-                          "\ttcp@remote-host:remote-port ...\n", argv[0]);
     s_listen = malloc_or_die(sizeof(*s_listen));
+
     socketize(CONFIG.argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND );
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND, 0, CONFIG.server_socket_rcvbuf);
+    open_socket(s_listen, DO_BIND|DO_REUSEADDR, 0, CONFIG.server_socket_rcvbuf);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
-    worker_pool_init_static(CONFIG.argc - 1, &CONFIG.argv[1]);
+    worker_pool_init_static(&CONFIG);
 
     if (s_listen->proto == IPPROTO_UDP)
         spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
@@ -178,8 +180,8 @@ int main(int argc, char **argv) {
         }
         else
         if (abort & RELOAD) {
-            config_reload();
-            worker_pool_reload_static(CONFIG.argc - 1, &CONFIG.argv[1]);
+            config_reload(&CONFIG);
+            worker_pool_reload_static(&CONFIG);
             unset_abort_bits(RELOAD);
         }
         mark_second_elapsed();

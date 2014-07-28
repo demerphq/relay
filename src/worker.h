@@ -10,7 +10,6 @@
 #include "config.h"
 #include "timer.h"
 #include "socket_util.h"
-#include "worker_pool.h"
 #include "disk_writer.h"
 
 #include <fcntl.h>

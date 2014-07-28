@@ -11,18 +11,11 @@
 
 #include "log.h"
 
-
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif
 
 #define MAX_CHUNK_SIZE 0xFFFF
-
-#define DO_NOTHING      0
-#define DO_BIND         1
-#define DO_CONNECT      2
-#define DO_NOT_EXIT     4
-
 
 #ifndef NO_INLINE
 #define INLINE inline

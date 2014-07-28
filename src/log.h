@@ -61,10 +61,6 @@ struct _ts {
 #define WARN_ERRNO(fmt, arg...) \
     WARN(fmt " { %s }", ## arg, errno ? strerror(errno) : "undefined error");
 
-#define CONF_WARN(opt,fmt,a,b)                                               \
-    STMT_START {\
-        SAY("found different <" opt ">, restart is required for it to take effect. was: <" fmt ">, new: <" fmt ">",a,b); \
-    } STMT_END
 
 
 #endif
