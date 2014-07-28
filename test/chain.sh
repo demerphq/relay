@@ -9,7 +9,7 @@ export LISTENER_PORT=9003
 ####################################################
 export THIS_PORT=$FIRST_PORT
 export NEXT_PORT=$FIRST_PORT_PLUS_ONE
-export PROTO=upd
+export PROTO=udp
 
 for NEXT_PORT in $(seq $FIRST_PORT_PLUS_ONE $LAST_PORT)
 do
