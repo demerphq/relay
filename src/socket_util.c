@@ -4,8 +4,9 @@ extern config_t CONFIG;
 void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
     char *a = strdup(arg);
     char *p;
-    int proto = 0;
+    int proto = -2;
     int wrote = 0;
+    SAY("socketizing argument '%s'", arg);
     if ((p = strchr(a, ':')) != NULL) {
 
         s->sa.in.sin_family = AF_INET;
@@ -16,15 +17,19 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
         *p = '\0';
 
         if ((p = strchr(a, '@')) != NULL) {
+            SAY("found '@'");
             *p++ = '\0'; /* get rid of the @ and move to the next char*/
             if (strcmp("tcp", a) == 0) {
+                SAY("protocol is tcp");
                 proto = IPPROTO_TCP;
             } else if (strcmp("udp", a) == 0) {
+                SAY("protocol is udp");
                 proto = IPPROTO_UDP;
             } else {
-                DIE_RC(EXIT_FAILURE, "must specify a port");
+                DIE_RC(EXIT_FAILURE, "unknown protocol '%s' in argument '%s'", a, arg);
             }
         } else {
+            SAY("did not find '@'");
             p= a; /* reset p back to the start of the string */
             proto = default_proto;
         }
@@ -32,7 +37,7 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
             s->type = SOCK_STREAM;
         } else if (proto == IPPROTO_UDP) {
             s->type = SOCK_DGRAM;
-        } else{
+        } else {
             DIE_RC(EXIT_FAILURE, "unknown proto '%d'", proto);
         }
 
@@ -49,21 +54,23 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
 
         s->addrlen = sizeof(s->sa.in);
         wrote= snprintf(s->to_string, PATH_MAX,
-                    "%s@%s:%d", (s->proto == IPPROTO_TCP ? "tcp" : "udp"),
+                    "%s@%s:%d", (proto == IPPROTO_TCP ? "tcp" : "udp"),
                     inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
         if (wrote >= PATH_MAX)
             DIE_RC(EXIT_FAILURE, "failed to stringify target descriptor");
         SAY("socket details: %s", s->to_string);
     } else if ( conn_dir == RELAY_CONN_IS_OUTBOUND && ( *a == '/' || *a == '.' ) ) {
         proto = -1;
+        assert(proto != IPPROTO_TCP && proto != IPPROTO_UDP);
         wrote= snprintf(s->to_string, PATH_MAX, "%s", a);
         if (wrote >= PATH_MAX)
             DIE_RC(EXIT_FAILURE, "path too long");
         DIE_RC(EXIT_FAILURE, "file not yet implemented");
         SAY("writing to a file: %s", s->to_string);
     } else {
-        DIE_RC(EXIT_FAILURE, "must specify a port");
+        DIE_RC(EXIT_FAILURE, "must specify a port in '%s'", arg);
     }
+    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == -1);
     s->proto = proto;
     free(a);
 }
