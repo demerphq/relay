@@ -8,7 +8,7 @@
 static void cleanup();
 static void sig_handler(int signum);
 static sock_t *s_listen;
-extern struct config CONFIG;
+extern config_t CONFIG;
 
 stats_basic_counters_t RECEIVED_STATS= {
     .received_count= 0,       /* number of items we have received */

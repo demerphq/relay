@@ -4,7 +4,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern struct config CONFIG;
+extern config_t CONFIG;
 
 /* create a directory with the right permissions or throw an exception
  * (not sure the exception makes sense)

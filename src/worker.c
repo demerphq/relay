@@ -3,7 +3,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern struct config CONFIG;
+extern config_t CONFIG;
 
 /* worker sleeps while it waits for work
  * this should be configurable */

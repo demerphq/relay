@@ -5,7 +5,7 @@
 
 static const char *OUR_NAME= "event-relay";
 
-struct config CONFIG;
+config_t CONFIG;
 
 void trim(char * s) {
     char *p = s;

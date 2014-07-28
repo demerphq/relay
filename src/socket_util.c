@@ -1,5 +1,5 @@
 #include "socket_util.h"
-extern struct config CONFIG;
+extern config_t CONFIG;
 
 void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
     char *a = strdup(arg);

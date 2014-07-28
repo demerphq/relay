@@ -2,7 +2,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern struct config CONFIG;
+extern config_t CONFIG;
 
 void *graphite_worker_thread(void *arg) {
     struct sock *sck= NULL;

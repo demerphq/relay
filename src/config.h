@@ -5,17 +5,29 @@
 #include <stdio.h>
 #include <stdint.h>
 struct config {
+    /* original argv/argc, or synethisized from config file */
     char **argv;
     int argc;
+
+    /* config filename itself */
     char *file;
+
+    /* various meta data used for sending, etc */
     uint32_t spill_usec;
     int polling_interval_ms;
     int sleep_after_disaster_ms;
     int tcp_send_timeout;
     int server_socket_rcvbuf;
     int max_pps;
+
+    /* root directory for where we write failed sends,
+     * and "spilled" data */
     char *fallback_root;
+
+    /* host:port for sending data to graphite */
+    char *graphite_arg;
 };
+typedef struct config config_t;
 
 
 #ifndef DEFAULT_SPILL_USEC
