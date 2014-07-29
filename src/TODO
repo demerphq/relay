@@ -1,0 +1,7 @@
+1. Add hostname to graphite path (graphite_worker->root)
+2. Fixup shutdown segfault from ctl-c
+3. Add received stats to graphite output. (or hack a workaround for ps line)
+4. Remove data about "disk writer wrote" stats from ps (last element in ps line)
+5. Fixup syslog-to-stderr config option parsing
+6. Better command line options (would be nice to be able to turn on stderr from cmd line)
+
