@@ -83,7 +83,6 @@ config_t *config_from_file(char *file) {
                 IF_NUM_OPT( graphite_sleep_poll_interval_ms, line, p ) else
                 IF_NUM_OPT( polling_interval_ms, line, p ) else
                 IF_NUM_OPT( sleep_after_disaster_ms, line, p ) else
-                IF_NUM_OPT( max_pps, line, p ) else
                 IF_NUM_OPT( tcp_send_timeout, line, p ) else
                 IF_NUM_OPT( server_socket_rcvbuf, line, p ) else
                 IF_NUM_OPT( spill_usec, line, p ) else
@@ -107,7 +106,7 @@ config_t *config_from_file(char *file) {
 
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
     if ( config->name != new_config->name ) {               \
-        SAY("Changed '" #name "' from '%d' to '%d'",              \
+        SAY("changed '" #name "' from '%d' to '%d'",              \
                 config->name, new_config->name);            \
         config->name= new_config->name;                     \
         requires_restart= 1;                                \
@@ -115,7 +114,7 @@ config_t *config_from_file(char *file) {
 
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
     if ( strcmp(config->name, new_config->name) != 0 ) {    \
-        SAY("Changed '" #name "' from '%s' to '%s'",           \
+        SAY("changed '" #name "' from '%s' to '%s'",           \
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name= new_config->name;                     \
@@ -139,7 +138,6 @@ int config_reload(config_t *config) {
     IF_NUM_OPT_CHANGED( graphite_sleep_poll_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( polling_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( sleep_after_disaster_ms, config, new_config )
-    IF_NUM_OPT_CHANGED( max_pps, config, new_config )
     IF_NUM_OPT_CHANGED( tcp_send_timeout, config, new_config )
     IF_NUM_OPT_CHANGED( server_socket_rcvbuf, config, new_config )
     IF_NUM_OPT_CHANGED( spill_usec, config, new_config )

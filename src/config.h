@@ -51,10 +51,6 @@ typedef struct config config_t;
 #define DEFAULT_FALLBACK_ROOT "/tmp"
 #endif
 
-#ifndef DEFAULT_MAX_PPS
-#define DEFAULT_MAX_PPS 0
-#endif
-
 #ifndef DEFAULT_SEND_TIMEOUT
 #define DEFAULT_SEND_TIMEOUT    2
 #endif
