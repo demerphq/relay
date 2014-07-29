@@ -19,6 +19,7 @@ struct config {
     int tcp_send_timeout;
     int server_socket_rcvbuf;
     uint32_t spill_usec;
+    int syslog_to_stderr;
 
     /* root directory for where we write failed sends,
      * and "spilled" data */
@@ -73,6 +74,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS
 #define DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS 500
+#endif
+
+#ifndef DEFAULT_SYSLOG_TO_STDERR
+#define DEFAULT_SYSLOG_TO_STDERR 0
 #endif
 
 int config_reload(config_t *config);

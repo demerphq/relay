@@ -28,7 +28,7 @@ void *graphite_worker_thread(void *arg) {
 
     self->buffer= mallocz_or_die(GRAPHITE_BUFFER_MAX);
     self->arg= strdup(CONFIG.graphite_arg);
-    self->root= strdup(CONFIG.graphite_root);
+    self->root= strdup(CONFIG.graphite_root); /* XXX: ADD HOSTNAME! FIXME */
 
     socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,"graphite sender");
 

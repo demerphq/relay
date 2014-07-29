@@ -30,7 +30,7 @@ void config_set_defaults(config_t *config) {
     config->spill_usec = DEFAULT_SPILL_USEC;
     config->graphite_send_interval_ms= DEFAULT_GRAPHITE_SEND_INTERVAL_MS;
     config->graphite_sleep_poll_interval_ms= DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
-
+    config->syslog_to_stderr= DEFAULT_SYSLOG_TO_STDERR;
 }
 
 
@@ -75,10 +75,20 @@ config_t *config_from_file(char *file) {
                     DIE("bad config line: %s", line);
                 *p = '\0';
                 p++;
-
+                if ( strcmp("syslog_to_stderr", line) == 0 ) {
+                    int tmp= atoi(p);
+                    if (tmp > -1) {
+                        config->syslog_to_stderr = tmp;
+                        closelog();
+                        openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
+                    } else {
+                        SAY("Ignoring syslog_to_sderr setting of %d which is too low", tmp);
+                    }
+                } else
                 IF_STR_OPT( fallback_root, line, p ) else
                 IF_STR_OPT( graphite_arg, line, p ) else
                 IF_STR_OPT( graphite_root, line, p ) else
+                IF_NUM_OPT( syslog_to_stderr, line, p ) else
                 IF_NUM_OPT( graphite_send_interval_ms, line, p ) else
                 IF_NUM_OPT( graphite_sleep_poll_interval_ms, line, p ) else
                 IF_NUM_OPT( polling_interval_ms, line, p ) else
@@ -134,6 +144,7 @@ int config_reload(config_t *config) {
     IF_STR_OPT_CHANGED( fallback_root, config, new_config )
     IF_STR_OPT_CHANGED( graphite_arg, config, new_config )
     IF_STR_OPT_CHANGED( graphite_root, config, new_config )
+    IF_NUM_OPT_CHANGED( syslog_to_stderr, config, new_config )
     IF_NUM_OPT_CHANGED( graphite_send_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( graphite_sleep_poll_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( polling_interval_ms, config, new_config )
@@ -172,7 +183,7 @@ void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
     config_set_defaults(&CONFIG);
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID, OUR_FACILITY);
 
     if (argc < 2) {
         config_die_args(argc, argv);
