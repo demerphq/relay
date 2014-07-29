@@ -6,8 +6,11 @@
 #include "config.h"
 #include "timer.h"
 #define MAX_BUF_LEN 128
-static void cleanup();
+
 static void sig_handler(int signum);
+static void stop_listener(pthread_t server_tid);
+static void final_shutdown(pthread_t server_tid);
+
 static sock_t *s_listen;
 extern config_t CONFIG;
 
@@ -147,8 +150,32 @@ int main(int argc, char **argv) {
     return _main(&CONFIG);
 }
 
+pthread_t setup_listener(config_t *config, int init) {
+    pthread_t server_tid= 0;
+    
+    if ( init ) 
+        s_listen = mallocz_or_die(sizeof(*s_listen));
+
+    socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND );
+
+    /* must open the socket BEFORE we create the worker pool */
+    open_socket(s_listen, DO_BIND|DO_REUSEADDR, 0, config->server_socket_rcvbuf);
+
+    /* create worker pool /after/ we open the socket, otherwise we
+     * might leak worker threads. */
+    if ( init ) 
+        worker_pool_init_static(config);
+
+    if (s_listen->proto == IPPROTO_UDP)
+        spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
+    else
+        spawn(&server_tid, tcp_server, s_listen, PTHREAD_CREATE_JOINABLE);
+
+    return server_tid;
+}
+
 int _main(config_t *config) {
-    pthread_t server_tid;
+    pthread_t server_tid= 0;
 
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
@@ -157,37 +184,28 @@ int _main(config_t *config) {
 
     setproctitle("starting");
 
-    s_listen = malloc_or_die(sizeof(*s_listen));
-
-    socketize(CONFIG.argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND );
-
-    /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND|DO_REUSEADDR, 0, CONFIG.server_socket_rcvbuf);
-
-    /* create worker pool /after/ we open the socket, otherwise we
-     * might leak worker threads. */
-    worker_pool_init_static(&CONFIG);
-
-    if (s_listen->proto == IPPROTO_UDP)
-        spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
-    else
-        spawn(&server_tid, tcp_server, s_listen, PTHREAD_CREATE_JOINABLE);
+    server_tid= setup_listener(config,1);
 
     for (;;) {
-        int abort= get_abort_val();
+        int abort;
+
+        abort= get_abort_val();
         if (abort & STOP) {
             break;
         }
         else
         if (abort & RELOAD) {
-            config_reload(&CONFIG);
-            worker_pool_reload_static(&CONFIG);
+            if (config_reload(config)) {
+                stop_listener(server_tid);
+                server_tid= setup_listener(config, 0);
+                worker_pool_reload_static(config);
+            }
             unset_abort_bits(RELOAD);
         }
         mark_second_elapsed();
         sleep(1);
     }
-    cleanup(server_tid);
+    final_shutdown(server_tid);
     SAY("bye");
     closelog();
     return(0);
@@ -207,10 +225,14 @@ static void sig_handler(int signum) {
     }
 }
 
-static void cleanup(pthread_t server_tid) {
+static void stop_listener(pthread_t server_tid) {
     shutdown(s_listen->socket, SHUT_RDWR);
     close(s_listen->socket);
     pthread_join(server_tid, NULL);
+}
+
+static void final_shutdown(pthread_t server_tid) {
+    stop_listener(server_tid);
     worker_pool_destroy_static();
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()

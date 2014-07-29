@@ -63,7 +63,7 @@ typedef struct config config_t;
 #define DEFAULT_GRAPHITE_ARG "/tmp/relay.graphite"
 #endif
 
-void config_reload(config_t *config);
+int config_reload(config_t *config);
 void config_set_defaults(config_t *config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);

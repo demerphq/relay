@@ -104,6 +104,7 @@ config_t *config_from_file(char *file) {
         SAY("Changed " #name " from %d to %d",              \
                 config->name, new_config->name);            \
         config->name= new_config->name;                     \
+        requires_restart= 1;                                \
     }
 
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
@@ -112,11 +113,13 @@ config_t *config_from_file(char *file) {
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name= new_config->name;                     \
+        requires_restart= 1;                                \
     }
 
 
-void config_reload(config_t *config) {
-    int i;
+int config_reload(config_t *config) {
+    int i= 0;
+    int requires_restart= 0;
     config_t *new_config= config_from_file(config->file);
 
     if (new_config->argc < 2) {
@@ -137,9 +140,11 @@ void config_reload(config_t *config) {
             if (strcmp(config->argv[i],new_config->argv[i]) != 0) {
                 SAY("Changing %s socket config from '%s' to '%s'",
                         i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
+                requires_restart= 1;
             }
         } else {
             SAY("Stopping forward socket to '%s'", config->argv[i]);
+            requires_restart= 1;
         }
         free(config->argv[i]);
     }
@@ -147,10 +152,12 @@ void config_reload(config_t *config) {
     for (i = config->argc; i < new_config->argc; i++) {
         SAY("Setting new %s socket config to '%s'",
             i == 0 ? "listen" : "forward", new_config->argv[i]);
+        requires_restart= 1;
     }
     config->argc= new_config->argc;
     config->argv= new_config->argv;
     free(new_config);
+    return requires_restart;
 }
 
 
