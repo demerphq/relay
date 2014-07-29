@@ -20,7 +20,13 @@
 #define MAX_EVENTS 32
 #define EXPECTED_HEADER_SIZE 4
 struct tcp_client {
-    char buf[MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE]; // max chunk size + size of the expected header
+    union {
+        struct packed {
+            uint32_t expected;
+            char buf[MAX_CHUNK_SIZE];
+        }  __attribute__ ((__packed__)) packed;
+        char raw[MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE];
+    } frame;
     uint32_t pos;
     int fd;
 };

@@ -101,11 +101,10 @@ void *udp_server(void *arg) {
 
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
-    int i,nfds,fd,expected,try_to_read,received;
+    int i,nfds,fd,try_to_read,received;
     blob_t *b;
     struct epoll_event ev, events[MAX_EVENTS];
     struct tcp_client *client;
-
 
     setnonblocking(s->socket);
 
@@ -147,51 +146,46 @@ void *tcp_server(void *arg) {
                     // and just attempt to read again, if we need more bytes it will just return EAGAIN
                     // if it has the needed size it will be consumed, and again shifted to the left (in case we have 3 packets in one recv())
                     // if we have a header, we know what to expect, otherwise just get as much as possible in one syscall
-                    #define EXPECTED(x) (*(uint32_t *) (x)->buf)
-                    try_to_read = MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE - client->pos; // try to read as much as possible
+                    try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
                     if (try_to_read <= 0) {
                         WARN("disconnecting, try to read: %d, pos: %d",try_to_read,client->pos);
                         goto disconnect;
                     }
-                    received = recv(client->fd, client->buf + client->pos, try_to_read,0);
+                    received = recv(client->fd, client->frame.raw + client->pos, try_to_read,0);
                     if (received <= 0) {
                         if (errno == EAGAIN || errno == EWOULDBLOCK)
                             continue;
-                        WARN("disconnecting received: %d",received);
                         goto disconnect;
                     }
                     client->pos += received;
                 try_to_consume_one_more:
                     if (client->pos < EXPECTED_HEADER_SIZE)
                         continue;
-                    expected = EXPECTED(client);
-                    if (expected == 0) {
+                    if (client->frame.packed.expected == 0) {
                         client->pos = 0;
                         if (0)
                             WARN("Received 0 byte packet, not forwarding.");
                         continue;
                     }
-                    if (expected > MAX_CHUNK_SIZE) {
-                        WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",expected,MAX_CHUNK_SIZE);
+                    if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
+                        WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
                         goto disconnect;
                     }
-                    if (client->pos >= expected) {
-
+                    if (client->pos >= client->frame.packed.expected) {
                         RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
-                        b = b_new( expected );
-                        memcpy(BLOB_BUF_addr(b), client->buf + EXPECTED_HEADER_SIZE,expected);
+                        b = b_new( client->frame.packed.expected );
+                        memcpy(BLOB_BUF_addr(b), client->frame.packed.buf,client->frame.packed.expected);
                         enqueue_blob_for_transmission(b);
-                        client->pos -= expected + EXPECTED_HEADER_SIZE;
-//                        WARN("COPY %d, pos: %d, opos: %d",expected,client->pos,client->pos + expected + EXPECTED_HEADER_SIZE);
+                        client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
                         if (client->pos > 0) {
-                            memmove(client->buf,client->buf + expected + EXPECTED_HEADER_SIZE, client->pos);
-                            client->pos = 0;
-                            goto try_to_consume_one_more;
+                            memmove(client->frame.raw,client->frame.packed.buf + client->frame.packed.expected, client->pos);
+                            if (client->pos > EXPECTED_HEADER_SIZE)
+                                goto try_to_consume_one_more;
                         }
                     }
                 } else {
                 disconnect:
-                    WARN("disconnecting");
+                    WARN_ERRNO("disconnecting");
                     shutdown(client->fd,SHUT_RDWR);
                     close(client->fd);
                     free(client);
