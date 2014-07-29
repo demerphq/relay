@@ -141,30 +141,17 @@ void *tcp_server(void *arg) {
     pthread_exit(NULL);
 }
 
-int _main(config_t *config);
 
-int main(int argc, char **argv) {
-    config_init(argc, argv);
-    initproctitle(argc, argv);
-
-    return _main(&CONFIG);
-}
-
-pthread_t setup_listener(config_t *config, int init) {
+pthread_t setup_listener(config_t *config) {
     pthread_t server_tid= 0;
     
-    if ( init ) 
-        s_listen = mallocz_or_die(sizeof(*s_listen));
-
-    socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND );
+    socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener" );
 
     /* must open the socket BEFORE we create the worker pool */
     open_socket(s_listen, DO_BIND|DO_REUSEADDR, 0, config->server_socket_rcvbuf);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
-    if ( init ) 
-        worker_pool_init_static(config);
 
     if (s_listen->proto == IPPROTO_UDP)
         spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
@@ -184,7 +171,10 @@ int _main(config_t *config) {
 
     setproctitle("starting");
 
-    server_tid= setup_listener(config,1);
+    s_listen = mallocz_or_die(sizeof(*s_listen));
+
+    worker_pool_init_static(config);
+    server_tid= setup_listener(config);
 
     for (;;) {
         int abort;
@@ -197,7 +187,7 @@ int _main(config_t *config) {
         if (abort & RELOAD) {
             if (config_reload(config)) {
                 stop_listener(server_tid);
-                server_tid= setup_listener(config, 0);
+                server_tid= setup_listener(config);
                 worker_pool_reload_static(config);
             }
             unset_abort_bits(RELOAD);
@@ -237,4 +227,11 @@ static void final_shutdown(pthread_t server_tid) {
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
     config_destroy();
+}
+
+int main(int argc, char **argv) {
+    config_init(argc, argv);
+    initproctitle(argc, argv);
+
+    return _main(&CONFIG);
 }

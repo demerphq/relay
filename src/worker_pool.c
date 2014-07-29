@@ -66,7 +66,7 @@ void worker_pool_init_static(config_t *config) {
     LOCK_INIT(&POOL.lock);
 
     POOL.graphite_worker= mallocz_or_die(sizeof(graphite_worker_t));
-    POOL.graphite_worker->arg= strdup(config->graphite_arg);
+
     pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
 
     LOCK(&POOL.lock);
@@ -92,10 +92,8 @@ void worker_pool_reload_static(config_t *config) {
 
     /* XXX: check me */
     /* check and see if we need to stop the old graphite processor and replace it */
-    if (strcmp(POOL.graphite_worker->arg, config->graphite_arg) != 0) {
-        graphite_worker_destroy(POOL.graphite_worker);
-        pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
-    }
+    graphite_worker_destroy(POOL.graphite_worker);
+    pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
 
     LOCK(&POOL.lock);
 

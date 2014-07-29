@@ -1,12 +1,25 @@
 #include "socket_util.h"
 extern config_t CONFIG;
 
-void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
+#define DEBUG_SOCKETIZE 0
+
+void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir, char *type_str) {
     char *a = strdup(arg);
     char *p;
-    int proto = -2;
+    int proto = SOCK_FAKE_ERROR;
     int wrote = 0;
-    SAY("socketizing argument '%s'", arg);
+
+    strncpy(s->arg, arg, PATH_MAX);
+    strncpy(s->arg_clean, arg, PATH_MAX);
+    {
+        char *str= s->arg_clean;
+
+        /* scrub the string of unfortunate characters */
+        while ( NULL != (str= strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")) )
+            *str++= '_';
+    }
+
+    SAY("socketizing %s argument '%s'", type_str, arg);
     if ((p = strchr(a, ':')) != NULL) {
 
         s->sa.in.sin_family = AF_INET;
@@ -17,19 +30,19 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
         *p = '\0';
 
         if ((p = strchr(a, '@')) != NULL) {
-            SAY("found '@'");
+            if (DEBUG_SOCKETIZE) SAY("found '@'");
             *p++ = '\0'; /* get rid of the @ and move to the next char*/
             if (strcmp("tcp", a) == 0) {
-                SAY("protocol is tcp");
+                if (DEBUG_SOCKETIZE) SAY("protocol is tcp");
                 proto = IPPROTO_TCP;
             } else if (strcmp("udp", a) == 0) {
-                SAY("protocol is udp");
+                if (DEBUG_SOCKETIZE) SAY("protocol is udp");
                 proto = IPPROTO_UDP;
             } else {
                 DIE_RC(EXIT_FAILURE, "unknown protocol '%s' in argument '%s'", a, arg);
             }
         } else {
-            SAY("did not find '@'");
+            if (DEBUG_SOCKETIZE) SAY("did not find '@'");
             p= a; /* reset p back to the start of the string */
             proto = default_proto;
         }
@@ -58,19 +71,18 @@ void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir) {
                     inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
         if (wrote >= PATH_MAX)
             DIE_RC(EXIT_FAILURE, "failed to stringify target descriptor");
-        SAY("socket details: %s", s->to_string);
+        if (DEBUG_SOCKETIZE) SAY("socket details: %s", s->to_string);
     } else if ( conn_dir == RELAY_CONN_IS_OUTBOUND && ( *a == '/' || *a == '.' ) ) {
-        proto = -1;
+        proto = SOCK_FAKE_FILE;
         assert(proto != IPPROTO_TCP && proto != IPPROTO_UDP);
-        wrote= snprintf(s->to_string, PATH_MAX, "%s", a);
+        wrote= snprintf(s->to_string, PATH_MAX, "file@%s", a);
         if (wrote >= PATH_MAX)
             DIE_RC(EXIT_FAILURE, "path too long");
-        DIE_RC(EXIT_FAILURE, "file not yet implemented");
-        SAY("writing to a file: %s", s->to_string);
+        if (DEBUG_SOCKETIZE) SAY("writing to a file: %s", s->to_string);
     } else {
         DIE_RC(EXIT_FAILURE, "must specify a port in '%s'", arg);
     }
-    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == -1);
+    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE);
     s->proto = proto;
     free(a);
 }
@@ -89,9 +101,9 @@ STMT_START {                        \
 int open_socket(sock_t *s, int flags, int snd, int rcv) {
     int ok = 1;
 
-    if (s->proto == -2) {
+    if (s->proto == SOCK_FAKE_FILE) {
         /* its actually a file! */
-        s->socket= open(s->to_string, O_WRONLY|O_APPEND|O_CREAT, 0640);
+        s->socket= open(s->arg, O_WRONLY|O_APPEND|O_CREAT, 0640);
         if (s->socket < 0) {
             WARN_ERRNO("failed to open file '%s' (as a fake socket)", s->to_string);
             return 0;
@@ -104,6 +116,11 @@ int open_socket(sock_t *s, int flags, int snd, int rcv) {
         ERROR("socket[%s]", s->to_string);
 
     if (flags & DO_BIND) {
+        if ( flags & DO_REUSEADDR) {
+            int optval= 1;
+            if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+                ERROR("setsockopt[REUSEADDR]");
+        }
         if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) )
             ERROR("bind[%s]", s->to_string);
         if (s->proto == IPPROTO_TCP) {
@@ -123,11 +140,6 @@ int open_socket(sock_t *s, int flags, int snd, int rcv) {
                     ERROR("setsockopt[%s]", s->to_string);
             }
         }
-    }
-    if ( flags & DO_REUSEADDR) {
-        int optval= 1;
-        if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-            ERROR("setsockopt[REUSEADDR]");
     }
     if (snd > 0) {
         if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd)) < 0)

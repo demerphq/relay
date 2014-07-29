@@ -193,7 +193,7 @@ worker_t * worker_init(char *arg) {
     worker->exists = 1;
     worker->arg = strdup(arg);
 
-    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND);
+    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "sender");
 
     worker->disk_writer= disk_writer;
 
@@ -202,7 +202,7 @@ worker_t * worker_init(char *arg) {
 
     /* setup fallback_path */
     if ( snprintf(disk_writer->fallback_path, PATH_MAX,
-                "%s/%s", CONFIG.fallback_root, worker->s_output.to_string) >= PATH_MAX )
+                "%s/%s", CONFIG.fallback_root, worker->s_output.arg_clean) >= PATH_MAX )
         DIE_RC(EXIT_FAILURE,"fallback_path too big, had to be truncated: %s", disk_writer->fallback_path);
 
 

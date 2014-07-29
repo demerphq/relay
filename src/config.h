@@ -26,6 +26,10 @@ struct config {
 
     /* host:port for sending data to graphite */
     char *graphite_arg;
+    char *graphite_root;
+    uint32_t graphite_send_interval_ms;
+    uint32_t graphite_sleep_poll_interval_ms;
+
 };
 
 typedef struct config config_t;
@@ -61,6 +65,18 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_GRAPHITE_ARG
 #define DEFAULT_GRAPHITE_ARG "/tmp/relay.graphite"
+#endif
+
+#ifndef DEFAULT_GRAPHITE_ROOT
+#define DEFAULT_GRAPHITE_ROOT "general.event-relay"
+#endif
+
+#ifndef DEFAULT_GRAPHITE_SEND_INTERVAL_MS
+#define DEFAULT_GRAPHITE_SEND_INTERVAL_MS 60000
+#endif
+
+#ifndef DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS
+#define DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS 500
 #endif
 
 int config_reload(config_t *config);

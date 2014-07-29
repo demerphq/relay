@@ -20,6 +20,7 @@ void trim(char * s) {
 void config_set_defaults(config_t *config) {
 
     config->graphite_arg = strdup(DEFAULT_GRAPHITE_ARG);
+    config->graphite_root = strdup(DEFAULT_GRAPHITE_ROOT);
     config->fallback_root = strdup(DEFAULT_FALLBACK_ROOT);
 
     config->polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
@@ -27,6 +28,8 @@ void config_set_defaults(config_t *config) {
     config->tcp_send_timeout = DEFAULT_SEND_TIMEOUT;
     config->server_socket_rcvbuf = DEFAULT_SERVER_SOCKET_RCVBUF;
     config->spill_usec = DEFAULT_SPILL_USEC;
+    config->graphite_send_interval_ms= DEFAULT_GRAPHITE_SEND_INTERVAL_MS;
+    config->graphite_sleep_poll_interval_ms= DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
 
 }
 
@@ -75,6 +78,9 @@ config_t *config_from_file(char *file) {
 
                 IF_STR_OPT( fallback_root, line, p ) else
                 IF_STR_OPT( graphite_arg, line, p ) else
+                IF_STR_OPT( graphite_root, line, p ) else
+                IF_NUM_OPT( graphite_send_interval_ms, line, p ) else
+                IF_NUM_OPT( graphite_sleep_poll_interval_ms, line, p ) else
                 IF_NUM_OPT( polling_interval_ms, line, p ) else
                 IF_NUM_OPT( sleep_after_disaster_ms, line, p ) else
                 IF_NUM_OPT( max_pps, line, p ) else
@@ -82,7 +88,7 @@ config_t *config_from_file(char *file) {
                 IF_NUM_OPT( server_socket_rcvbuf, line, p ) else
                 IF_NUM_OPT( spill_usec, line, p ) else
                 {
-                    DIE("bad config option: %s",line);
+                    WARN("ignoring bad config option: %s",line);
                 }
 
             } else {
@@ -101,7 +107,7 @@ config_t *config_from_file(char *file) {
 
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
     if ( config->name != new_config->name ) {               \
-        SAY("Changed " #name " from %d to %d",              \
+        SAY("Changed '" #name "' from '%d' to '%d'",              \
                 config->name, new_config->name);            \
         config->name= new_config->name;                     \
         requires_restart= 1;                                \
@@ -109,7 +115,7 @@ config_t *config_from_file(char *file) {
 
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
     if ( strcmp(config->name, new_config->name) != 0 ) {    \
-        SAY("Changed " #name "from '%s' to '%s'",           \
+        SAY("Changed '" #name "' from '%s' to '%s'",           \
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name= new_config->name;                     \
@@ -128,6 +134,9 @@ int config_reload(config_t *config) {
 
     IF_STR_OPT_CHANGED( fallback_root, config, new_config )
     IF_STR_OPT_CHANGED( graphite_arg, config, new_config )
+    IF_STR_OPT_CHANGED( graphite_root, config, new_config )
+    IF_NUM_OPT_CHANGED( graphite_send_interval_ms, config, new_config )
+    IF_NUM_OPT_CHANGED( graphite_sleep_poll_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( polling_interval_ms, config, new_config )
     IF_NUM_OPT_CHANGED( sleep_after_disaster_ms, config, new_config )
     IF_NUM_OPT_CHANGED( max_pps, config, new_config )
@@ -165,6 +174,7 @@ void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
     config_set_defaults(&CONFIG);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
 
     if (argc < 2) {
         config_die_args(argc, argv);
@@ -179,7 +189,6 @@ void config_init(int argc, char **argv) {
         }
         CONFIG.argc = i;
     }
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
 }
 
 void config_destroy(void) {

@@ -26,12 +26,16 @@ void *graphite_worker_thread(void *arg) {
     ssize_t sent_bytes;
     time_t this_epoch;
 
-    socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND);
     self->buffer= mallocz_or_die(GRAPHITE_BUFFER_MAX);
+    self->arg= strdup(CONFIG.graphite_arg);
+    self->root= strdup(CONFIG.graphite_root);
+
+    socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,"graphite sender");
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
         char *str= self->buffer;            /* current position in buffer */
         ssize_t len= GRAPHITE_BUFFER_MAX;   /* amount remaining to use */
+        uint32_t wait_remains;
         worker_t *w;
 
         if ( !sck ) {
@@ -58,6 +62,7 @@ void *graphite_worker_thread(void *arg) {
         TAILQ_FOREACH(w, &POOL.workers, entries) {
             int wrote_len;
             stats_basic_counters_t totals;
+
             memset(&totals,0,sizeof(stats_basic_counters_t));
 
             snapshot_stats(&w->totals, &totals);
@@ -65,22 +70,22 @@ void *graphite_worker_thread(void *arg) {
             if (len >= 1000) {
                 wrote_len= snprintf(
                     str, len,
-                    "%s.%s.received_count: "   STATSfmt " %lu\n"
-                    "%s.%s.sent_count: "       STATSfmt " %lu\n"
-                    "%s.%s.partial_count: "    STATSfmt " %lu\n"
-                    "%s.%s.spilled_count: "    STATSfmt " %lu\n"
-                    "%s.%s.error_count: "      STATSfmt " %lu\n"
-                    "%s.%s.disk_count: "       STATSfmt " %lu\n"
-                    "%s.%s.disk_error_count: " STATSfmt " %lu\n"
+                    "%s.%s.received_count "   STATSfmt " %lu\n"
+                    "%s.%s.sent_count "       STATSfmt " %lu\n"
+                    "%s.%s.partial_count "    STATSfmt " %lu\n"
+                    "%s.%s.spilled_count "    STATSfmt " %lu\n"
+                    "%s.%s.error_count "      STATSfmt " %lu\n"
+                    "%s.%s.disk_count "       STATSfmt " %lu\n"
+                    "%s.%s.disk_error_count " STATSfmt " %lu\n"
                     "%s"
                     ,
-                    self->root, w->s_output.to_string, totals.received_count,  this_epoch,
-                    self->root, w->s_output.to_string, totals.sent_count,      this_epoch,
-                    self->root, w->s_output.to_string, totals.partial_count,   this_epoch,
-                    self->root, w->s_output.to_string, totals.spilled_count,   this_epoch,
-                    self->root, w->s_output.to_string, totals.error_count,     this_epoch,
-                    self->root, w->s_output.to_string, totals.disk_count,      this_epoch,
-                    self->root, w->s_output.to_string, totals.disk_error_count,this_epoch,
+                    self->root, w->s_output.arg_clean, totals.received_count,   this_epoch,
+                    self->root, w->s_output.arg_clean, totals.sent_count,       this_epoch,
+                    self->root, w->s_output.arg_clean, totals.partial_count,    this_epoch,
+                    self->root, w->s_output.arg_clean, totals.spilled_count,    this_epoch,
+                    self->root, w->s_output.arg_clean, totals.error_count,      this_epoch,
+                    self->root, w->s_output.arg_clean, totals.disk_count,       this_epoch,
+                    self->root, w->s_output.arg_clean, totals.disk_error_count, this_epoch,
                     ""
                 );
 
@@ -100,17 +105,23 @@ void *graphite_worker_thread(void *arg) {
         /* and reset the buffer pointer */
         str = self->buffer;
 
-        /* scrub the string of unfortunate characters */
-        while ( NULL != (str= strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")) )
-            *str++= '_';
-
         /* send it */
-        sent_bytes= sendto(sck->socket, self->buffer, len, 0, NULL, 0);
+        /* sent_bytes= sendto(sck->socket, self->buffer, len, 0, NULL, 0); */
+        sent_bytes= write(sck->socket, self->buffer, len);
         if (sent_bytes != len) {
             close(sck->socket);
             sck= NULL;
         }
-        w_wait(60000);
+        wait_remains= CONFIG.graphite_send_interval_ms;
+        while ( !RELAY_ATOMIC_READ(self->exit) && ( wait_remains > 0 ) ) {
+            if (wait_remains < CONFIG.graphite_sleep_poll_interval_ms) {
+                w_wait(wait_remains);
+                wait_remains = 0;
+            } else {
+                w_wait(CONFIG.graphite_sleep_poll_interval_ms);
+                wait_remains -= CONFIG.graphite_sleep_poll_interval_ms;
+            }
+        }
     }
     if (sck)
         close(sck->socket);
