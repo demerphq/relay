@@ -169,7 +169,7 @@ void *worker_thread( void *arg ) {
     (void)snapshot_stats( &self->counters, &self->totals );
 
     SAY( "worker[%s] processed " STATSfmt " packets in its lifetime",
-            sck->to_string, RELAY_ATOMIC_READ( self->totals.received_count ) );
+         (sck ? sck->to_string : self->arg), RELAY_ATOMIC_READ( self->totals.received_count ) );
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR( self->disk_writer->exit, EXIT_FLAG );
