@@ -149,6 +149,21 @@ int open_socket(sock_t *s, int flags, int snd, int rcv) {
         if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv)) < 0)
             ERROR("setsockopt[%s]", s->to_string);
     }
+    if (flags & DO_EPOLLFD) {
+        s->epollfd = epoll_create(10);
+        if (s->epollfd == -1)
+            ERROR("setsockopt[%s]", s->to_string);
+    } else {
+        s->epollfd = 0;
+    }
     return ok;
 #undef ERROR
+}
+
+int setnonblocking(int fd) {
+   int flags = fcntl(fd, F_GETFL, 0);
+   if (flags < 0)
+       return flags;
+   flags |= O_NONBLOCK;
+   return fcntl(fd, F_SETFL, flags);
 }

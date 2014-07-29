@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <sys/epoll.h>
 
 #define RELAY_CONN_IS_INBOUND   0
 #define RELAY_CONN_IS_OUTBOUND  1
@@ -26,6 +26,7 @@
 #define DO_CONNECT      0x02
 #define DO_NOT_EXIT     0x04
 #define DO_REUSEADDR    0x08
+#define DO_EPOLLFD      0x10
 
 #define SOCK_FAKE_FILE  -1
 #define SOCK_FAKE_ERROR -2
@@ -38,6 +39,7 @@ struct sock {
     int socket;
     int proto;
     int type;
+    int epollfd;
     char arg[PATH_MAX];
     char to_string[PATH_MAX];
     char arg_clean[PATH_MAX];
@@ -48,7 +50,7 @@ typedef struct sock sock_t;
 /* util.c */
 void socketize(const char *arg, sock_t *s, int default_proto, int conn_dir, char *type_str );
 int open_socket(sock_t *s, int flags, int snd, int rcv);
-
+int setnonblocking(int fd);
 /* try to get the OS to send our packets more efficiently when sending
  * via TCP. */
 static INLINE void cork(struct sock *s,int flag) {

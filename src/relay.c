@@ -51,8 +51,6 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_attr_destroy(&attr);
 }
 
-
-
 static inline int recv_and_enqueue( int fd, int expected, int flags ) {
     int rc;
     blob_t *b;
@@ -101,54 +99,121 @@ void *udp_server(void *arg) {
     pthread_exit(NULL);
 }
 
-void *tcp_worker(void *arg) {
-    int fd = (int )arg;
-    SAY("new tcp worker for fd: %d", fd);
-    while (not_aborted()) {
-        uint32_t expected;
-        int rc = recv(fd, &expected, sizeof(expected), MSG_WAITALL);
-        if (rc != sizeof(expected)) {
-            WARN_ERRNO("failed to receive header for next packet, expected: %zu got: %d", sizeof(expected), rc);
-            break;
-        }
-
-        if (expected > MAX_CHUNK_SIZE) {
-            WARN_ERRNO("requested packet(%d) > MAX_CHUNK_SIZE(%d)", expected, MAX_CHUNK_SIZE);
-            break;
-        }
-
-        if (!recv_and_enqueue(fd,expected,MSG_WAITALL)) {
-            break;
-        }
-    }
-    close(fd);
-    pthread_exit(NULL);
-}
-
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
+    int i,nfds,fd,expected,try_to_read,received;
+    blob_t *b;
+    struct epoll_event ev, events[MAX_EVENTS];
+    struct tcp_client *client;
+
+
+    setnonblocking(s->socket);
+
+    ev.events = EPOLLIN;
+    ev.data.ptr = s;
+
+    if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, s->socket, &ev) == -1)
+        DIE("epoll_ctl failed on the listening socket");
 
     for (;;) {
-        int fd = accept(s->socket, NULL, NULL);
-        if (fd < 0) {
-            set_aborted();
-            WARN_ERRNO("accept");
-            break;
+        nfds = epoll_wait(s->epollfd, events, MAX_EVENTS, CONFIG.polling_interval_ms);
+        if (nfds == -1) {
+            if (nfds == EINTR) // timeout
+                continue;
+            WARN_ERRNO("epoll_wait");
+            goto out;
         }
-        spawn(NULL, tcp_worker, (void *)fd, PTHREAD_CREATE_DETACHED);
-    }
+        for (i = 0; i < nfds; i++) {
+            if (events[i].data.ptr == s) {
+                fd = accept(s->socket, NULL, NULL);
+                if (fd == -1) {
+                    WARN_ERRNO("accept");
+                    goto out;
+                }
+                setnonblocking(fd);
+                client = mallocz_or_die(sizeof(*client));
+                client->fd = fd;
+                client->pos = 0;
+                ev.data.ptr = client;
+                ev.events = EPOLLIN | EPOLLHUP | EPOLLERR;
+                if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+                    WARN_ERRNO("epoll_ctl failed on client socket");
+                    goto out;
+                }
+            } else {
+                client = (struct tcp_client *) ev.data.ptr;
+                if (events[i].events & EPOLLIN) {
+                    // in case we have 2 packets in the same read(), we just consume one, and will shift the leftover buf to the left
+                    // and just attempt to read again, if we need more bytes it will just return EAGAIN
+                    // if it has the needed size it will be consumed, and again shifted to the left (in case we have 3 packets in one recv())
+                    // if we have a header, we know what to expect, otherwise just get as much as possible in one syscall
+                    #define EXPECTED(x) (*(uint32_t *) (x)->buf)
+                    try_to_read = MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE - client->pos; // try to read as much as possible
+                    if (try_to_read <= 0) {
+                        WARN("disconnecting, try to read: %d, pos: %d",try_to_read,client->pos);
+                        goto disconnect;
+                    }
+                    received = recv(client->fd, client->buf + client->pos, try_to_read,0);
+                    if (received <= 0) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK)
+                            continue;
+                        WARN("disconnecting received: %d",received);
+                        goto disconnect;
+                    }
+                    client->pos += received;
+                try_to_consume_one_more:
+                    if (client->pos < EXPECTED_HEADER_SIZE)
+                        continue;
+                    expected = EXPECTED(client);
+                    if (expected == 0) {
+                        client->pos = 0;
+                        if (0)
+                            WARN("Received 0 byte packet, not forwarding.");
+                        continue;
+                    }
+                    if (expected > MAX_CHUNK_SIZE) {
+                        WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",expected,MAX_CHUNK_SIZE);
+                        goto disconnect;
+                    }
+                    if (client->pos >= expected) {
 
+                        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
+                        b = b_new( expected );
+                        memcpy(BLOB_BUF_addr(b), client->buf + EXPECTED_HEADER_SIZE,expected);
+                        enqueue_blob_for_transmission(b);
+                        client->pos -= expected + EXPECTED_HEADER_SIZE;
+//                        WARN("COPY %d, pos: %d, opos: %d",expected,client->pos,client->pos + expected + EXPECTED_HEADER_SIZE);
+                        if (client->pos > 0) {
+                            memmove(client->buf,client->buf + expected + EXPECTED_HEADER_SIZE, client->pos);
+                            client->pos = 0;
+                            goto try_to_consume_one_more;
+                        }
+                    }
+                } else {
+                disconnect:
+                    WARN("disconnecting");
+                    shutdown(client->fd,SHUT_RDWR);
+                    close(client->fd);
+                    free(client);
+                }
+            }
+        }
+    }
+out:
+    close(s->socket);
+    close(s->epollfd);
+    set_aborted();
     pthread_exit(NULL);
 }
 
 
 pthread_t setup_listener(config_t *config) {
     pthread_t server_tid= 0;
-    
+
     socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener" );
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND|DO_REUSEADDR, 0, config->server_socket_rcvbuf);
+    open_socket(s_listen, DO_BIND|DO_REUSEADDR|DO_EPOLLFD, 0, config->server_socket_rcvbuf);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
@@ -218,6 +283,7 @@ static void sig_handler(int signum) {
 static void stop_listener(pthread_t server_tid) {
     shutdown(s_listen->socket, SHUT_RDWR);
     close(s_listen->socket);
+    close(s_listen->epollfd);
     pthread_join(server_tid, NULL);
 }
 

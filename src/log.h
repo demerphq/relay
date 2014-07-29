@@ -37,7 +37,7 @@ struct _ts {
     strftime(_ts->str, TS_LEN, "%Y-%m-%d %H:%M:%S", &_ts->tm);                      \
     syslog(                                                                         \
             (OUR_FACILITY | (LOG_ ## type)),                                        \
-            "[%4.4s %s" DEBUG_FMT "] " fmt "\n", "" #type, _ts->str _DEBUG_ARGS, ## arg \
+            "[%4.4s %s" DEBUG_FMT "] " fmt " (%s:%d)\n", "" #type, _ts->str _DEBUG_ARGS, ## arg,__FILE__,__LINE__ \
     );                                                                              \
     free(_ts);                                                                      \
 } STMT_END
