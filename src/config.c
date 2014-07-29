@@ -75,16 +75,6 @@ config_t *config_from_file(char *file) {
                     DIE("bad config line: %s", line);
                 *p = '\0';
                 p++;
-                if ( strcmp("syslog_to_stderr", line) == 0 ) {
-                    int tmp= atoi(p);
-                    if (tmp > -1) {
-                        config->syslog_to_stderr = tmp;
-                        closelog();
-                        openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
-                    } else {
-                        SAY("Ignoring syslog_to_sderr setting of %d which is too low", tmp);
-                    }
-                } else
                 IF_STR_OPT( fallback_root, line, p ) else
                 IF_STR_OPT( graphite_arg, line, p ) else
                 IF_STR_OPT( graphite_root, line, p ) else
@@ -140,6 +130,14 @@ int config_reload(config_t *config) {
     if (new_config->argc < 2) {
         DIE("No server specified?");
     }
+    if ( config->syslog_to_stderr != new_config->syslog_to_stderr ) {
+        closelog();
+        openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
+        SAY("changed 'syslog_to_stderr' from '%d' to '%d'",
+                config->syslog_to_stderr, new_config->syslog_to_stderr);
+        config->syslog_to_stderr= new_config->syslog_to_stderr;
+        requires_restart= 1;
+    }
 
     IF_STR_OPT_CHANGED( fallback_root, config, new_config )
     IF_STR_OPT_CHANGED( graphite_arg, config, new_config )
@@ -183,7 +181,7 @@ void config_init(int argc, char **argv) {
     int i = 0;
     memset(&CONFIG,0,sizeof(CONFIG));
     config_set_defaults(&CONFIG);
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID, OUR_FACILITY);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
 
     if (argc < 2) {
         config_die_args(argc, argv);
@@ -211,6 +209,7 @@ void config_destroy(void) {
 }
 
 void config_die_args(int argc, char **argv) {
+    /* XXX: fix me! */
     DIE_RC(EXIT_FAILURE, "%s local-host:local-port tcp@remote-host:remote-port ...\n"       \
                       "or file with socket description like:\n"                             \
                       "\tlocal-host:local-port\n"                                           \

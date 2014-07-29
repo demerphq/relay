@@ -77,7 +77,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_SYSLOG_TO_STDERR
-#define DEFAULT_SYSLOG_TO_STDERR 0
+#define DEFAULT_SYSLOG_TO_STDERR 1
 #endif
 
 int config_reload(config_t *config);
