@@ -51,29 +51,9 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_attr_destroy(&attr);
 }
 
-static inline int recv_and_enqueue( int fd, int expected, int flags ) {
-    int rc;
-    blob_t *b;
-    if ( expected == 0 ) {
-        /* ignore 0 byte packets */
-        if (0)
-            WARN("Received 0 byte packet, not forwarding.");
-    } else {
-        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
-        b = b_new( expected );
-        rc = recv( fd, BLOB_BUF_addr(b), expected, flags );
-        if ( rc != BLOB_BUF_SIZE(b) ) {
-            WARN_ERRNO("failed to receve packet payload, expected: %d got: %d", BLOB_BUF_SIZE(b), rc);
-            b_destroy(b);
-            return 0;
-        }
-        enqueue_blob_for_transmission(b);
-    }
-    return 1;
-}
-
 void *udp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
+    blob_t *b;
     ssize_t received;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
@@ -81,7 +61,7 @@ void *udp_server(void *arg) {
 #endif
     char buf[MAX_CHUNK_SIZE]; // unused, but makes recv() happy
     while (not_aborted()) {
-        received = recv(s->socket, buf, MAX_CHUNK_SIZE, MSG_PEEK);
+        received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
         if ((epoch = time(0)) != prev_epoch) {
             SAY("packets: %d", packets - prev_packets);
@@ -92,7 +72,15 @@ void *udp_server(void *arg) {
 #endif
         if (received < 0)
             break;
-        recv_and_enqueue(s->socket,received,0);
+        if (received == 0) {
+            if (0)
+                WARN("Received 0 byte packet, not forwarding.");
+            continue;
+        }
+        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
+        b = b_new( received );
+        memcpy(BLOB_BUF_addr(b), buf, received);
+        enqueue_blob_for_transmission(b);
     }
     WARN_ERRNO("recv failed");
     set_aborted();
