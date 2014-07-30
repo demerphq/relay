@@ -17,7 +17,8 @@
 # endif
 #endif
 
-#define MAX_EVENTS 32
+#define MAX_EVENTS 16
+#define MAX_TCP_CLIENTS 1024
 #define EXPECTED_HEADER_SIZE 4
 struct tcp_client {
     union {
@@ -29,6 +30,7 @@ struct tcp_client {
     } frame;
     int pos;
     int fd;
+    int active;
 };
 
 #endif
