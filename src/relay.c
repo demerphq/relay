@@ -140,7 +140,7 @@ void *tcp_server(void *arg) {
                     client->pos = 0;
                     client->active = 1;
                     ev.data.ptr = client;
-                    ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;
+                    ev.events = EPOLLIN | EPOLLET;
                     if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
                         WARN_ERRNO("epoll_ctl failed on client socket");
                         goto out;
@@ -170,7 +170,6 @@ void *tcp_server(void *arg) {
                     client->pos += received;
 
                 try_to_consume_one_more:
-
                     if (client->pos < EXPECTED_HEADER_SIZE)
                         continue;
 
@@ -198,6 +197,7 @@ void *tcp_server(void *arg) {
                     shutdown(client->fd,SHUT_RDWR);
                     close(client->fd);
                     client->active = 0;
+                    epoll_ctl(s->epollfd, EPOLL_CTL_DEL, client->fd, NULL);
                 }
             }
         }
