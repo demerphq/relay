@@ -179,7 +179,7 @@ void *tcp_server(void *arg) {
                         client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
                         if (client->pos > 0) {
                             memmove(client->frame.raw,client->frame.packed.buf + client->frame.packed.expected, client->pos);
-                            if (client->pos > EXPECTED_HEADER_SIZE)
+                            if (client->pos >= EXPECTED_HEADER_SIZE)
                                 goto try_to_consume_one_more;
                         }
                     }
