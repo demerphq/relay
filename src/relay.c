@@ -23,6 +23,7 @@ stats_basic_counters_t RECEIVED_STATS= {
     .disk_count= 0,           /* number of items we have written to disk */
 
     .send_elapsed_usec=0,    /* elapsed time in microseconds that we spent sending data */
+    .active_connections=0,   /* current number of active inbound tcp connections */
 };
 
 
@@ -30,11 +31,12 @@ stats_basic_counters_t RECEIVED_STATS= {
 void mark_second_elapsed() {
     char str[MAX_BUF_LEN+1];
     stats_count_t received= RELAY_ATOMIC_READ(RECEIVED_STATS.received_count);
+    stats_count_t active  = RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections);
 
     /* set it in the process name */
     int wrote= snprintf(
         str, MAX_BUF_LEN,
-        STATSfmt " ", received
+        STATSfmt " ^" STATSfmt , received, active
     );
 
     add_worker_stats_to_ps_str(str + wrote, MAX_BUF_LEN - wrote);
@@ -136,11 +138,12 @@ void *tcp_server(void *arg) {
                     WARN("too many open connections");
                     close(fd);
                 } else {
+                    RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.active_connections, 1 );
                     client->fd = fd;
                     client->pos = 0;
                     client->active = 1;
                     ev.data.ptr = client;
-                    ev.events = EPOLLIN | EPOLLET;
+                    ev.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP;
                     if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
                         WARN_ERRNO("epoll_ctl failed on client socket");
                         goto out;
@@ -196,10 +199,13 @@ void *tcp_server(void *arg) {
                     }
                 } else {
                 disconnect:
-                    shutdown(client->fd,SHUT_RDWR);
-                    close(client->fd);
-                    client->active = 0;
-                    epoll_ctl(s->epollfd, EPOLL_CTL_DEL, client->fd, NULL);
+                    if (client->active) {
+                        shutdown(client->fd,SHUT_RDWR);
+                        close(client->fd);
+                        client->active = 0;
+                        epoll_ctl(s->epollfd, EPOLL_CTL_DEL, client->fd, NULL);
+                        RELAY_ATOMIC_DECREMENT( RECEIVED_STATS.active_connections, 1 );
+                    }
                 }
             }
         }

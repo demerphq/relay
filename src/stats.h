@@ -20,6 +20,7 @@ struct stats_basic_counters {
     volatile stats_count_t disk_error_count;     /* number of items we failed to write to disk properly */
 
     volatile stats_count_t send_elapsed_usec;    /* elapsed time in microseconds that we spent sending data */
+    volatile stats_count_t active_connections;   /* current number of active inbound tcp connections */
 };
 typedef struct stats_basic_counters stats_basic_counters_t;
 
