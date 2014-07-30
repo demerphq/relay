@@ -94,9 +94,9 @@ void *udp_server(void *arg) {
 
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
-    int i,nfds,fd,try_to_read,received;
+    int j,i,nfds,fd,try_to_read,received;
     struct epoll_event ev, events[MAX_EVENTS];
-    struct tcp_client *client;
+    struct tcp_client *client,*preallocated;
 
     setnonblocking(s->socket);
 
@@ -105,6 +105,9 @@ void *tcp_server(void *arg) {
 
     if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, s->socket, &ev) == -1)
         DIE("epoll_ctl failed on the listening socket");
+
+    preallocated = mallocz_or_die(sizeof(struct tcp_client) * MAX_TCP_CLIENTS);
+    memset(preallocated,0,sizeof(struct tcp_client) * MAX_TCP_CLIENTS);
 
     for (;;) {
         nfds = epoll_wait(s->epollfd, events, MAX_EVENTS, CONFIG.polling_interval_ms);
@@ -122,14 +125,26 @@ void *tcp_server(void *arg) {
                     goto out;
                 }
                 setnonblocking(fd);
-                client = mallocz_or_die(sizeof(*client));
-                client->fd = fd;
-                client->pos = 0;
-                ev.data.ptr = client;
-                ev.events = EPOLLIN | EPOLLHUP | EPOLLERR;
-                if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
-                    WARN_ERRNO("epoll_ctl failed on client socket");
-                    goto out;
+                client = NULL;
+                for (j = 0; j < MAX_TCP_CLIENTS; j++) {
+                    if (preallocated[j].active == 0) {
+                        client = &preallocated[j];
+                        break;
+                    }
+                }
+                if (client == NULL) {
+                    WARN("too many open connections");
+                    close(fd);
+                } else {
+                    client->fd = fd;
+                    client->pos = 0;
+                    client->active = 1;
+                    ev.data.ptr = client;
+                    ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;
+                    if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+                        WARN_ERRNO("epoll_ctl failed on client socket");
+                        goto out;
+                    }
                 }
             } else {
                 client = (struct tcp_client *) ev.data.ptr;
@@ -144,19 +159,23 @@ void *tcp_server(void *arg) {
                         goto disconnect;
                     }
                     received = recv(client->fd, client->frame.raw + client->pos, try_to_read,0);
-                    if (received <= 0) {
+                    if (received == 0)
+                        goto disconnect;
+
+                    if (received == -1) {
                         if (errno == EAGAIN || errno == EWOULDBLOCK)
                             continue;
                         goto disconnect;
                     }
                     client->pos += received;
+
                 try_to_consume_one_more:
                     if (client->pos < EXPECTED_HEADER_SIZE)
                         continue;
 
                     if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
                         WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
-                        goto disconnect;
+                        client->pos = 0;
                     }
                     if (client->pos >= client->frame.packed.expected) {
                         client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
@@ -174,21 +193,24 @@ void *tcp_server(void *arg) {
                     }
                 } else {
                 disconnect:
-                    WARN_ERRNO("disconnecting");
                     shutdown(client->fd,SHUT_RDWR);
                     close(client->fd);
-                    free(client);
+                    client->active = 0;
                 }
             }
         }
     }
 out:
+    for (j = 0; j < MAX_TCP_CLIENTS; j++) {
+        if (preallocated[j].active)
+            close(preallocated[j].fd);
+    }
     close(s->socket);
     close(s->epollfd);
     set_aborted();
+    free(preallocated);
     pthread_exit(NULL);
 }
-
 
 pthread_t setup_listener(config_t *config) {
     pthread_t server_tid= 0;
@@ -240,6 +262,7 @@ int _main(config_t *config) {
             }
             unset_abort_bits(RELOAD);
         }
+
         mark_second_elapsed();
         sleep(1);
     }
