@@ -27,7 +27,7 @@ struct tcp_client {
         }  __attribute__ ((__packed__)) packed;
         char raw[MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE];
     } frame;
-    uint32_t pos;
+    int pos;
     int fd;
 };
 

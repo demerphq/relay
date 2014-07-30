@@ -50,10 +50,23 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_create(tid ? tid : &unused, &attr, func, arg);
     pthread_attr_destroy(&attr);
 }
+static inline blob_t * buf_to_blob_enqueue(char *buf, size_t size) {
+    blob_t *b;
+    if (size == 0) {
+        if (0)
+            WARN("Received 0 byte packet, not forwarding.");
+        return NULL;
+    }
+
+    RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
+    b = b_new(size);
+    memcpy(BLOB_BUF_addr(b), buf, size);
+    enqueue_blob_for_transmission(b);
+    return b;
+}
 
 void *udp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
-    blob_t *b;
     ssize_t received;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
@@ -72,15 +85,7 @@ void *udp_server(void *arg) {
 #endif
         if (received < 0)
             break;
-        if (received == 0) {
-            if (0)
-                WARN("Received 0 byte packet, not forwarding.");
-            continue;
-        }
-        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
-        b = b_new( received );
-        memcpy(BLOB_BUF_addr(b), buf, received);
-        enqueue_blob_for_transmission(b);
+        buf_to_blob_enqueue(buf,received);
     }
     WARN_ERRNO("recv failed");
     set_aborted();
@@ -90,7 +95,6 @@ void *udp_server(void *arg) {
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
     int i,nfds,fd,try_to_read,received;
-    blob_t *b;
     struct epoll_event ev, events[MAX_EVENTS];
     struct tcp_client *client;
 
@@ -155,13 +159,13 @@ void *tcp_server(void *arg) {
                         goto disconnect;
                     }
                     if (client->pos >= client->frame.packed.expected) {
-                        if (client->frame.packed.expected > 0) {
-                            RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
-                            b = b_new( client->frame.packed.expected );
-                            memcpy(BLOB_BUF_addr(b), client->frame.packed.buf,client->frame.packed.expected);
-                            enqueue_blob_for_transmission(b);
-                        }
                         client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
+                        if (client->pos < 0) {
+                            WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
+                            client->pos = 0;
+                        }
+
+                        buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
                         if (client->pos > 0) {
                             memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
                             if (client->pos >= EXPECTED_HEADER_SIZE)
