@@ -170,6 +170,7 @@ void *tcp_server(void *arg) {
                     client->pos += received;
 
                 try_to_consume_one_more:
+
                     if (client->pos < EXPECTED_HEADER_SIZE)
                         continue;
 
@@ -177,7 +178,8 @@ void *tcp_server(void *arg) {
                         WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
                         client->pos = 0;
                     }
-                    if (client->pos >= client->frame.packed.expected) {
+
+                    if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
                         client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
                         if (client->pos < 0) {
                             WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
