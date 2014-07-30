@@ -90,9 +90,9 @@ void *udp_server(void *arg) {
         }
         packets++;
 #endif
-        if (received < 0 || !recv_and_enqueue(s->socket,received,0)) {
+        if (received < 0)
             break;
-        }
+        recv_and_enqueue(s->socket,received,0);
     }
     WARN_ERRNO("recv failed");
     set_aborted();
@@ -161,24 +161,21 @@ void *tcp_server(void *arg) {
                 try_to_consume_one_more:
                     if (client->pos < EXPECTED_HEADER_SIZE)
                         continue;
-                    if (client->frame.packed.expected == 0) {
-                        client->pos = 0;
-                        if (0)
-                            WARN("Received 0 byte packet, not forwarding.");
-                        continue;
-                    }
+
                     if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
                         WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
                         goto disconnect;
                     }
                     if (client->pos >= client->frame.packed.expected) {
-                        RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
-                        b = b_new( client->frame.packed.expected );
-                        memcpy(BLOB_BUF_addr(b), client->frame.packed.buf,client->frame.packed.expected);
-                        enqueue_blob_for_transmission(b);
+                        if (client->frame.packed.expected > 0) {
+                            RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.received_count, 1 );
+                            b = b_new( client->frame.packed.expected );
+                            memcpy(BLOB_BUF_addr(b), client->frame.packed.buf,client->frame.packed.expected);
+                            enqueue_blob_for_transmission(b);
+                        }
                         client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
                         if (client->pos > 0) {
-                            memmove(client->frame.raw,client->frame.packed.buf + client->frame.packed.expected, client->pos);
+                            memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
                             if (client->pos >= EXPECTED_HEADER_SIZE)
                                 goto try_to_consume_one_more;
                         }
