@@ -153,43 +153,45 @@ void *tcp_server(void *arg) {
                     // and just attempt to read again, if we need more bytes it will just return EAGAIN
                     // if it has the needed size it will be consumed, and again shifted to the left (in case we have 3 packets in one recv())
                     // if we have a header, we know what to expect, otherwise just get as much as possible in one syscall
-                    try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
-                    if (try_to_read <= 0) {
-                        WARN("disconnecting, try to read: %d, pos: %d",try_to_read,client->pos);
-                        goto disconnect;
-                    }
-                    received = recv(client->fd, client->frame.raw + client->pos, try_to_read,0);
-                    if (received == 0)
-                        goto disconnect;
+                    for (;;) {
+                        try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
+                        if (try_to_read <= 0) {
+                            WARN("disconnecting, try to read: %d, pos: %d",try_to_read,client->pos);
+                            goto disconnect;
+                        }
+                        received = recv(client->fd, client->frame.raw + client->pos, try_to_read,0);
+                        if (received == 0)
+                            goto disconnect;
 
-                    if (received == -1) {
-                        if (errno == EAGAIN || errno == EWOULDBLOCK)
+                        if (received == -1) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                                break;
+                            goto disconnect;
+                        }
+                        client->pos += received;
+
+                    try_to_consume_one_more:
+                        if (client->pos < EXPECTED_HEADER_SIZE)
                             continue;
-                        goto disconnect;
-                    }
-                    client->pos += received;
 
-                try_to_consume_one_more:
-                    if (client->pos < EXPECTED_HEADER_SIZE)
-                        continue;
-
-                    if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
-                        WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
-                        client->pos = 0;
-                    }
-
-                    if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
-                        client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
-                        if (client->pos < 0) {
-                            WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
+                        if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
+                            WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
                             client->pos = 0;
                         }
 
-                        buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
-                        if (client->pos > 0) {
-                            memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
-                            if (client->pos >= EXPECTED_HEADER_SIZE)
-                                goto try_to_consume_one_more;
+                        if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
+                            client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
+                            if (client->pos < 0) {
+                                WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
+                                client->pos = 0;
+                            }
+
+                            buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
+                            if (client->pos > 0) {
+                                memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
+                                if (client->pos >= EXPECTED_HEADER_SIZE)
+                                    goto try_to_consume_one_more;
+                            }
                         }
                     }
                 } else {
