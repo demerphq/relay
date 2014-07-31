@@ -17,6 +17,17 @@ void trim(char * s) {
     memmove(s, p, l + 1);
 }
 
+void config_destroy(void) {
+    int i;
+    for (i = 0; i < CONFIG.argc; i++)
+        free(CONFIG.argv[i]);
+    free(CONFIG.argv);
+    free(CONFIG.graphite_arg);
+    free(CONFIG.graphite_root);
+    free(CONFIG.fallback_root);
+    free(CONFIG.file);
+}
+
 void config_set_defaults(config_t *config) {
 
     config->graphite_arg = strdup(DEFAULT_GRAPHITE_ARG);
@@ -198,15 +209,6 @@ void config_init(int argc, char **argv) {
     }
 }
 
-void config_destroy(void) {
-    int i;
-    for (i = 0; i < CONFIG.argc; i++)
-        free(CONFIG.argv[i]);
-    free(CONFIG.argv);
-    free(CONFIG.graphite_arg);
-    free(CONFIG.fallback_root);
-    free(CONFIG.file);
-}
 
 void config_die_args(int argc, char **argv) {
     /* XXX: fix me! */

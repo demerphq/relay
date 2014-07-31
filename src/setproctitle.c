@@ -109,5 +109,12 @@ void setproctitle (const char *txt)
 }
 
 void destroy_proctitle( void ) {
+    char **tmp;
+    free(prog_str);
+    free(args_str);
+    tmp= environ;
+    while (tmp && *tmp) {
+        free(*tmp++);
+    }
     free(environ);
 }

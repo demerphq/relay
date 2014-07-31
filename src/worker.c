@@ -180,6 +180,8 @@ void *worker_thread( void *arg ) {
     if (join_err)
         WARN( "shutting down disk_writer thread error: %d", join_err );
 
+    free(self->disk_writer);
+
     return NULL;
 }
 
