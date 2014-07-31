@@ -110,7 +110,7 @@ void *tcp_server(void *arg) {
     RELAY_ATOMIC_AND( RECEIVED_STATS.active_connections, 0);
     int rc;
     for (;;) {
-        rc = poll(pfds,nfds,-1);
+        rc = poll(pfds,nfds,CONFIG.polling_interval_ms);
         if (rc == -1) {
             if (rc == EINTR)
                 continue;
