@@ -3,7 +3,7 @@ FILES=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/soc
 RELAY=src/relay.c $(FILES)
 CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie
-GCC_FLAGS=-O0 -g3
+GCC_FLAGS=-O3
 CC=gcc
 CFLAGS=-Wall -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
