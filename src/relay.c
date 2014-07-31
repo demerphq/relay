@@ -11,8 +11,9 @@ static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
 
-static sock_t *s_listen;
+sock_t *s_listen;
 extern config_t CONFIG;
+graphite_worker_t *graphite_worker;
 
 stats_basic_counters_t RECEIVED_STATS= {
     .received_count= 0,       /* number of items we have received */
@@ -233,6 +234,8 @@ int _main(config_t *config) {
 
     worker_pool_init_static(config);
     server_tid= setup_listener(config);
+    graphite_worker= mallocz_or_die(sizeof(graphite_worker_t));
+    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {
         int abort;
@@ -247,6 +250,10 @@ int _main(config_t *config) {
                 stop_listener(server_tid);
                 server_tid= setup_listener(config);
                 worker_pool_reload_static(config);
+                /* XXX: check me */
+                /* check and see if we need to stop the old graphite processor and replace it */
+                graphite_worker_destroy(graphite_worker);
+                pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
             }
             unset_abort_bits(RELOAD);
         }
@@ -281,6 +288,7 @@ static void stop_listener(pthread_t server_tid) {
 }
 
 static void final_shutdown(pthread_t server_tid) {
+    graphite_worker_destroy(graphite_worker);
     stop_listener(server_tid);
     worker_pool_destroy_static();
     free(s_listen);

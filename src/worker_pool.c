@@ -66,9 +66,6 @@ void worker_pool_init_static(config_t *config) {
     TAILQ_INIT(&POOL.workers);
     LOCK_INIT(&POOL.lock);
 
-    POOL.graphite_worker= mallocz_or_die(sizeof(graphite_worker_t));
-
-    pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
 
     LOCK(&POOL.lock);
     POOL.n_workers = 0;
@@ -91,10 +88,6 @@ void worker_pool_reload_static(config_t *config) {
     worker_t *wtmp;
     int n_workers = 0;
 
-    /* XXX: check me */
-    /* check and see if we need to stop the old graphite processor and replace it */
-    graphite_worker_destroy(POOL.graphite_worker);
-    pthread_create(&POOL.graphite_worker->tid, NULL, graphite_worker_thread, POOL.graphite_worker);
 
     LOCK(&POOL.lock);
 
@@ -139,7 +132,6 @@ void worker_pool_reload_static(config_t *config) {
 /* worker destory static, destroy all the workers in the pool */
 void worker_pool_destroy_static(void) {
     worker_t *w;
-    graphite_worker_destroy(POOL.graphite_worker);
     LOCK(&POOL.lock);
     while ((w = TAILQ_FIRST(&POOL.workers)) != NULL) {
         TAILQ_REMOVE(&POOL.workers, w, entries);

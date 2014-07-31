@@ -12,7 +12,6 @@ struct worker_pool {
     LOCK_T lock;
     int n_workers;
 
-    graphite_worker_t *graphite_worker;
 };
 typedef struct worker_pool worker_pool_t;
 

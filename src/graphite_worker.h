@@ -1,7 +1,7 @@
 #ifndef _GRAPHITE_WORKER_H
 #define _GRAPHITE_WORKER_H
 
-#define GRAPHITE_BUFFER_MAX 10000
+#define GRAPHITE_BUFFER_MAX 16384
 #include <pthread.h>
 #include "socket_util.h"
 
