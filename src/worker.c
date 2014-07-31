@@ -11,6 +11,11 @@ void w_wait(int ms) {
     usleep(ms * 1000);
 }
 
+/* add an item to a disk worker queue */
+static void enqueue_blob_for_disk_writing(worker_t *worker, struct blob *b) {
+    q_append(&worker->disk_writer->queue, b, &POOL.lock); /* XXX: change this to a worker level lock */
+}
+
 /* if a worker failed to send we need to write the item to the disk */
 /* XXX */
 static void enqueue_queue_for_disk_writing(worker_t *worker, queue_t *q) {
@@ -76,11 +81,13 @@ void *worker_thread( void *arg ) {
         get_time( &send_start_time );
 
         cork(sck, 1);
-        while ((cur_blob = private_queue.head) != NULL) {
+        while ( private_queue.head != NULL ) {
             ssize_t bytes_sent= -2;
             ssize_t bytes_to_send= 0;
 
             get_time(&now);
+
+            cur_blob= private_queue.head;
 
             if (
                 elapsed_usec( &BLOB_RECEIVED_TIME(cur_blob), &now) >= CONFIG.spill_usec
@@ -104,7 +111,8 @@ void *worker_thread( void *arg ) {
 
                 enqueue_queue_for_disk_writing( self, &spill_queue );
             }
-            cur_blob = private_queue.head;
+
+            cur_blob = q_shift_nolock( &private_queue );
             if (!cur_blob)
                 break;
 
@@ -120,7 +128,7 @@ void *worker_thread( void *arg ) {
 
             if ( bytes_sent == -1 ) {
                 WARN_ERRNO("Send to %s failed %ld",sck->to_string, BLOB_DATA_MBR_SIZE(cur_blob));
-                enqueue_queue_for_disk_writing( self, &private_queue );
+                enqueue_blob_for_disk_writing( self, cur_blob );
                 close(sck->socket);
                 RELAY_ATOMIC_INCREMENT( self->counters.error_count, 1 );
                 sck= NULL;
@@ -132,7 +140,6 @@ void *worker_thread( void *arg ) {
             } else {
                 RELAY_ATOMIC_INCREMENT( self->counters.sent_count, 1 );
             }
-            private_queue.head= BLOB_NEXT(cur_blob);
             b_destroy( cur_blob );
         }
         cork( sck, 0 );
