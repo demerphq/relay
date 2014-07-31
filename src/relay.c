@@ -286,6 +286,7 @@ static void final_shutdown(pthread_t server_tid) {
     free(s_listen);
     sleep(1); // give a chance to the detachable tcp worker threads to pthread_exit()
     config_destroy();
+    destroy_proctitle();
 }
 
 int main(int argc, char **argv) {
