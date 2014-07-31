@@ -3,7 +3,7 @@
 
 #include "relay_common.h"
 #include "socket_util.h"
-#include <sys/epoll.h>
+#include <poll.h>
 #include <unistd.h>
 #include <signal.h>
 #include <ctype.h>
@@ -17,8 +17,6 @@
 # endif
 #endif
 
-#define MAX_EVENTS 16
-#define MAX_TCP_CLIENTS 1024
 #define EXPECTED_HEADER_SIZE 4
 struct tcp_client {
     union {
@@ -29,8 +27,6 @@ struct tcp_client {
         char raw[MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE];
     } frame;
     int pos;
-    int fd;
-    int active;
 };
 
 #endif

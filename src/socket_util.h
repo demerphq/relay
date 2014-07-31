@@ -16,7 +16,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
 
 #define RELAY_CONN_IS_INBOUND   0
 #define RELAY_CONN_IS_OUTBOUND  1
@@ -39,7 +38,6 @@ struct sock {
     int socket;
     int proto;
     int type;
-    int epollfd;
     char arg[PATH_MAX];
     char to_string[PATH_MAX];
     char arg_clean[PATH_MAX];

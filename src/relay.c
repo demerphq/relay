@@ -96,129 +96,107 @@ void *udp_server(void *arg) {
 
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
-    int j,i,nfds,fd,try_to_read,received;
-    struct epoll_event ev, events[MAX_EVENTS];
-    struct tcp_client *client,*preallocated;
-
+    int i,fd,try_to_read,received;
+    struct tcp_client *clients,*client;
+    struct pollfd *pfds = NULL;
+    nfds_t nfds;
     setnonblocking(s->socket);
 
-    ev.events = EPOLLIN;
-    ev.data.ptr = s;
-
-    if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, s->socket, &ev) == -1)
-        DIE("epoll_ctl failed on the listening socket");
-
-    preallocated = mallocz_or_die(sizeof(struct tcp_client) * MAX_TCP_CLIENTS);
-    memset(preallocated,0,sizeof(struct tcp_client) * MAX_TCP_CLIENTS);
-
+    nfds = 1;
+    pfds = mallocz_or_die(nfds * sizeof(struct pollfd));
+    pfds->fd = s->socket;
+    pfds->events = POLLIN;
+    clients = NULL;
+    RELAY_ATOMIC_AND( RECEIVED_STATS.active_connections, 0);
+    int rc;
     for (;;) {
-        nfds = epoll_wait(s->epollfd, events, MAX_EVENTS, CONFIG.polling_interval_ms);
-        if (nfds == -1) {
-            if (nfds == EINTR) // timeout
+        rc = poll(pfds,nfds,-1);
+        if (rc == -1) {
+            if (rc == EINTR)
                 continue;
-            WARN_ERRNO("epoll_wait");
+            WARN_ERRNO("poll");
             goto out;
         }
         for (i = 0; i < nfds; i++) {
-            if (events[i].data.ptr == s) {
+            if (!pfds[i].revents)
+                continue;
+            if (pfds[i].fd == s->socket) {
                 fd = accept(s->socket, NULL, NULL);
                 if (fd == -1) {
                     WARN_ERRNO("accept");
                     goto out;
                 }
                 setnonblocking(fd);
-                client = NULL;
-                for (j = 0; j < MAX_TCP_CLIENTS; j++) {
-                    if (preallocated[j].active == 0) {
-                        client = &preallocated[j];
-                        break;
-                    }
-                }
-                if (client == NULL) {
-                    WARN("too many open connections");
-                    close(fd);
-                } else {
-                    RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.active_connections, 1 );
-                    client->fd = fd;
-                    client->pos = 0;
-                    client->active = 1;
-                    ev.data.ptr = client;
-                    ev.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP;
-                    if (epoll_ctl(s->epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
-                        WARN_ERRNO("epoll_ctl failed on client socket");
-                        goto out;
-                    }
-                }
+                RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.active_connections, 1 );
+                pfds = realloc_or_die(pfds, (nfds + 1) * sizeof(*pfds));
+                clients = realloc_or_die(clients,(nfds + 1) * sizeof(*clients));
+                clients[nfds].pos = 0;
+                pfds[nfds].fd  = fd;
+                pfds[nfds].events = POLLIN;
+                pfds[nfds].revents = 0;
+                nfds++;
             } else {
-                client = (struct tcp_client *) ev.data.ptr;
-                if (events[i].events & EPOLLIN) {
-                    // in case we have 2 packets in the same read(), we just consume one, and will shift the leftover buf to the left
-                    // and just attempt to read again, if we need more bytes it will just return EAGAIN
-                    // if it has the needed size it will be consumed, and again shifted to the left (in case we have 3 packets in one recv())
-                    // if we have a header, we know what to expect, otherwise just get as much as possible in one syscall
-                    for (;;) {
-                        try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
-                        if (try_to_read <= 0) {
-                            WARN("disconnecting, try to read: %d, pos: %d",try_to_read,client->pos);
-                            goto disconnect;
-                        }
-                        received = recv(client->fd, client->frame.raw + client->pos, try_to_read,0);
-                        if (received == 0)
-                            goto disconnect;
-
-                        if (received == -1) {
-                            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                                break;
-                            goto disconnect;
-                        }
-                        client->pos += received;
-
-                    try_to_consume_one_more:
-                        if (client->pos < EXPECTED_HEADER_SIZE)
-                            continue;
-
-                        if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
-                            WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
-                            client->pos = 0;
-                        }
-
-                        if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
-                            client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
-                            if (client->pos < 0) {
-                                WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
-                                client->pos = 0;
-                            }
-
-                            buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
-                            if (client->pos > 0) {
-                                memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
-                                if (client->pos >= EXPECTED_HEADER_SIZE)
-                                    goto try_to_consume_one_more;
-                            }
-                        }
-                    }
-                } else {
+                client = &clients[i];
+                try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
+                if (try_to_read <= 0) {
+                    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
+                    goto disconnect;
+                }
+                received = recv(pfds[i].fd, client->frame.raw + client->pos, try_to_read,0);
+                if (received <= 0) {
+                    if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                        continue;
                 disconnect:
-                    if (client->active) {
-                        shutdown(client->fd,SHUT_RDWR);
-                        close(client->fd);
-                        client->active = 0;
-                        epoll_ctl(s->epollfd, EPOLL_CTL_DEL, client->fd, NULL);
-                        RELAY_ATOMIC_DECREMENT( RECEIVED_STATS.active_connections, 1 );
+                    nfds--;
+                    shutdown(pfds[i].fd,SHUT_RDWR);
+                    close(pfds[i].fd);
+                    // shft left
+                    memcpy(pfds + i,pfds + i + 1, nfds - i);
+                    memcpy(clients + i,clients + i + 1, nfds - i);
+
+                    pfds = realloc_or_die(pfds, nfds * sizeof(*pfds));
+                    clients = realloc_or_die(clients, nfds * sizeof(*clients));
+                    RELAY_ATOMIC_DECREMENT( RECEIVED_STATS.active_connections, 1 );
+                    continue;
+                }
+                client->pos += received;
+            try_to_consume_one_more:
+                if (client->pos < EXPECTED_HEADER_SIZE)
+                    continue;
+
+                if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
+                    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
+                    client->pos = 0;
+                }
+
+                if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
+                    client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
+                    if (client->pos < 0) {
+                        WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
+                        client->pos = 0;
+                    }
+
+                    buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
+                    if (client->pos > 0) {
+                        memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
+                        if (client->pos >= EXPECTED_HEADER_SIZE)
+                            goto try_to_consume_one_more;
                     }
                 }
+
+
             }
         }
     }
 out:
-    for (j = 0; j < MAX_TCP_CLIENTS; j++) {
-        if (preallocated[j].active)
-            close(preallocated[j].fd);
+    for (i = 0; i < nfds; i++) {
+        shutdown(pfds[i].fd, SHUT_RDWR);
+        close(pfds[i].fd);
     }
+    free(pfds);
+    free(clients);
     close(s->socket);
-    close(s->epollfd);
     set_aborted();
-    free(preallocated);
     pthread_exit(NULL);
 }
 
@@ -299,7 +277,6 @@ static void sig_handler(int signum) {
 static void stop_listener(pthread_t server_tid) {
     shutdown(s_listen->socket, SHUT_RDWR);
     close(s_listen->socket);
-    close(s_listen->epollfd);
     pthread_join(server_tid, NULL);
 }
 
