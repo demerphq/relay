@@ -139,6 +139,7 @@ void worker_pool_reload_static(config_t *config) {
 /* worker destory static, destroy all the workers in the pool */
 void worker_pool_destroy_static(void) {
     worker_t *w;
+    graphite_worker_destroy(POOL.graphite_worker);
     LOCK(&POOL.lock);
     while ((w = TAILQ_FIRST(&POOL.workers)) != NULL) {
         TAILQ_REMOVE(&POOL.workers, w, entries);
