@@ -10,7 +10,6 @@
 static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
-
 sock_t *s_listen;
 extern config_t CONFIG;
 graphite_worker_t *graphite_worker;
@@ -53,6 +52,7 @@ static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_create(tid ? tid : &unused, &attr, func, arg);
     pthread_attr_destroy(&attr);
 }
+
 static inline blob_t * buf_to_blob_enqueue(char *buf, size_t size) {
     blob_t *b;
     if (size == 0) {
@@ -94,13 +94,14 @@ void *udp_server(void *arg) {
     set_aborted();
     pthread_exit(NULL);
 }
+#define EXPECTED(x) (*(int *) &(x)->buf[0])
 
 void *tcp_server(void *arg) {
     sock_t *s = (sock_t *) arg;
     int i,fd,try_to_read,received;
     struct tcp_client *clients,*client;
     struct pollfd *pfds = NULL;
-    nfds_t nfds;
+    volatile nfds_t nfds;
     setnonblocking(s->socket);
 
     nfds = 1;
@@ -131,72 +132,91 @@ void *tcp_server(void *arg) {
                 RELAY_ATOMIC_INCREMENT( RECEIVED_STATS.active_connections, 1 );
                 pfds = realloc_or_die(pfds, (nfds + 1) * sizeof(*pfds));
                 clients = realloc_or_die(clients,(nfds + 1) * sizeof(*clients));
+
                 clients[nfds].pos = 0;
+                clients[nfds].buf = mallocz_or_die(ASYNC_BUFFER_SIZE);
+//                WARN("[%d] CREATE %p fd: %d",i,clients[nfds].buf,fd);
                 pfds[nfds].fd  = fd;
                 pfds[nfds].events = POLLIN;
                 pfds[nfds].revents = 0;
                 nfds++;
             } else {
                 client = &clients[i];
-                try_to_read = sizeof(client->frame.packed) - client->pos; // try to read as much as possible
+                try_to_read = ASYNC_BUFFER_SIZE - client->pos; // try to read as much as possible
                 if (try_to_read <= 0) {
                     WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
                     goto disconnect;
                 }
-                received = recv(pfds[i].fd, client->frame.raw + client->pos, try_to_read,0);
+                received = recv(pfds[i].fd, client->buf + client->pos, try_to_read,0);
                 if (received <= 0) {
                     if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
                         continue;
+
                 disconnect:
-                    nfds--;
                     shutdown(pfds[i].fd,SHUT_RDWR);
                     close(pfds[i].fd);
-                    // shft left
-                    memcpy(pfds + i,pfds + i + 1, nfds - i);
-                    memcpy(clients + i,clients + i + 1, nfds - i);
+//                    WARN("[%d] DESTROY %p %d %d fd: %d vs %d",i,client->buf,client->x,i,pfds[i].fd,client->fd);
+                    free(client->buf);
 
-                    pfds = realloc_or_die(pfds, nfds * sizeof(*pfds));
-                    clients = realloc_or_die(clients, nfds * sizeof(*clients));
+                    // shft left
+                    memcpy(pfds + i,pfds + i + 1, (nfds - i - 1) * sizeof(struct pollfd));
+                    memcpy(clients + i,clients + i + 1, (nfds - i - 1) * sizeof(struct tcp_client));
+
+                    nfds--;
+                    pfds = realloc_or_die(pfds, nfds * sizeof(struct pollfd));
+                    clients = realloc_or_die(clients, nfds * sizeof(struct tcp_client));
                     RELAY_ATOMIC_DECREMENT( RECEIVED_STATS.active_connections, 1 );
                     continue;
                 }
                 client->pos += received;
+
             try_to_consume_one_more:
+
                 if (client->pos < EXPECTED_HEADER_SIZE)
                     continue;
 
-                if (client->frame.packed.expected > MAX_CHUNK_SIZE) {
-                    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",client->frame.packed.expected,MAX_CHUNK_SIZE);
-                    client->pos = 0;
+                if (EXPECTED(client) > MAX_CHUNK_SIZE) {
+                    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",EXPECTED(client),MAX_CHUNK_SIZE);
+                    goto disconnect;
                 }
+                if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
+                    buf_to_blob_enqueue(client->buf,EXPECTED(client));
 
-                if (client->pos >= client->frame.packed.expected + EXPECTED_HEADER_SIZE) {
-                    client->pos -= client->frame.packed.expected + EXPECTED_HEADER_SIZE;
+                    client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
                     if (client->pos < 0) {
-                        WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",client->pos, client->frame.packed.expected,EXPECTED_HEADER_SIZE);
-                        client->pos = 0;
+                        WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
+                             client->pos, EXPECTED(client),EXPECTED_HEADER_SIZE);
+                        goto disconnect;
                     }
-
-                    buf_to_blob_enqueue(client->frame.packed.buf,client->frame.packed.expected);
                     if (client->pos > 0) {
-                        memmove(client->frame.raw,client->frame.raw + client->frame.packed.expected + EXPECTED_HEADER_SIZE, client->pos);
+                        // [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+                        //                                                                     ^ pos(12)
+                        // after we remove the first packet + header it becomes:
+                        // [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+                        //                           ^ pos (5)
+                        // and then we copy from header + data, to position 0, 5 bytes
+                        //
+                        // [ h ] [ h ] [ h ] [ h ] [ D ]
+                        //                           ^ pos (5)
+                        memmove(client->buf,
+                                client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client),
+                                client->pos);
                         if (client->pos >= EXPECTED_HEADER_SIZE)
                             goto try_to_consume_one_more;
                     }
                 }
-
-
             }
         }
     }
 out:
     for (i = 0; i < nfds; i++) {
+        if (pfds[i].fd != s->socket)
+            free(clients[i].buf);
         shutdown(pfds[i].fd, SHUT_RDWR);
         close(pfds[i].fd);
     }
     free(pfds);
     free(clients);
-    close(s->socket);
     set_aborted();
     pthread_exit(NULL);
 }

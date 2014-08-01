@@ -18,14 +18,9 @@
 #endif
 
 #define EXPECTED_HEADER_SIZE 4
+#define ASYNC_BUFFER_SIZE MAX_CHUNK_SIZE
 struct tcp_client {
-    union {
-        struct packed {
-            uint32_t expected;
-            char buf[MAX_CHUNK_SIZE];
-        }  __attribute__ ((__packed__)) packed;
-        char raw[MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE];
-    } frame;
+    char *buf;
     int pos;
 };
 
