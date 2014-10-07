@@ -7,6 +7,7 @@ use Getopt::Long;
 use IO::Select;
 use POSIX qw(EWOULDBLOCK EAGAIN F_SETFL F_GETFL O_NONBLOCK);
 use Sereal::Decoder qw(sereal_decode_with_object scalar_looks_like_sereal);
+use Time::HiRes;
 use Socket;
 
 my %Opt =
@@ -36,8 +37,11 @@ my %SIZE = ();
 my %HAS_HEADER = ();
 my $FULL_HEADER_SIZE = 4;
 my @DONE = ();
-my $NOW = time();
-my $total = 0;
+my $START = Time::HiRes::time();
+my $NOW = int($START);
+my $total_packets = 0;
+
+$SIG{INT} = sub { show_totals(); exit(1); };
 
 while (1) {
     my @ready = $SELECT->can_read(1);
@@ -47,9 +51,8 @@ while (1) {
             while (1) {
                 my $rc = accept(my $client, $server);
                 if (!$rc) {
-                    last
-                        if ($! == EWOULDBLOCK || $! == EAGAIN);
-                    die("accept failed $!");
+                    last if ($! == EWOULDBLOCK || $! == EAGAIN);
+                    die("accept failed: $!");
                 }
                 reinit(fileno($client));
                 set_non_blocking($client);
@@ -73,21 +76,46 @@ while (1) {
     my $now = time();
     if ($now != $NOW) {
 	if ($now > $NOW) {
-	    my $done = scalar @DONE;
-	    $total += $done;
-	    printf("packets %d / total %d at %d packets/s epoch %d\n", $done, $total, $done / ($now - $NOW), $now);
+	    flush_totals($now);
 	}
         $NOW = $now;
+    }
+}
+close($server);
+
+sub flush_totals {
+    my $now = shift;
+    if ($now > $NOW && @DONE) {
+	my $done = scalar @DONE;
+	$total_packets += $done;
+	printf("RECEIVING packets %d / total %d at %d packets/s epoch %d\n", $done, $total_packets, $total_packets / ($now - $NOW), $now);
         for my $e (@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);
 		# TODO: fail? count?
             }
         }
-        @DONE = ();
+	@DONE = ();
     }
 }
-close($server);
+
+sub show_totals {
+    my $now = time();
+    flush_totals($now);
+    my $took = $now - $START;
+    if ($took > 0) {
+	printf("\nRECEIVED packets %d in %.2f sec at %d packets/s epoch %d\n", $total_packets, $took, $total_packets / $took, $now);
+    } else {
+	die "$0: took less than nothing\n";
+    }
+}
+
+exit(0);
+
+sub set_non_blocking {
+    my $flags = fcntl($_[0], F_GETFL, 0) or die "Failed to set fcntl F_GETFL flag: $!";
+    fcntl($_[0], F_SETFL, $flags | O_NONBLOCK) or die "Failed to set fcntl O_NONBLOCK flag: $!";
+}
 
 sub reinit {
     my $fn = shift;
@@ -111,9 +139,4 @@ sub read_more_or_cleanup {
         $SELECT->remove($fh);
     }
     return (length($DATA{$fn}) == $size);
-}
-
-sub set_non_blocking {
-    my $flags = fcntl($_[0], F_GETFL, 0) or die "Failed to set fcntl F_GETFL flag: $!";
-    fcntl($_[0], F_SETFL, $flags | O_NONBLOCK) or die "Failed to set fcntl O_NONBLOCK flag: $!";
 }
