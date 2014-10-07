@@ -17,7 +17,7 @@ my %Opt =
      waitns => 1000,
     );
 
-die "usage: $0 --port=10000 --host=localhost --file=/tmp/example.txt"
+die "usage: $0 --port=10000 --file=out.srl [--count=N|--MB=N|--sec=N] --waitns=N --host=localhost"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "count=i"     => \$Opt{count},
@@ -28,7 +28,7 @@ die "usage: $0 --port=10000 --host=localhost --file=/tmp/example.txt"
 	    # count<0 means 'forever'
 	    && ($Opt{count} != 0 || $Opt{mb} > 0 || $Opt{sec} > 0));
 
-open(my $fh, '<', $Opt{file}) or die qq[$0: "$Opt{file}": $!];
+open(my $fh, '<', $Opt{file}) or die qq[$0: failed to open "$Opt{file}" for reading: $!];
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
