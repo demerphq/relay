@@ -64,7 +64,7 @@ while (1) {
 	if ($now > $NOW) {
 	    my $done = scalar @DONE;
 	    $total += $done;
-	    printf("packets %d / total %d at %d packets/sec epoch %d\n", $done, $total, $done / ($now - $NOW), $now);
+	    printf("packets %d / total %d at %d packets/s epoch %d\n", $done, $total, $done / ($now - $NOW), $now);
 	}
         $NOW = $now;
         for my $e (@DONE) {
