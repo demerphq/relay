@@ -99,6 +99,8 @@ sub flush_totals {
             }
         }
 	@DONE = ();
+    } else {
+	print "IDLE $now\n";
     }
 }
 
