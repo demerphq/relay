@@ -13,10 +13,11 @@ my %Opt =
      host   => "localhost",
      port   => 10000,
      waitns => 1000,
+     period => 15,
 
      count  => undef,
      mb     => undef,
-     sec    => undef,
+     sec    => -1,
     );
 
 die "usage: $0 --port=$Opt{port} --file=$Opt{file} [--count=N|--MB=N|--sec=N] --waitns=$Opt{waitns} --host=$Opt{host}"
@@ -25,6 +26,7 @@ die "usage: $0 --port=$Opt{port} --file=$Opt{file} [--count=N|--MB=N|--sec=N] --
 		       "count=i"     => \$Opt{count},
 		       "MB=f"        => \$Opt{mb},
 		       "sec=f"       => \$Opt{sec},
+		       "period=i"    => \$Opt{period},
 		       "waitns=i"    => \$Opt{waitns},
 		       "host=s"      => \$Opt{host})
 	    # count<0 means 'forever'
@@ -49,9 +51,12 @@ my $packets = 0;
 my $last_packets = 0;
 my $start_hires = Time::HiRes::time();
 my $now_hires   = $start_hires;
-my $last_time;
+my $last_time   = 0;
 
-$SIG{INT} = sub { show_totals(); exit(1); };
+$SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
+
+$SIG{ALRM} = sub { show_totals(); alarm($Opt{period}); };
+alarm($Opt{period});
 
 my $remote = IO::Socket::INET->new(Proto => 'udp',
 				   PeerAddr => $Opt{host},
@@ -81,7 +86,7 @@ sub show_totals {
     $now_hires = Time::HiRes::time();
     my $took = $now_hires - $start_hires;
     if ($took > 0) {
-	printf("\nSENT %d packets (%.2f MB) in %.2f sec at %.2f packets/s (%.2f MB/s) epoch %d\n",
+	printf("SENT %d packets (%.2f MB) in %.2f sec at %.2f packets/s (%.2f MB/s) epoch %d\n",
 	       $packets, $data_mb * $packets, $took, $packets / $took, $data_mb * $packets / $took, int($now_hires));
     } else {
 	die "$0: took less time than nothing\n";

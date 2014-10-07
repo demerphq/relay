@@ -13,13 +13,15 @@ use Socket;
 my %Opt =
     (
      port   => 9003,
-     sec    => -1,
+     sec    => -1, # forever
+     period => 15,
     );
 
 die "usage: $0 --port=$Opt{port} [--sec=N]"
     unless (GetOptions(
-		"port=i" => \$Opt{port},
-		"sec=i"  => \$Opt{sec},
+		"port=i"   => \$Opt{port},
+		"sec=i"    => \$Opt{sec},
+		"period"   => \$Opt{period},
 	    ));
 
 my $SELECT = IO::Select->new();
@@ -45,7 +47,10 @@ my $TOTAL_PACKETS = 0;
 my $IDLE_COUNT = 0;
 my $BUSY_COUNT = 0;
 
-$SIG{INT} = sub { show_totals(); exit(1); };
+$SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
+
+$SIG{ALRM} = sub { show_totals(); alarm($Opt{period}); };
+alarm($Opt{period});
 
 while (1) {
     my @ready = $SELECT->can_read(1);
@@ -114,11 +119,11 @@ sub show_totals {
     flush_totals($now);
     my $took = $now - $START;
     if ($took > 0) {
-	printf("\nRECEIVED packets %d in %.2f sec at %d packets/s epoch %d busy %d idle %d (%.2f)\n",
+	printf("RECEIVED packets %d in %.2f sec at %d packets/s epoch %d busy %d idle %d (%.2f)\n",
 	       $TOTAL_PACKETS, $took, $TOTAL_PACKETS / $took,
 	       $now, $BUSY_COUNT, $IDLE_COUNT, $BUSY_COUNT / ($BUSY_COUNT + $IDLE_COUNT));
     } else {
-	die "$0: took less than nothing\n";
+	die "$0: took less time than nothing\n";
     }
 }
 
