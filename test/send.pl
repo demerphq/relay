@@ -5,29 +5,33 @@ use IO::Socket;
 use Data::Dumper;
 use Getopt::Long;
 use Time::HiRes;
-my $file = "out.srl";
-my $port = 10000;
-my $host = "localhost";
-my $ns   = 1000;
-my $count;
-my $mb;
+
+my %Opt =
+    (
+     file   => "out.srl",
+     count  => undef,
+     mb     => undef,
+     port   => 10000,
+     host   => "localhost",
+     waitns => 1000,
+    );
 
 die "usage: $0 --port=10000f --host=localhost --file=/tmp/example.txt"
-    unless (GetOptions("port=i"      => \$port,
-		       "file=s"      => \$file,
-		       "nanosleep=i" => \$ns,
-		       "count=i"     => \$count,
-		       "mb=i"        => \$mb,
-		       "host=s"      => \$host) &&
-	    ($count || $mb));
+    unless (GetOptions("port=i"      => \$Opt{port},
+		       "file=s"      => \$Opt{file},
+		       "count=i"     => \$Opt{count},
+		       "MB=i"        => \$Opt{mb},
+		       "waints=i"    => \$Opt{waitns},
+		       "host=s"      => \$Opt{host})
+	    && ($Opt{count} || $Opt{mb}));
 
-open(my $fh,'<',$file);
+open(my $fh, '<', $Opt{file}) or die qq[$0: "$Opt{file}": $!];
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
 
-if ($count == 0 && $mb > 0) {
-    $count = int($mb / $data_mb) + 1;
+if ($Opt{count} == 0 && $Opt{mb} > 0) {
+    $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
 }
 
 my $packets = 0;
@@ -39,8 +43,8 @@ my $last_time;
 $SIG{INT} = sub { show_totals(); exit(1); };
 
 my $remote = IO::Socket::INET->new(Proto => 'udp',
-				   PeerAddr => $host,
-				   PeerPort => $port) or die "$0: $!";
+				   PeerAddr => $Opt{host},
+				   PeerPort => $Opt{port}) or die "$0: $!";
 while (1) {
     my $now = time();
     if ($last_time != $now) {
@@ -57,8 +61,8 @@ while (1) {
     }
     $remote->send($data);
     $packets++;
-    last if $count >= 0 and $packets >= $count;
-    Time::HiRes::nanosleep($ns) if $ns;
+    last if $Opt{count} >= 0 and $packets >= $Opt{count};
+    Time::HiRes::nanosleep($Opt{waitns}) if $Opt{waitns};
 }
 
 sub show_totals {
