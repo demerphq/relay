@@ -48,7 +48,7 @@ while (1) {
     }
     $remote->send($data);
     $packets++;
-    last if $count and $packets >= $count;
+    last if $count >= 0 and $packets >= $count;
     Time::HiRes::nanosleep($ns) if $ns;
 }
 $now_hires = Time::HiRes::time();
