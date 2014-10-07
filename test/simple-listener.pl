@@ -91,7 +91,7 @@ sub flush_totals {
     if ($now > $NOW && @DONE) {
 	my $done = scalar @DONE;
 	$total_packets += $done;
-	printf("RECEIVING packets %d / total %d at %d packets/s epoch %d\n", $done, $total_packets, $total_packets / ($now - $NOW), $now);
+	printf("RECEIVING packets %d / total %d epoch %d\n", $done, $total_packets, $now);
         for my $e (@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);
