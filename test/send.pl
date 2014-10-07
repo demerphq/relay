@@ -61,7 +61,7 @@ while (1) {
 	    my $sent_packets = $packets - $last_packets;
 	    if ($now > $last_time) {
 		my $sent_time = $now - $last_time; # Ever > 1.0?
-		printf("SENDING %d packets/sec (%.2f MB/s) %d\n",
+		printf("SENDING %d packets/sec (%.2f MB/s) epoch %d\n",
 		       $sent_packets, $data_mb * $sent_packets / $sent_time, $now);
 	    }
 	}
@@ -79,7 +79,7 @@ sub show_totals {
     $now_hires = Time::HiRes::time();
     my $took = $now_hires - $start_hires;
     if ($took > 0) {
-	printf("\nSENT %d packets (%.2f MB) in %.2f sec at %.2f packets/second (%.2f MB/sec) %d\n",
+	printf("\nSENT %d packets (%.2f MB) in %.2f sec at %.2f packets/second (%.2f MB/sec) epoch %d\n",
 	       $packets, $data_mb * $packets, $took, $packets / $took, $data_mb * $packets / $took, int($now_hires));
     } else {
 	die "$0: took less time than nothing\n";

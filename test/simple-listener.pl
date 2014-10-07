@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+
 use Socket;
 use IO::Select;
 use POSIX;
@@ -6,6 +7,7 @@ use warnings;
 use strict;
 use Data::Dumper;
 use Sereal::Decoder qw(sereal_decode_with_object scalar_looks_like_sereal);
+
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 setsockopt($server, SOL_SOCKET, SO_REUSEADDR, 1);
@@ -23,7 +25,7 @@ my %SIZE = ();
 my %HAS_HEADER = ();
 my $FULL_HEADER_SIZE = 4;
 my @DONE = ();
-my $NOW = int(time()); #in case of HiRes
+my $TIME = time();
 my $total = 0;
 while(1) {
     my @ready = $SELECT->can_read(1);
@@ -56,13 +58,15 @@ while(1) {
             }
         }
     }
-    if (int(time()) != $NOW) {
-        $NOW = int(time());
+    my $now = time();
+    if ($now != $TIME) {
+        $TIME = $now;
         $total += @DONE;
-        print "got " . scalar(@DONE) . "/ $total\n";
-        for my $e(@DONE) {
+        print "packets " . scalar(@DONE) . "/ $total $now\n";
+        for my $e (@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);
+
             }
         }
         @DONE = ();
