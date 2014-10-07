@@ -3,10 +3,21 @@
 use strict;
 use warnings;
 
+use Getopt::Long;
 use IO::Select;
 use POSIX qw(EWOULDBLOCK EAGAIN F_SETFL F_GETFL O_NONBLOCK);
 use Sereal::Decoder qw(sereal_decode_with_object scalar_looks_like_sereal);
 use Socket;
+
+my %Opt =
+    (
+     port   => 9003,
+    );
+
+die "usage: $0 --port=$Opt{port}"
+    unless (GetOptions(
+		"port=i" => \$Opt{port},
+	    ));
 
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
@@ -14,7 +25,7 @@ setsockopt($server, SOL_SOCKET, SO_REUSEADDR, 1);
 
 my $srl= Sereal::Decoder->new();
 
-my $sa = sockaddr_in(9003, INADDR_ANY);
+my $sa = sockaddr_in($Opt{port}, INADDR_ANY);
 bind($server, $sa) or die $!;
 set_non_blocking($server);
 $SELECT->add($server);
