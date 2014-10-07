@@ -38,11 +38,11 @@ printf "DATA %.4f MB\n", $data_mb;
 
 if ($Opt{count} == 0 && $Opt{mb} > 0) {
     $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
-    print "$0: setting count to $Opt{count} based on $Opt{mb} MB\n";
+    print "NOTE setting count to $Opt{count} based on $Opt{mb} MB\n";
 }
 
 if ($Opt{count} > 0 && $Opt{sec} > 0) {
-    print "$0: either count $Opt{count} OR sec $Opt{sec} will finish\n";
+    print "NOTE will exit after EITHER count $Opt{count} OR sec $Opt{sec}\n";
 }
 
 my $packets = 0;
