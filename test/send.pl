@@ -32,7 +32,7 @@ open(my $fh, '<', $Opt{file}) or die qq[$0: "$Opt{file}": $!];
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
-printf "$0: data of %.4f MB\n", $data_mb;
+printf "DATA %.4f MB\n", $data_mb;
 
 if ($Opt{count} == 0 && $Opt{mb} > 0) {
     $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
