@@ -41,7 +41,9 @@ my $FULL_HEADER_SIZE = 4;
 my @DONE = ();
 my $START = Time::HiRes::time();
 my $NOW = int($START);
-my $total_packets = 0;
+my $TOTAL_PACKETS = 0;
+my $IDLE_COUNT = 0;
+my $BUSY_COUNT = 0;
 
 $SIG{INT} = sub { show_totals(); exit(1); };
 
@@ -89,9 +91,11 @@ close($server);
 sub flush_totals {
     my $now = shift;
     if ($now > $NOW && @DONE) {
+	$BUSY_COUNT++;
 	my $done = scalar @DONE;
-	$total_packets += $done;
-	printf("RECEIVING packets %d / total %d epoch %d\n", $done, $total_packets, $now);
+	$TOTAL_PACKETS += $done;
+	printf("RECEIVING packets %d / total %d epoch %d busy %d idle %d\n",
+	       $done, $TOTAL_PACKETS, $now, $BUSY_COUNT, $IDLE_COUNT);
         for my $e (@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);
@@ -100,7 +104,8 @@ sub flush_totals {
         }
 	@DONE = ();
     } else {
-	print "IDLE $now\n";
+	$IDLE_COUNT++;
+	printf("IDLE %d\n", $now);
     }
 }
 
@@ -109,7 +114,9 @@ sub show_totals {
     flush_totals($now);
     my $took = $now - $START;
     if ($took > 0) {
-	printf("\nRECEIVED packets %d in %.2f sec at %d packets/s epoch %d\n", $total_packets, $took, $total_packets / $took, $now);
+	printf("\nRECEIVED packets %d in %.2f sec at %d packets/s epoch %d busy %d idle %d (%.2f)\n",
+	       $TOTAL_PACKETS, $took, $TOTAL_PACKETS / $took,
+	       $now, $BUSY_COUNT, $IDLE_COUNT, $BUSY_COUNT / ($BUSY_COUNT + $IDLE_COUNT));
     } else {
 	die "$0: took less than nothing\n";
     }
