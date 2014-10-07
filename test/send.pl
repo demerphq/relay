@@ -61,7 +61,7 @@ while (1) {
 	    my $sent_packets = $packets - $last_packets;
 	    if ($now > $last_time) {
 		my $sent_time = $now - $last_time; # Ever > 1.0?
-		printf("SENDING %d packets/sec (%.2f data_mb/s) %d\n",
+		printf("SENDING %d packets/sec (%.2f MB/s) %d\n",
 		       $sent_packets, $data_mb * $sent_packets / $sent_time, $now);
 	    }
 	}
