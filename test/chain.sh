@@ -11,6 +11,11 @@ export THIS_PORT=$FIRST_PORT
 export NEXT_PORT=$FIRST_PORT_PLUS_ONE
 export PROTO=udp
 
+if test ! -f $RELAY; then
+    echo "$0: No relay $RELAY, aborting."
+    exit 1
+fi
+
 for NEXT_PORT in $(seq $FIRST_PORT_PLUS_ONE $LAST_PORT)
 do
     echo $RELAY $PROTO@localhost:$THIS_PORT tcp@localhost:$NEXT_PORT 
