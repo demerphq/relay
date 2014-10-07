@@ -29,6 +29,9 @@ my $last_packets = 0;
 my $start_hires = Time::HiRes::time();
 my $now_hires   = $start_hires;
 my $last_time;
+
+$SIG{INT} = sub { show_totals(); exit(1); };
+
 my $remote = IO::Socket::INET->new(Proto => 'udp',
 				   PeerAddr => $host,
 				   PeerPort => $port) or die "$0: $!";
@@ -38,9 +41,9 @@ while (1) {
 	if ($last_time) {
 	    my $sent_packets = $packets - $last_packets;
 	    if ($now > $last_time) {
-		printf("%d SENDING %.2f packets/sec (%.2f MB/s)\n",
-		       $now, $sent_packets,
-		       $MB * $sent_packets / ($now - $last_time));
+		my $sent_time = $now - $last_time; # Ever > 1.0?
+		printf("SENDING %.2f packets/sec (%.2f MB/s) %d\n",
+		       $sent_packets, $MB * $sent_packets / $sent_time, $now);
 	    }
 	}
 	$last_time = $now;
@@ -51,13 +54,18 @@ while (1) {
     last if $count >= 0 and $packets >= $count;
     Time::HiRes::nanosleep($ns) if $ns;
 }
-$now_hires = Time::HiRes::time();
-my $took = $now_hires - $start_hires;
-if ($took > 0) {
-    printf("%d SENT %d packets (%.2f MB) at %.2f packets/second (%.2f MB/sec)\n",
-	   time(), $packets, $MB * $packets, $packets / $took, $MB * $packets / $took);
-} else {
-    die "$0: took less time than nothing\n";
+
+sub show_totals {
+    $now_hires = Time::HiRes::time();
+    my $took = $now_hires - $start_hires;
+    if ($took > 0) {
+	printf("\nSENT %d packets (%.2f MB) in %.2f sec at %.2f packets/second (%.2f MB/sec) %d\n",
+	       $packets, $MB * $packets, $took, $packets / $took, $MB * $packets / $took, int($now_hires));
+    } else {
+	die "$0: took less time than nothing\n";
+    }
 }
+
+show_totals();
 
 exit(0);
