@@ -25,9 +25,10 @@ my %SIZE = ();
 my %HAS_HEADER = ();
 my $FULL_HEADER_SIZE = 4;
 my @DONE = ();
-my $TIME = time();
+my $NOW = time();
 my $total = 0;
-while(1) {
+
+while (1) {
     my @ready = $SELECT->can_read(1);
     for my $fh(@ready) {
         my $fn = fileno($fh);
@@ -59,14 +60,17 @@ while(1) {
         }
     }
     my $now = time();
-    if ($now != $TIME) {
-        $TIME = $now;
-        $total += @DONE;
-        print "packets " . scalar(@DONE) . "/ $total $now\n";
+    if ($now != $NOW) {
+	if ($now > $NOW) {
+	    my $done = scalar @DONE;
+	    $total += $done;
+	    printf("packets %d / total %d at %d packets/sec epoch %d\n", $done, $total, $done / ($now - $NOW), $now);
+	}
+        $NOW = $now;
         for my $e (@DONE) {
             if (scalar_looks_like_sereal($e)) {
                 my $try = sereal_decode_with_object($srl, $e);
-
+		# TODO: fail? count?
             }
         }
         @DONE = ();
