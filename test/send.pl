@@ -9,16 +9,17 @@ use Time::HiRes;
 
 my %Opt =
     (
-     count  => undef,
      file   => "out.srl",
      host   => "localhost",
-     mb     => undef,
      port   => 10000,
-     sec    => undef,
      waitns => 1000,
+
+     count  => undef,
+     mb     => undef,
+     sec    => undef,
     );
 
-die "usage: $0 --port=10000 --file=out.srl [--count=N|--MB=N|--sec=N] --waitns=N --host=localhost"
+die "usage: $0 --port=$Opt{port} --file=$Opt{file} [--count=N|--MB=N|--sec=N] --waitns=$Opt{waitns} --host=$Opt{host}"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "count=i"     => \$Opt{count},
