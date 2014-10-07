@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 
 use strict;
-use IO::Socket;
-use Data::Dumper;
+use warnings;
+
 use Getopt::Long;
+use IO::Socket;
 use Time::HiRes;
 
 my %Opt =

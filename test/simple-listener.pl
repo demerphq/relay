@@ -1,12 +1,12 @@
 #!/usr/bin/env perl
 
-use Socket;
-use IO::Select;
-use POSIX;
-use warnings;
 use strict;
-use Data::Dumper;
+use warnings;
+
+use IO::Select;
+use POSIX qw(EWOULDBLOCK EAGAIN F_SETFL F_GETFL O_NONBLOCK);
 use Sereal::Decoder qw(sereal_decode_with_object scalar_looks_like_sereal);
+use Socket;
 
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
