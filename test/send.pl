@@ -8,30 +8,39 @@ use Time::HiRes;
 
 my %Opt =
     (
-     file   => "out.srl",
      count  => undef,
+     file   => "out.srl",
+     host   => "localhost",
      mb     => undef,
      port   => 10000,
-     host   => "localhost",
+     sec    => undef,
      waitns => 1000,
     );
 
-die "usage: $0 --port=10000f --host=localhost --file=/tmp/example.txt"
+die "usage: $0 --port=10000 --host=localhost --file=/tmp/example.txt"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "count=i"     => \$Opt{count},
-		       "MB=i"        => \$Opt{mb},
-		       "waints=i"    => \$Opt{waitns},
+		       "MB=f"        => \$Opt{mb},
+		       "sec=f"       => \$Opt{sec},
+		       "waitns=i"    => \$Opt{waitns},
 		       "host=s"      => \$Opt{host})
-	    && ($Opt{count} || $Opt{mb}));
+	    # count<0 means 'forever'
+	    && ($Opt{count} != 0 || $Opt{mb} > 0 || $Opt{sec} > 0));
 
 open(my $fh, '<', $Opt{file}) or die qq[$0: "$Opt{file}": $!];
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
+printf "$0: data of %.4f MB\n", $data_mb;
 
 if ($Opt{count} == 0 && $Opt{mb} > 0) {
     $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
+    print "$0: setting count to $Opt{count} based on $Opt{mb} MB\n";
+}
+
+if ($Opt{count} > 0 && $Opt{sec} > 0) {
+    print "$0: either count $Opt{count} OR sec $Opt{sec} will finish\n";
 }
 
 my $packets = 0;
@@ -61,7 +70,8 @@ while (1) {
     }
     $remote->send($data);
     $packets++;
-    last if $Opt{count} >= 0 and $packets >= $Opt{count};
+    last if ($Opt{count} > 0 && $packets >= $Opt{count}) ||
+            ($Opt{sec} > 0 && $now - $start_hires >= $Opt{sec});
     Time::HiRes::nanosleep($Opt{waitns}) if $Opt{waitns};
 }
 
