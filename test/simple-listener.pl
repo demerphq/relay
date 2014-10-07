@@ -13,11 +13,13 @@ use Socket;
 my %Opt =
     (
      port   => 9003,
+     sec    => -1,
     );
 
-die "usage: $0 --port=$Opt{port}"
+die "usage: $0 --port=$Opt{port} [--sec=N]"
     unless (GetOptions(
 		"port=i" => \$Opt{port},
+		"sec=i"  => \$Opt{sec},
 	    ));
 
 my $SELECT = IO::Select->new();
@@ -80,6 +82,7 @@ while (1) {
 	}
         $NOW = $now;
     }
+    last if ($Opt{sec} > 0 && $now - $START >= $Opt{sec});
 }
 close($server);
 
