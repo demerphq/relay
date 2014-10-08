@@ -112,7 +112,7 @@ void *graphite_worker_thread(void *arg)
 		sck = &self->s_output;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		w_wait(CONFIG.sleep_after_disaster_ms);
+		worker_wait(CONFIG.sleep_after_disaster_ms);
 		continue;
 	    }
 	}
@@ -235,10 +235,10 @@ void *graphite_worker_thread(void *arg)
 	wait_remains = CONFIG.graphite_send_interval_ms;
 	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains > 0)) {
 	    if (wait_remains < CONFIG.graphite_sleep_poll_interval_ms) {
-		w_wait(wait_remains);
+		worker_wait(wait_remains);
 		wait_remains = 0;
 	    } else {
-		w_wait(CONFIG.graphite_sleep_poll_interval_ms);
+		worker_wait(CONFIG.graphite_sleep_poll_interval_ms);
 		wait_remains -= CONFIG.graphite_sleep_poll_interval_ms;
 	    }
 	}

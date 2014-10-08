@@ -40,6 +40,10 @@ worker_t *worker_init(char *arg);
 void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 
-INLINE void w_wait(int delay);
+/* worker sleeps while it waits for work
+ * this should be configurable */
+INLINE static void worker_wait(int ms) {
+    usleep(ms * 1000);
+}
 
 #endif

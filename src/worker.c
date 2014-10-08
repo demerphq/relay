@@ -5,13 +5,6 @@
 extern worker_pool_t POOL;
 extern config_t CONFIG;
 
-/* worker sleeps while it waits for work
- * this should be configurable */
-void w_wait(int ms)
-{
-    usleep(ms * 1000);
-}
-
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(worker_t * worker,
 					  struct blob *b)
@@ -60,7 +53,7 @@ void *worker_thread(void *arg)
 		sck = &self->s_output;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		w_wait(CONFIG.sleep_after_disaster_ms);
+		worker_wait(CONFIG.sleep_after_disaster_ms);
 		continue;
 	    }
 	}
@@ -74,7 +67,7 @@ void *worker_thread(void *arg)
 	     */
 	    if (!q_hijack(main_queue, &private_queue, &POOL.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
-		w_wait(CONFIG.polling_interval_ms);
+		worker_wait(CONFIG.polling_interval_ms);
 		continue;
 	    }
 	} else {
