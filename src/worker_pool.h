@@ -19,6 +19,6 @@ void worker_pool_init_static(config_t *config);
 void worker_pool_reload_static(config_t *config);
 void worker_pool_destroy_static(void);
 int enqueue_blob_for_transmission(blob_t *b);
-void add_worker_stats_to_ps_str(char *str, ssize_t len);
+void update_process_status(stats_count_t received, stats_count_t active);
 
 #endif

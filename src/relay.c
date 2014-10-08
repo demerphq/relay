@@ -26,24 +26,6 @@ stats_basic_counters_t RECEIVED_STATS= {
     .active_connections=0,   /* current number of active inbound tcp connections */
 };
 
-
-#define MAX_BUF_LEN 128
-void mark_second_elapsed() {
-    char str[MAX_BUF_LEN+1];
-    stats_count_t received= RELAY_ATOMIC_READ(RECEIVED_STATS.received_count);
-    stats_count_t active  = RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections);
-
-    /* set it in the process name */
-    int wrote= snprintf(
-        str, MAX_BUF_LEN,
-        STATSfmt " ^" STATSfmt , received, active
-    );
-
-    add_worker_stats_to_ps_str(str + wrote, MAX_BUF_LEN - wrote);
-    setproctitle(str);
-}
-
-
 static void spawn(pthread_t *tid,void *(*func)(void *), void *arg, int type) {
     pthread_t unused;
     pthread_attr_t attr;
@@ -278,7 +260,8 @@ int _main(config_t *config) {
             unset_abort_bits(RELOAD);
         }
 
-        mark_second_elapsed();
+	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections),
+			      RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections));
         sleep(1);
     }
     final_shutdown(server_tid);

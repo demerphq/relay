@@ -2,29 +2,39 @@
 
 worker_pool_t POOL;
 
-/* update the process status line with the send performce of the workers */
-void add_worker_stats_to_ps_str(char *str, ssize_t len) {
+#define PROCESS_STATUS_BUF_LEN 128
+
+/* update the process status line with the status of the workers */
+void update_process_status(stats_count_t received, stats_count_t active) {
+    char str[PROCESS_STATUS_BUF_LEN+1], *buf = str;
+    size_t len = PROCESS_STATUS_BUF_LEN;
     worker_t *w;
     int w_num= 0;
     int wrote_len=0 ;
 
     LOCK(&POOL.lock);
-    TAILQ_FOREACH(w, &POOL.workers, entries) {
-        if (!len) break;
-
-        wrote_len= snprintf(str, len, " w%d:" STATSfmt ":" STATSfmt ":" STATSfmt,
-                ++w_num,
-                RELAY_ATOMIC_READ(w->totals.sent_count),
-                RELAY_ATOMIC_READ(w->totals.spilled_count),
-                RELAY_ATOMIC_READ(w->totals.disk_count)
-        );
-
-        if (wrote_len < 0 || wrote_len >= len)
-            break;
-        str += wrote_len;
+    wrote_len = snprintf(buf, len,
+			 "received " STATSfmt " active " STATSfmt,
+			 received, active);
+    if (wrote_len > 0 && wrote_len < len) {
+      buf += wrote_len;
+      len -= wrote_len;
+      TAILQ_FOREACH(w, &POOL.workers, entries) {
+        if (len <= 0) break;
+        wrote_len = snprintf(buf, len,
+			     " worker %d sent " STATSfmt " spilled " STATSfmt " disk " STATSfmt,
+			     ++w_num,
+			     RELAY_ATOMIC_READ(w->totals.sent_count),
+			     RELAY_ATOMIC_READ(w->totals.spilled_count),
+			     RELAY_ATOMIC_READ(w->totals.disk_count));
+        if (wrote_len <= 0 || wrote_len >= len)
+	  break;
+        buf += wrote_len;
         len -= wrote_len;
+      }
     }
     UNLOCK(&POOL.lock);
+    setproctitle(str);
 }
 
 /* add an item to all workers queues
