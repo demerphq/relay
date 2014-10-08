@@ -28,7 +28,7 @@ void config_destroy(void)
     free(CONFIG.argv);
     free(CONFIG.graphite_arg);
     free(CONFIG.graphite_root);
-    free(CONFIG.fallback_root);
+    free(CONFIG.spillway_root);
     free(CONFIG.file);
 }
 
@@ -37,7 +37,7 @@ void config_set_defaults(config_t * config)
 
     config->graphite_arg = strdup(DEFAULT_GRAPHITE_ARG);
     config->graphite_root = strdup(DEFAULT_GRAPHITE_ROOT);
-    config->fallback_root = strdup(DEFAULT_FALLBACK_ROOT);
+    config->spillway_root = strdup(DEFAULT_FALLBACK_ROOT);
 
     config->polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
     config->sleep_after_disaster_ms = DEFAULT_SLEEP_AFTER_DISASTER_MS;
@@ -98,7 +98,7 @@ config_t *config_from_file(char *file)
 		*p = '\0';
 		p++;
 		TRY_OPT_BEGIN {
-		    TRY_STR_OPT(fallback_root, line, p);
+		    TRY_STR_OPT(spillway_root, line, p);
 		    TRY_STR_OPT(graphite_arg, line, p);
 		    TRY_STR_OPT(graphite_root, line, p);
 		    TRY_NUM_OPT(syslog_to_stderr, line, p);
@@ -172,7 +172,7 @@ int config_reload(config_t * config)
 	requires_restart = 1;
     }
 
-    IF_STR_OPT_CHANGED(fallback_root, config, new_config);
+    IF_STR_OPT_CHANGED(spillway_root, config, new_config);
     IF_STR_OPT_CHANGED(graphite_arg, config, new_config);
     IF_STR_OPT_CHANGED(graphite_root, config, new_config);
     IF_NUM_OPT_CHANGED(syslog_to_stderr, config, new_config);

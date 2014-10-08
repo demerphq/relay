@@ -9,7 +9,7 @@ extern config_t CONFIG;
 /* create a directory with the right permissions or throw an exception
  * (not sure the exception makes sense)
  */
-static void recreate_fallback_path(char *dir)
+static void recreate_spillway_path(char *dir)
 {
     if (mkdir(dir, 0750) == -1 && errno != EEXIST)
 	DIE_RC(EXIT_FAILURE, "mkdir of %s failed", dir);
@@ -31,13 +31,13 @@ static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
     }
     if (blob_epoch) {
 	if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
-		     self->fallback_path, blob_epoch) >= PATH_MAX) {
+		     self->spillway_path, blob_epoch) >= PATH_MAX) {
 	    /* XXX: should this really die? */
 	    DIE_RC(EXIT_FAILURE,
 		   "filename was truncated to %d bytes: '%s'", PATH_MAX,
 		   self->last_file_path);
 	}
-	recreate_fallback_path(self->fallback_path);
+	recreate_spillway_path(self->spillway_path);
 	self->fd =
 	    open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT,
 		 0640);
@@ -87,9 +87,9 @@ void *disk_writer_thread(void *arg)
     blob_t *b;
     uint32_t done_work = 0;
 
-    recreate_fallback_path(self->fallback_path);
+    recreate_spillway_path(self->spillway_path);
     SAY("disk writer started using path '%s' for files",
-	self->fallback_path);
+	self->spillway_path);
 
     memset(&private_queue, 0, sizeof(private_queue));
 

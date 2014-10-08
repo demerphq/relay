@@ -23,7 +23,7 @@ struct config {
 
     /* root directory for where we write failed sends,
      * and "spilled" data */
-    char *fallback_root;
+    char *spillway_root;
 
     /* host:port for sending data to graphite */
     char *graphite_arg;

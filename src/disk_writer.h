@@ -18,7 +18,7 @@ struct disk_writer {
     stats_basic_counters_t *pcounters;
     stats_basic_counters_t *ptotals;
 
-    char fallback_path[PATH_MAX];
+    char spillway_path[PATH_MAX];
     char last_file_path[PATH_MAX];
     time_t last_epoch;
     int fd;

@@ -213,13 +213,13 @@ worker_t *worker_init(char *arg)
     disk_writer->pcounters = &worker->counters;
     disk_writer->ptotals = &worker->totals;
 
-    /* setup fallback_path */
-    if (snprintf(disk_writer->fallback_path, PATH_MAX,
-		 "%s/%s", CONFIG.fallback_root,
+    /* setup spillway_path */
+    if (snprintf(disk_writer->spillway_path, PATH_MAX,
+		 "%s/%s", CONFIG.spillway_root,
 		 worker->s_output.arg_clean) >= PATH_MAX)
 	DIE_RC(EXIT_FAILURE,
-	       "fallback_path too big, had to be truncated: %s",
-	       disk_writer->fallback_path);
+	       "spillway_path too big, had to be truncated: %s",
+	       disk_writer->spillway_path);
 
 
     /* Create the disk_writer before we create the main worker.
