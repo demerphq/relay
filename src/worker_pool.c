@@ -10,7 +10,7 @@ void update_process_status(stats_count_t received, stats_count_t active)
     char str[PROCESS_STATUS_BUF_LEN + 1], *buf = str;
     int len = PROCESS_STATUS_BUF_LEN;
     worker_t *w;
-    int w_num = 0;
+    int worker_id = 0;
     int wrote_len = 0;
 
     LOCK(&POOL.lock);
@@ -23,13 +23,13 @@ void update_process_status(stats_count_t received, stats_count_t active)
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    if (len <= 0)
 		break;
-	    wrote_len = snprintf(buf, len,
-				 " worker %d sent " STATSfmt " spilled "
-				 STATSfmt " disk " STATSfmt, ++w_num,
-				 RELAY_ATOMIC_READ(w->totals.sent_count),
-				 RELAY_ATOMIC_READ(w->
-						   totals.spilled_count),
-				 RELAY_ATOMIC_READ(w->totals.disk_count));
+	    wrote_len =
+		snprintf(buf, len,
+			 " %d: sent " STATSfmt " spilled "
+			 STATSfmt " disk " STATSfmt, ++worker_id,
+			 RELAY_ATOMIC_READ(w->totals.sent_count),
+			 RELAY_ATOMIC_READ(w->totals.spilled_count),
+			 RELAY_ATOMIC_READ(w->totals.disk_count));
 	    if (wrote_len <= 0 || wrote_len >= len)
 		break;
 	    buf += wrote_len;
