@@ -12,8 +12,8 @@ all:
 	$(CC) $(CFLAGS) $(GCC_FLAGS) -o bin/relay $(RELAY)
 
 clang:
-	mkdir -p bin/clang
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/clang/relay $(RELAY)
+	mkdir -p bin
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/relay.clang $(RELAY)
 
 clean:
 	rm -f bin/relay* test/sock/*

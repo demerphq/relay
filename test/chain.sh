@@ -1,5 +1,5 @@
 export RELAY=../bin/relay
-#export RELAY=../bin/clang/relay
+#export RELAY=../bin/relay.clang
 killall -9 relay
 export FIRST_PORT=10000
 export FIRST_PORT_PLUS_ONE=10001
