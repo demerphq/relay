@@ -14,7 +14,7 @@ my %Opt =
     (
      port    => 9003,
      sec     => 0,
-     forever => 0,
+     forever => 1,
      period  => 60,
     );
 
@@ -28,11 +28,12 @@ die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N"
 
 if ($Opt{forever}) {
     print "NOTE: will loop forever\n";
-    if (defined $Opt{sec}) {
+    if ($Opt{sec} > 0) {
 	print "NOTE: ignoring sec\n";
     }
 } elsif ($Opt{sec} > 0) {
     print "NOTE: will exit after sec $Opt{sec}\n";
+    $Opt{forever} = 0;
 }
 
 my $SELECT = IO::Select->new();
@@ -100,7 +101,8 @@ while (1) {
 	}
         $NOW = $now;
     }
-    last if ($Opt{sec} > 0 && $now - $START >= $Opt{sec});
+    last if !$Opt{forever} &&
+            ($Opt{sec} > 0 && $now - $START >= $Opt{sec});
 }
 close($server);
 
