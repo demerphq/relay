@@ -26,10 +26,12 @@ void update_process_status(stats_count_t received, stats_count_t active)
 	    wrote_len =
 		snprintf(buf, len,
 			 " %d: sent " STATSfmt " spilled "
-			 STATSfmt " disk " STATSfmt, ++worker_id,
+			 STATSfmt " disk " STATSfmt " disk_error "
+			 STATSfmt, ++worker_id,
 			 RELAY_ATOMIC_READ(w->totals.sent_count),
 			 RELAY_ATOMIC_READ(w->totals.spilled_count),
-			 RELAY_ATOMIC_READ(w->totals.disk_count));
+			 RELAY_ATOMIC_READ(w->totals.disk_count),
+			 RELAY_ATOMIC_READ(w->totals.disk_error_count));
 	    if (wrote_len <= 0 || wrote_len >= len)
 		break;
 	    buf += wrote_len;
