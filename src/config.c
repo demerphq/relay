@@ -241,6 +241,7 @@ void config_init(int argc, char **argv)
 
 void config_die_args(int argc, char **argv)
 {
+    (void)argc;
     /* XXX: fix me! */
     DIE_RC(EXIT_FAILURE,
 	   "%s local-host:local-port tcp@remote-host:remote-port ...\n"
