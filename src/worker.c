@@ -89,6 +89,9 @@ void *worker_thread(void *arg)
 
 	    cur_blob = private_queue.head;
 
+	    /* Peel off all the blobs which have been in the queue
+	     * for longer than the spill limit, move them to the
+	     * spill queue, and enqueue them for spilling. */
 	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >=
 		CONFIG.spill_usec) {
 		spill_queue.head = cur_blob;
@@ -131,8 +134,8 @@ void *worker_thread(void *arg)
 	    }
 
 	    if (bytes_sent == -1) {
-		WARN_ERRNO("Send to %s failed %ld", sck->to_string,
-			   BLOB_DATA_MBR_SIZE(cur_blob));
+		WARN_ERRNO("Sending %zd bytes to %s failed",
+			   bytes_to_send, sck->to_string);
 		enqueue_blob_for_disk_writing(self, cur_blob);
 		close(sck->socket);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
