@@ -5,7 +5,7 @@ CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie
 GCC_FLAGS=-O3
 CC=gcc
-CFLAGS=-Wall -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-Wall -Wextra -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
 all:
 	mkdir -p bin
