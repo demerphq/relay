@@ -42,7 +42,8 @@ void *worker_thread(void *arg);
 
 /* worker sleeps while it waits for work
  * this should be configurable */
-INLINE static void worker_wait(int ms) {
+INLINE static void worker_wait(int ms)
+{
     usleep(ms * 1000);
 }
 

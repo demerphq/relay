@@ -107,7 +107,7 @@ void *tcp_server(void *arg)
 	    WARN_ERRNO("poll");
 	    goto out;
 	}
-	for (i = 0; i < (int)nfds; i++) {
+	for (i = 0; i < (int) nfds; i++) {
 	    if (!pfds[i].revents)
 		continue;
 	    if (pfds[i].fd == s->socket) {
@@ -164,8 +164,8 @@ void *tcp_server(void *arg)
 		    clients =
 			realloc_or_die(clients,
 				       nfds * sizeof(struct tcp_client));
-		    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.
-					   active_connections, 1);
+		    RELAY_ATOMIC_DECREMENT
+			(RECEIVED_STATS.active_connections, 1);
 		    continue;
 		}
 		client->pos += received;
@@ -210,7 +210,7 @@ void *tcp_server(void *arg)
     }
 
   out:
-    for (i = 0; i < (int)nfds; i++) {
+    for (i = 0; i < (int) nfds; i++) {
 	if (pfds[i].fd != s->socket)
 	    free(clients[i].buf);
 	shutdown(pfds[i].fd, SHUT_RDWR);
@@ -285,8 +285,8 @@ int _main(config_t * config)
 
 	update_process_status(RELAY_ATOMIC_READ
 			      (RECEIVED_STATS.active_connections),
-			      RELAY_ATOMIC_READ(RECEIVED_STATS.
-						active_connections));
+			      RELAY_ATOMIC_READ
+			      (RECEIVED_STATS.active_connections));
 	sleep(1);
     }
     final_shutdown(server_tid);

@@ -15,6 +15,9 @@ clang:
 	mkdir -p bin
 	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/relay.clang $(RELAY)
 
+indent:
+	indent -kr src/*.[hc]
+
 clean:
 	rm -f bin/relay* test/sock/*
 

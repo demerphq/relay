@@ -27,8 +27,8 @@ void update_process_status(stats_count_t received, stats_count_t active)
 				 " worker %d sent " STATSfmt " spilled "
 				 STATSfmt " disk " STATSfmt, ++w_num,
 				 RELAY_ATOMIC_READ(w->totals.sent_count),
-				 RELAY_ATOMIC_READ(w->totals.
-						   spilled_count),
+				 RELAY_ATOMIC_READ(w->
+						   totals.spilled_count),
 				 RELAY_ATOMIC_READ(w->totals.disk_count));
 	    if (wrote_len <= 0 || wrote_len >= len)
 		break;

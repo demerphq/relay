@@ -163,9 +163,8 @@ int config_reload(config_t * config)
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
 	closelog();
 	openlog(OUR_NAME,
-		LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->
-						   syslog_to_stderr ?
-						   LOG_PERROR : 0),
+		LOG_CONS | LOG_ODELAY | LOG_PID |
+		(new_config->syslog_to_stderr ? LOG_PERROR : 0),
 		OUR_FACILITY);
 	SAY("changed 'syslog_to_stderr' from '%d' to '%d'",
 	    config->syslog_to_stderr, new_config->syslog_to_stderr);
@@ -219,8 +218,7 @@ void config_init(int argc, char **argv)
     memset(&CONFIG, 0, sizeof(CONFIG));
     config_set_defaults(&CONFIG);
     openlog(OUR_NAME,
-	    LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.
-					       syslog_to_stderr ?
+	    LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.syslog_to_stderr ?
 					       LOG_PERROR : 0),
 	    OUR_FACILITY);
 
@@ -241,7 +239,7 @@ void config_init(int argc, char **argv)
 
 void config_die_args(int argc, char **argv)
 {
-    (void)argc;
+    (void) argc;
     /* XXX: fix me! */
     DIE_RC(EXIT_FAILURE,
 	   "%s local-host:local-port tcp@remote-host:remote-port ...\n"
