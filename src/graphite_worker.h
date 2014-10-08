@@ -18,7 +18,7 @@ struct graphite_worker {
 };
 
 typedef struct graphite_worker graphite_worker_t;
-void graphite_worker_destroy(graphite_worker_t *worker);
+void graphite_worker_destroy(graphite_worker_t * worker);
 void *graphite_worker_thread(void *arg);
 
 #endif

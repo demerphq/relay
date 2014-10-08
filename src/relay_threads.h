@@ -1,5 +1,5 @@
 #ifndef _RELAY_THREADS_H
-#define _RELAY_THREADS_H 
+#define _RELAY_THREADS_H
 
 #include <pthread.h>
 #define LOCK_T pthread_mutex_t

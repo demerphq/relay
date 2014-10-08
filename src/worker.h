@@ -31,13 +31,13 @@ struct worker {
     volatile uint32_t exists;
     disk_writer_t *disk_writer;
 
-    TAILQ_ENTRY(worker) entries;
+     TAILQ_ENTRY(worker) entries;
 };
 typedef struct worker worker_t;
 
 /* worker.c */
-worker_t * worker_init(char *arg);
-void worker_destroy(worker_t *worker);
+worker_t *worker_init(char *arg);
+void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 
 INLINE void w_wait(int delay);

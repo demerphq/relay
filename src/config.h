@@ -80,8 +80,8 @@ typedef struct config config_t;
 #define DEFAULT_SYSLOG_TO_STDERR 1
 #endif
 
-int config_reload(config_t *config);
-void config_set_defaults(config_t *config);
+int config_reload(config_t * config);
+void config_set_defaults(config_t * config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);
 void config_destroy(void);

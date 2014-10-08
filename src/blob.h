@@ -75,20 +75,20 @@ typedef struct queue queue_t;
 void *realloc_or_die(void *p, size_t size);
 void *malloc_or_die(size_t size);
 void *mallocz_or_die(size_t size);
-blob_t * b_new(size_t size);
-blob_t * b_clone_no_refcnt_inc(blob_t *b);
-void b_destroy(blob_t *b);
+blob_t *b_new(size_t size);
+blob_t *b_clone_no_refcnt_inc(blob_t * b);
+void b_destroy(blob_t * b);
 
 /* queue stuff */
-uint32_t q_append_nolock(queue_t *q, blob_t *b);
-uint32_t q_append_q_nolock(queue_t *q, queue_t *tail);
-blob_t *q_shift_nolock(queue_t *q);
-uint32_t q_hijack_nolock(queue_t *q, queue_t *hijacked_queue);
+uint32_t q_append_nolock(queue_t * q, blob_t * b);
+uint32_t q_append_q_nolock(queue_t * q, queue_t * tail);
+blob_t *q_shift_nolock(queue_t * q);
+uint32_t q_hijack_nolock(queue_t * q, queue_t * hijacked_queue);
 
-uint32_t q_append(queue_t *q, blob_t *b, LOCK_T *lock);
-uint32_t q_append_q(queue_t *q, queue_t *tail, LOCK_T *lock);
-blob_t *q_shift(queue_t *q, LOCK_T *lock);
-uint32_t q_hijack(queue_t *q, queue_t *hijacked_queue, LOCK_T *lock);
+uint32_t q_append(queue_t * q, blob_t * b, LOCK_T * lock);
+uint32_t q_append_q(queue_t * q, queue_t * tail, LOCK_T * lock);
+blob_t *q_shift(queue_t * q, LOCK_T * lock);
+uint32_t q_hijack(queue_t * q, queue_t * hijacked_queue, LOCK_T * lock);
 
 
 

@@ -1,5 +1,5 @@
 #ifndef _RELAY_H
-#define _RELAY_H 
+#define _RELAY_H
 
 #include "relay_common.h"
 #include "socket_util.h"
