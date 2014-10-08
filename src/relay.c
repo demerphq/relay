@@ -107,7 +107,7 @@ void *tcp_server(void *arg)
 	    WARN_ERRNO("poll");
 	    goto out;
 	}
-	for (i = 0; i < nfds; i++) {
+	for (i = 0; i < (int)nfds; i++) {
 	    if (!pfds[i].revents)
 		continue;
 	    if (pfds[i].fd == s->socket) {
@@ -208,8 +208,9 @@ void *tcp_server(void *arg)
 	    }
 	}
     }
+
   out:
-    for (i = 0; i < nfds; i++) {
+    for (i = 0; i < (int)nfds; i++) {
 	if (pfds[i].fd != s->socket)
 	    free(clients[i].buf);
 	shutdown(pfds[i].fd, SHUT_RDWR);
