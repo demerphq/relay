@@ -21,11 +21,11 @@ static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	return;
     if (self->last_epoch) {
 	if (fsync(self->fd)) {
-	    WARN_ERRNO("failed to fsync '%s', everyting is lost!",
+	    WARN_ERRNO("failed to fsync '%s', everything is lost!",
 		       self->last_file_path);
 	}
 	if (close(self->fd)) {
-	    WARN_ERRNO("failed to close '%s', everyting is lost!",
+	    WARN_ERRNO("failed to close '%s', everything is lost!",
 		       self->last_file_path);
 	}
     }
@@ -42,7 +42,7 @@ static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	    open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT,
 		 0640);
 	if (self->fd < 0) {
-	    WARN_ERRNO("failed to open '%s', everyting is lost!",
+	    WARN_ERRNO("failed to open '%s', everything is lost!",
 		       self->last_file_path);
 	    blob_epoch = 0;
 	}
