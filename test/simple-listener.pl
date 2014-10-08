@@ -12,17 +12,28 @@ use Socket;
 
 my %Opt =
     (
-     port   => 9003,
-     sec    => -1, # forever
-     period => 15,
+     port    => 9003,
+     sec     => 0,
+     forever => 0,
+     period  => 60,
     );
 
-die "usage: $0 --port=$Opt{port} [--sec=N]"
+die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N"
     unless (GetOptions(
 		"port=i"   => \$Opt{port},
 		"sec=i"    => \$Opt{sec},
+		"forever"  => \$Opt{forever},
 		"period"   => \$Opt{period},
 	    ));
+
+if ($Opt{forever}) {
+    print "NOTE: will loop forever\n";
+    if (defined $Opt{sec}) {
+	print "NOTE: ignoring sec\n";
+    }
+} elsif ($Opt{sec} > 0) {
+    print "NOTE: will exit after sec $Opt{sec}\n";
+}
 
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));

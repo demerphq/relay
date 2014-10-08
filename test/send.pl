@@ -13,38 +13,53 @@ my %Opt =
      host   => "localhost",
      port   => 10000,
      waitns => 1000,
-     period => 15,
+     period => 60,
 
-     count  => undef,
-     mb     => undef,
-     sec    => -1,
+     count  => 0,
+     mb     => 0,
+     sec    => 0,
+
+     forever => 0,
     );
 
-die "usage: $0 --port=$Opt{port} --file=$Opt{file} [--count=N|--MB=N|--sec=N] --waitns=$Opt{waitns} --host=$Opt{host}"
+die "usage: $0 --port=$Opt{port}  --host=$Opt{host} --file=$Opt{file} [--count=N|--MB=N|--sec=N|--forever] --waitns=$Opt{waitns} --period=N"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "count=i"     => \$Opt{count},
 		       "MB=f"        => \$Opt{mb},
 		       "sec=f"       => \$Opt{sec},
+		       "forever"     => \$Opt{forever},
 		       "period=i"    => \$Opt{period},
 		       "waitns=i"    => \$Opt{waitns},
 		       "host=s"      => \$Opt{host})
-	    # count<0 means 'forever'
-	    && ($Opt{count} != 0 || $Opt{mb} > 0 || $Opt{sec} > 0));
+	    && ($Opt{count} > 0 || $Opt{mb} > 0 || $Opt{sec} > 0 || $Opt{forever}));
 
 open(my $fh, '<', $Opt{file}) or die qq[$0: failed to open "$Opt{file}" for reading: $!];
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
-printf "DATA %.4f MB\n", $data_mb;
+printf "NOTE: packet size %.4f MB\n", $data_mb;
 
 if ($Opt{count} == 0 && $Opt{mb} > 0) {
     $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
-    print "NOTE setting count to $Opt{count} based on $Opt{mb} MB\n";
+    print "NOTE: setting count to $Opt{count} based on $Opt{mb} MB\n";
 }
 
-if ($Opt{count} > 0 && $Opt{sec} > 0) {
-    print "NOTE will exit after EITHER count $Opt{count} OR sec $Opt{sec}\n";
+if ($Opt{forever}) {
+    print "NOTE: will loop forever\n";
+    if (defined $Opt{count} || defined $Opt{sec}) {
+	print "NOTE: ignoring count and sec\n";
+    }
+} else {
+    if ($Opt{count} > 0) {
+	print "NOTE: will exit after count $Opt{count}\n";
+    }
+    if ($Opt{count} > 0 && $Opt{sec} > 0) {
+	print "NOTE: will exit after sec $Opt{sec}\n";
+    }
+    if ($Opt{count} > 0 && $Opt{sec} > 0) {
+	print "NOTE: will exit after EITHER count $Opt{count} OR sec $Opt{sec}\n";
+    }
 }
 
 my $packets = 0;
@@ -77,7 +92,8 @@ while (1) {
     }
     $remote->send($data);
     $packets++;
-    last if ($Opt{count} > 0 && $packets >= $Opt{count}) ||
+    last if !$Opt{forever} &&
+            ($Opt{count} > 0 && $packets >= $Opt{count}) ||
             ($Opt{sec} > 0 && $now - $start_hires >= $Opt{sec});
     Time::HiRes::nanosleep($Opt{waitns}) if $Opt{waitns};
 }
