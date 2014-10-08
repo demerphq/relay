@@ -8,7 +8,7 @@ worker_pool_t POOL;
 void update_process_status(stats_count_t received, stats_count_t active)
 {
     char str[PROCESS_STATUS_BUF_LEN + 1], *buf = str;
-    size_t len = PROCESS_STATUS_BUF_LEN;
+    int len = PROCESS_STATUS_BUF_LEN;
     worker_t *w;
     int w_num = 0;
     int wrote_len = 0;
