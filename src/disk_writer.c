@@ -49,6 +49,11 @@ static void write_blob_to_disk(disk_writer_t *self, blob_t *b) {
     
     setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec);
 
+    /* TODO: there should be some sort of monitoring/alerting for low disk space:
+     * I left this running for half an hour (with a load testing client) and it filled
+     * my /tmp disk (/tmp/tcp_localhost_9003/....)  Whether the monitoring belongs
+     * in the relay or somewhere else, is a good question. */
+
     if ( self->fd >= 0 ) {
         ssize_t wrote= write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b));
         if ( wrote == BLOB_BUF_SIZE(b) ) {
