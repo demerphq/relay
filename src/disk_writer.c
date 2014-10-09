@@ -21,29 +21,21 @@ static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	return;
     if (self->last_epoch) {
 	if (fsync(self->fd)) {
-	    WARN_ERRNO("failed to fsync '%s', everything is lost!",
-		       self->last_file_path);
+	    WARN_ERRNO("failed to fsync '%s', everything is lost!", self->last_file_path);
 	}
 	if (close(self->fd)) {
-	    WARN_ERRNO("failed to close '%s', everything is lost!",
-		       self->last_file_path);
+	    WARN_ERRNO("failed to close '%s', everything is lost!", self->last_file_path);
 	}
     }
     if (blob_epoch) {
-	if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc",
-		     self->spillway_path, blob_epoch) >= PATH_MAX) {
+	if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spillway_path, blob_epoch) >= PATH_MAX) {
 	    /* XXX: should this really die? */
-	    DIE_RC(EXIT_FAILURE,
-		   "filename was truncated to %d bytes: '%s'", PATH_MAX,
-		   self->last_file_path);
+	    DIE_RC(EXIT_FAILURE, "filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
 	}
 	recreate_spillway_path(self->spillway_path);
-	self->fd =
-	    open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT,
-		 0640);
+	self->fd = open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (self->fd < 0) {
-	    WARN_ERRNO("failed to open '%s', everything is lost!",
-		       self->last_file_path);
+	    WARN_ERRNO("failed to open '%s', everything is lost!", self->last_file_path);
 	    blob_epoch = 0;
 	}
     }
@@ -68,8 +60,7 @@ static void write_blob_to_disk(disk_writer_t * self, blob_t * b)
 	    RELAY_ATOMIC_INCREMENT(self->pcounters->disk_count, 1);
 	    return;
 	}
-	WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:",
-		   wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+	WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:", wrote, BLOB_BUF_SIZE(b), self->last_file_path);
 
     }
     RELAY_ATOMIC_INCREMENT(self->pcounters->disk_error_count, 1);
@@ -88,8 +79,7 @@ void *disk_writer_thread(void *arg)
     uint32_t done_work = 0;
 
     recreate_spillway_path(self->spillway_path);
-    SAY("disk writer started using path '%s' for files",
-	self->spillway_path);
+    SAY("disk writer started using path '%s' for files", self->spillway_path);
 
     memset(&private_queue, 0, sizeof(private_queue));
 
@@ -116,7 +106,8 @@ void *disk_writer_thread(void *arg)
 		done_work++;
 		write_blob_to_disk(self, b);
 		b_destroy(q_shift_nolock(&private_queue));
-	    } while ((b = private_queue.head) != NULL);
+	    }
+	    while ((b = private_queue.head) != NULL);
 
 	    (void) snapshot_stats(self->pcounters, self->ptotals);
 	}
@@ -124,8 +115,7 @@ void *disk_writer_thread(void *arg)
 
     (void) snapshot_stats(self->pcounters, self->ptotals);
 
-    SAY("disk_writer saved " STATSfmt " packets in its lifetime",
-	self->ptotals->disk_count);
+    SAY("disk_writer saved " STATSfmt " packets in its lifetime", self->ptotals->disk_count);
 
     return NULL;
 }

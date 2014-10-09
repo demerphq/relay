@@ -3,8 +3,7 @@ extern config_t CONFIG;
 
 #define DEBUG_SOCKETIZE 0
 
-void socketize(const char *arg, sock_t * s, int default_proto,
-	       int conn_dir, char *type_str)
+void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, char *type_str)
 {
     char *a = strdup(arg);
     char *p;
@@ -17,8 +16,7 @@ void socketize(const char *arg, sock_t * s, int default_proto,
 	char *str = s->arg_clean;
 
 	/* scrub the string of unfortunate characters */
-	while (NULL !=
-	       (str = strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
+	while (NULL != (str = strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
 	    *str++ = '_';
     }
 
@@ -45,8 +43,7 @@ void socketize(const char *arg, sock_t * s, int default_proto,
 		    SAY("protocol is udp");
 		proto = IPPROTO_UDP;
 	    } else {
-		DIE_RC(EXIT_FAILURE,
-		       "unknown protocol '%s' in argument '%s'", a, arg);
+		DIE_RC(EXIT_FAILURE, "unknown protocol '%s' in argument '%s'", a, arg);
 	    }
 	} else {
 	    if (DEBUG_SOCKETIZE)
@@ -74,17 +71,14 @@ void socketize(const char *arg, sock_t * s, int default_proto,
 	}
 
 	s->addrlen = sizeof(s->sa.in);
-	wrote = snprintf(s->to_string, PATH_MAX,
-			 "%s@%s:%d",
-			 (proto == IPPROTO_TCP ? "tcp" : "udp"),
-			 inet_ntoa(s->sa.in.sin_addr),
-			 ntohs(s->sa.in.sin_port));
+	wrote =
+	    snprintf(s->to_string, PATH_MAX, "%s@%s:%d",
+		     (proto == IPPROTO_TCP ? "tcp" : "udp"), inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
 	if (wrote >= PATH_MAX)
 	    DIE_RC(EXIT_FAILURE, "failed to stringify target descriptor");
 	if (DEBUG_SOCKETIZE)
 	    SAY("socket details: %s", s->to_string);
-    } else if (conn_dir == RELAY_CONN_IS_OUTBOUND
-	       && (*a == '/' || *a == '.')) {
+    } else if (conn_dir == RELAY_CONN_IS_OUTBOUND && (*a == '/' || *a == '.')) {
 	proto = SOCK_FAKE_FILE;
 	assert(proto != IPPROTO_TCP && proto != IPPROTO_UDP);
 	wrote = snprintf(s->to_string, PATH_MAX, "file@%s", a);
@@ -95,8 +89,7 @@ void socketize(const char *arg, sock_t * s, int default_proto,
     } else {
 	DIE_RC(EXIT_FAILURE, "must specify a port in '%s'", arg);
     }
-    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP
-	   || proto == SOCK_FAKE_FILE);
+    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE);
     s->proto = proto;
     free(a);
 }
@@ -120,8 +113,7 @@ int open_socket(sock_t * s, int flags, int snd, int rcv)
 	/* its actually a file! */
 	s->socket = open(s->arg, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (s->socket < 0) {
-	    WARN_ERRNO("failed to open file '%s' (as a fake socket)",
-		       s->to_string);
+	    WARN_ERRNO("failed to open file '%s' (as a fake socket)", s->to_string);
 	    return 0;
 	} else {
 	    return 1;
@@ -134,9 +126,7 @@ int open_socket(sock_t * s, int flags, int snd, int rcv)
     if (flags & DO_BIND) {
 	if (flags & DO_REUSEADDR) {
 	    int optval = 1;
-	    if (setsockopt
-		(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval,
-		 sizeof(optval)) < 0)
+	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
 		ERROR("setsockopt[REUSEADDR]");
 	}
 	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
@@ -147,17 +137,14 @@ int open_socket(sock_t * s, int flags, int snd, int rcv)
 	}
     } else if (flags & DO_CONNECT) {
 	if (s->proto == IPPROTO_TCP) {
-	    if (connect
-		(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
+	    if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
 		ERROR("connect[%s]", s->to_string);
 	    if (CONFIG.tcp_send_timeout > 0) {
 		struct timeval timeout;
 		timeout.tv_sec = CONFIG.tcp_send_timeout;
 		timeout.tv_usec = 0;
 
-		if (setsockopt
-		    (s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout,
-		     sizeof(timeout)) < 0)
+		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)
 		    ERROR("setsockopt[%s]", s->to_string);
 	    }
 	}

@@ -6,8 +6,7 @@ extern worker_pool_t POOL;
 extern config_t CONFIG;
 
 /* add an item to a disk worker queue */
-static void enqueue_blob_for_disk_writing(worker_t * worker,
-					  struct blob *b)
+static void enqueue_blob_for_disk_writing(worker_t * worker, struct blob *b)
 {
     q_append(&worker->disk_writer->queue, b, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
@@ -47,8 +46,7 @@ void *worker_thread(void *arg)
 	/* check if we have a usable socket */
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket
-		(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->s_output;
 	    } else {
@@ -71,8 +69,7 @@ void *worker_thread(void *arg)
 		continue;
 	    }
 	} else {
-	    RELAY_ATOMIC_INCREMENT(self->counters.received_count,
-				   private_queue.count);
+	    RELAY_ATOMIC_INCREMENT(self->counters.received_count, private_queue.count);
 	}
 
 	/* ok, so we have something in our queue to process */
@@ -92,14 +89,11 @@ void *worker_thread(void *arg)
 	    /* Peel off all the blobs which have been in the queue
 	     * for longer than the spill limit, move them to the
 	     * spill queue, and enqueue them for spilling. */
-	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >=
-		CONFIG.spill_usec) {
+	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= CONFIG.spill_usec) {
 		spill_queue.head = cur_blob;
 		spill_queue.count = 1;
-		while (BLOB_NEXT(cur_blob) &&
-		       elapsed_usec(&BLOB_RECEIVED_TIME
-				    (BLOB_NEXT(cur_blob)),
-				    &now) >= CONFIG.spill_usec) {
+		while (BLOB_NEXT(cur_blob)
+		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= CONFIG.spill_usec) {
 		    cur_blob = BLOB_NEXT(cur_blob);
 		    spill_queue.count++;
 		}
@@ -110,8 +104,7 @@ void *worker_thread(void *arg)
 
 		spilled += spill_queue.count;
 
-		RELAY_ATOMIC_INCREMENT(self->counters.spilled_count,
-				       spill_queue.count);
+		RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue.count);
 
 		enqueue_queue_for_disk_writing(self, &spill_queue);
 	    }
@@ -124,26 +117,21 @@ void *worker_thread(void *arg)
 		bytes_to_send = BLOB_BUF_SIZE(cur_blob);
 		bytes_sent =
 		    sendto(sck->socket, BLOB_BUF_addr(cur_blob),
-			   bytes_to_send, MSG_NOSIGNAL,
-			   (struct sockaddr *) &sck->sa.in, sck->addrlen);
+			   bytes_to_send, MSG_NOSIGNAL, (struct sockaddr *) &sck->sa.in, sck->addrlen);
 	    } else {
 		bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
-		bytes_sent =
-		    sendto(sck->socket, BLOB_DATA_MBR_addr(cur_blob),
-			   bytes_to_send, MSG_NOSIGNAL, NULL, 0);
+		bytes_sent = sendto(sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send, MSG_NOSIGNAL, NULL, 0);
 	    }
 
 	    if (bytes_sent == -1) {
-		WARN_ERRNO("Sending %zd bytes to %s failed",
-			   bytes_to_send, sck->to_string);
+		WARN_ERRNO("Sending %zd bytes to %s failed", bytes_to_send, sck->to_string);
 		enqueue_blob_for_disk_writing(self, cur_blob);
 		close(sck->socket);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
 		sck = NULL;
 		break;		/* stop sending from the hijacked queue */
 	    } else if (bytes_sent < bytes_to_send) {
-		WARN("We wrote only %zd of %zd bytes to the socket?",
-		     bytes_sent, bytes_to_send);
+		WARN("We wrote only %zd of %zd bytes to the socket?", bytes_sent, bytes_to_send);
 		RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    } else {
 		RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
@@ -154,8 +142,7 @@ void *worker_thread(void *arg)
 
 	get_time(&send_end_time);
 	if (spilled) {
-	    WARN("Wrote " STATSfmt
-		 " items which were over spill threshold", spilled);
+	    WARN("Wrote " STATSfmt " items which were over spill threshold", spilled);
 	    spilled = 0;
 	}
 
@@ -177,8 +164,7 @@ void *worker_thread(void *arg)
     (void) snapshot_stats(&self->counters, &self->totals);
 
     SAY("worker[%s] processed " STATSfmt " packets in its lifetime",
-	(sck ? sck->to_string : self->arg),
-	RELAY_ATOMIC_READ(self->totals.received_count));
+	(sck ? sck->to_string : self->arg), RELAY_ATOMIC_READ(self->totals.received_count));
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR(self->disk_writer->exit, EXIT_FLAG);
@@ -205,8 +191,7 @@ worker_t *worker_init(char *arg)
     worker->exists = 1;
     worker->arg = strdup(arg);
 
-    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
-	      "sender");
+    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "sender");
 
     worker->disk_writer = disk_writer;
 
@@ -214,12 +199,9 @@ worker_t *worker_init(char *arg)
     disk_writer->ptotals = &worker->totals;
 
     /* setup spillway_path */
-    if (snprintf(disk_writer->spillway_path, PATH_MAX,
-		 "%s/%s", CONFIG.spillway_root,
-		 worker->s_output.arg_clean) >= PATH_MAX)
-	DIE_RC(EXIT_FAILURE,
-	       "spillway_path too big, had to be truncated: %s",
-	       disk_writer->spillway_path);
+    if (snprintf
+	(disk_writer->spillway_path, PATH_MAX, "%s/%s", CONFIG.spillway_root, worker->s_output.arg_clean) >= PATH_MAX)
+	DIE_RC(EXIT_FAILURE, "spillway_path too big, had to be truncated: %s", disk_writer->spillway_path);
 
 
     /* Create the disk_writer before we create the main worker.
@@ -230,12 +212,9 @@ worker_t *worker_init(char *arg)
      * we might have something to assign to the disk worker but no
      * disk worker to assign it to.
      */
-    create_err =
-	pthread_create(&disk_writer->tid, NULL, disk_writer_thread,
-		       disk_writer);
+    create_err = pthread_create(&disk_writer->tid, NULL, disk_writer_thread, disk_writer);
     if (create_err)
-	DIE_RC(EXIT_FAILURE, "failed to create disk worker errno: %d",
-	       create_err);
+	DIE_RC(EXIT_FAILURE, "failed to create disk worker errno: %d", create_err);
 
     /* and finally create the thread */
     create_err = pthread_create(&worker->tid, NULL, worker_thread, worker);
@@ -253,9 +232,7 @@ worker_t *worker_init(char *arg)
 		   "failed to create socket worker, errno: %d, and also failed to join disk worker, errno: %d",
 		   create_err, join_err);
 	} else {
-	    DIE_RC(EXIT_FAILURE,
-		   "failed to create socket worker, errno: %d, disk worker shut down ok",
-		   create_err);
+	    DIE_RC(EXIT_FAILURE, "failed to create socket worker, errno: %d, disk worker shut down ok", create_err);
 
 	}
     }

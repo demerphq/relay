@@ -26,8 +26,7 @@ stats_basic_counters_t RECEIVED_STATS = {
     .active_connections = 0,	/* current number of active inbound tcp connections */
 };
 
-static void spawn(pthread_t * tid, void *(*func) (void *), void *arg,
-		  int type)
+static void spawn(pthread_t * tid, void *(*func) (void *), void *arg, int type)
 {
     pthread_t unused;
     pthread_attr_t attr;
@@ -117,11 +116,9 @@ void *tcp_server(void *arg)
 		    goto out;
 		}
 		setnonblocking(fd);
-		RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections,
-				       1);
+		RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
 		pfds = realloc_or_die(pfds, (nfds + 1) * sizeof(*pfds));
-		clients =
-		    realloc_or_die(clients, (nfds + 1) * sizeof(*clients));
+		clients = realloc_or_die(clients, (nfds + 1) * sizeof(*clients));
 
 		clients[nfds].pos = 0;
 		clients[nfds].buf = mallocz_or_die(ASYNC_BUFFER_SIZE);
@@ -134,16 +131,12 @@ void *tcp_server(void *arg)
 		client = &clients[i];
 		try_to_read = ASYNC_BUFFER_SIZE - client->pos;	// try to read as much as possible
 		if (try_to_read <= 0) {
-		    WARN("disconnecting, try to read: %d, pos: %d",
-			 try_to_read, client->pos);
+		    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
 		    goto disconnect;
 		}
-		received =
-		    recv(pfds[i].fd, client->buf + client->pos,
-			 try_to_read, 0);
+		received = recv(pfds[i].fd, client->buf + client->pos, try_to_read, 0);
 		if (received <= 0) {
-		    if (received == -1
-			&& (errno == EAGAIN || errno == EWOULDBLOCK))
+		    if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 			continue;
 
 		  disconnect:
@@ -153,19 +146,13 @@ void *tcp_server(void *arg)
 		    free(client->buf);
 
 		    // shft left
-		    memcpy(pfds + i, pfds + i + 1,
-			   (nfds - i - 1) * sizeof(struct pollfd));
-		    memcpy(clients + i, clients + i + 1,
-			   (nfds - i - 1) * sizeof(struct tcp_client));
+		    memcpy(pfds + i, pfds + i + 1, (nfds - i - 1) * sizeof(struct pollfd));
+		    memcpy(clients + i, clients + i + 1, (nfds - i - 1) * sizeof(struct tcp_client));
 
 		    nfds--;
-		    pfds =
-			realloc_or_die(pfds, nfds * sizeof(struct pollfd));
-		    clients =
-			realloc_or_die(clients,
-				       nfds * sizeof(struct tcp_client));
-		    RELAY_ATOMIC_DECREMENT
-			(RECEIVED_STATS.active_connections, 1);
+		    pfds = realloc_or_die(pfds, nfds * sizeof(struct pollfd));
+		    clients = realloc_or_die(clients, nfds * sizeof(struct tcp_client));
+		    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
 		    continue;
 		}
 		client->pos += received;
@@ -176,8 +163,7 @@ void *tcp_server(void *arg)
 		    continue;
 
 		if (EXPECTED(client) > MAX_CHUNK_SIZE) {
-		    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)",
-			 EXPECTED(client), MAX_CHUNK_SIZE);
+		    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
 		    goto disconnect;
 		}
 		if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
@@ -185,7 +171,8 @@ void *tcp_server(void *arg)
 
 		    client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
 		    if (client->pos < 0) {
-			WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d", client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
+			WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
+			     client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
 			goto disconnect;
 		    }
 		    if (client->pos > 0) {
@@ -198,9 +185,7 @@ void *tcp_server(void *arg)
 			//
 			// [ h ] [ h ] [ h ] [ h ] [ D ]
 			//                           ^ pos (5)
-			memmove(client->buf,
-				client->buf + EXPECTED_HEADER_SIZE +
-				EXPECTED(client), client->pos);
+			memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
 			if (client->pos >= EXPECTED_HEADER_SIZE)
 			    goto try_to_consume_one_more;
 		    }
@@ -226,12 +211,10 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    socketize(config->argv[0], s_listen, IPPROTO_UDP,
-	      RELAY_CONN_IS_INBOUND, "listener");
+    socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener");
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0,
-		config->server_socket_rcvbuf);
+    open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
@@ -260,8 +243,7 @@ int _main(config_t * config)
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
     graphite_worker = mallocz_or_die(sizeof(graphite_worker_t));
-    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread,
-		   graphite_worker);
+    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {
 	int abort;
@@ -277,16 +259,14 @@ int _main(config_t * config)
 		/* XXX: check me */
 		/* check and see if we need to stop the old graphite processor and replace it */
 		graphite_worker_destroy(graphite_worker);
-		pthread_create(&graphite_worker->tid, NULL,
-			       graphite_worker_thread, graphite_worker);
+		pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 	    }
 	    unset_abort_bits(RELOAD);
 	}
 
 	update_process_status(RELAY_ATOMIC_READ
 			      (RECEIVED_STATS.active_connections),
-			      RELAY_ATOMIC_READ
-			      (RECEIVED_STATS.active_connections));
+			      RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections));
 	sleep(1);
     }
     final_shutdown(server_tid);

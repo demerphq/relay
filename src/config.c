@@ -45,8 +45,7 @@ void config_set_defaults(config_t * config)
     config->server_socket_rcvbuf = DEFAULT_SERVER_SOCKET_RCVBUF;
     config->spill_usec = DEFAULT_SPILL_USEC;
     config->graphite_send_interval_ms = DEFAULT_GRAPHITE_SEND_INTERVAL_MS;
-    config->graphite_sleep_poll_interval_ms =
-	DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
+    config->graphite_sleep_poll_interval_ms = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
     config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
 }
 
@@ -115,9 +114,7 @@ config_t *config_from_file(char *file)
 		TRY_OPT_END;
 
 	    } else {
-		config->argv =
-		    realloc_or_die(config->argv,
-				   sizeof(line) * (config->argc + 1));
+		config->argv = realloc_or_die(config->argv, sizeof(line) * (config->argc + 1));
 		config->argv[config->argc] = strdup(line);
 		config->argc++;
 	    }
@@ -163,11 +160,8 @@ int config_reload(config_t * config)
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
 	closelog();
 	openlog(OUR_NAME,
-		LOG_CONS | LOG_ODELAY | LOG_PID |
-		(new_config->syslog_to_stderr ? LOG_PERROR : 0),
-		OUR_FACILITY);
-	SAY("changed 'syslog_to_stderr' from '%d' to '%d'",
-	    config->syslog_to_stderr, new_config->syslog_to_stderr);
+		LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
+	SAY("changed 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr, new_config->syslog_to_stderr);
 	config->syslog_to_stderr = new_config->syslog_to_stderr;
 	requires_restart = 1;
     }
@@ -177,8 +171,7 @@ int config_reload(config_t * config)
     IF_STR_OPT_CHANGED(graphite_root, config, new_config);
     IF_NUM_OPT_CHANGED(syslog_to_stderr, config, new_config);
     IF_NUM_OPT_CHANGED(graphite_send_interval_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(graphite_sleep_poll_interval_ms, config,
-		       new_config);
+    IF_NUM_OPT_CHANGED(graphite_sleep_poll_interval_ms, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_ms, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_ms, config, new_config);
     IF_NUM_OPT_CHANGED(tcp_send_timeout, config, new_config);
@@ -189,8 +182,7 @@ int config_reload(config_t * config)
 	if (i < new_config->argc) {
 	    if (strcmp(config->argv[i], new_config->argv[i]) != 0) {
 		SAY("Changing %s socket config from '%s' to '%s'",
-		    i == 0 ? "listen" : "forward", config->argv[i],
-		    new_config->argv[i]);
+		    i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
 		requires_restart = 1;
 	    }
 	} else {
@@ -201,8 +193,7 @@ int config_reload(config_t * config)
     }
     free(config->argv);
     for (i = config->argc; i < new_config->argc; i++) {
-	SAY("Setting new %s socket config to '%s'",
-	    i == 0 ? "listen" : "forward", new_config->argv[i]);
+	SAY("Setting new %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
 	requires_restart = 1;
     }
     config->argc = new_config->argc;
@@ -217,10 +208,7 @@ void config_init(int argc, char **argv)
     int i = 0;
     memset(&CONFIG, 0, sizeof(CONFIG));
     config_set_defaults(&CONFIG);
-    openlog(OUR_NAME,
-	    LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.syslog_to_stderr ?
-					       LOG_PERROR : 0),
-	    OUR_FACILITY);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
 
     if (argc < 2) {
 	config_die_args(argc, argv);
@@ -244,6 +232,5 @@ void config_die_args(int argc, char **argv)
     DIE_RC(EXIT_FAILURE,
 	   "%s local-host:local-port tcp@remote-host:remote-port ...\n"
 	   "or file with socket description like:\n"
-	   "\tlocal-host:local-port\n"
-	   "\ttcp@remote-host:remote-port ...\n", argv[0]);
+	   "\tlocal-host:local-port\n" "\ttcp@remote-host:remote-port ...\n", argv[0]);
 }

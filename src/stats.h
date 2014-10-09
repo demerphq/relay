@@ -24,7 +24,6 @@ struct stats_basic_counters {
 };
 typedef struct stats_basic_counters stats_basic_counters_t;
 
-void snapshot_stats(stats_basic_counters_t * counters,
-		    stats_basic_counters_t * totals);
+void snapshot_stats(stats_basic_counters_t * counters, stats_basic_counters_t * totals);
 
 #endif

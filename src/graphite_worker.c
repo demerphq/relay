@@ -44,8 +44,7 @@ char *graphite_worker_setup_root(config_t * config)
     hints.ai_flags = AI_CANONNAME;
 
     if ((gai_result = getaddrinfo(hostname, "http", &hints, &info)) != 0) {
-	DIE("Failed getaddrinfo(localhost): %s\n",
-	    gai_strerror(gai_result));
+	DIE("Failed getaddrinfo(localhost): %s\n", gai_strerror(gai_result));
     }
 
     if (!info)
@@ -60,18 +59,12 @@ char *graphite_worker_setup_root(config_t * config)
 
     tmp = canonname = strdup(info->ai_canonname);
     /* scrub the hostname of unfortunate characters */
-    while (NULL !=
-	   (tmp = strpbrk(tmp, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
+    while (NULL != (tmp = strpbrk(tmp, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
 	*tmp++ = '_';
 
-    root_len = strlen(CONFIG.graphite_root)
-	+ strlen(canonname)
-	+ strlen(s_listen->arg_clean)
-	+ 3;			/* two dots plus null */
+    root_len = strlen(CONFIG.graphite_root) + strlen(canonname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
     root = mallocz_or_die(root_len);
-    wrote =
-	snprintf(root, root_len, "%s.%s.%s", config->graphite_root,
-		 canonname, s_listen->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, canonname, s_listen->arg_clean);
 
     if (wrote >= root_len)
 	DIE("panic: failed to sprintf hostname in graphite_worker_setup_root()");
@@ -93,8 +86,7 @@ void *graphite_worker_thread(void *arg)
     self->arg = strdup(CONFIG.graphite_arg);
     self->root = graphite_worker_setup_root(&CONFIG);
 
-    socketize(self->arg, &self->s_output, IPPROTO_TCP,
-	      RELAY_CONN_IS_OUTBOUND, "graphite sender");
+    socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
 	char *str = self->buffer;	/* current position in buffer */
@@ -106,8 +98,7 @@ void *graphite_worker_thread(void *arg)
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket
-		(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->s_output;
 	    } else {
@@ -159,9 +150,7 @@ void *graphite_worker_thread(void *arg)
 				     totals.error_count, this_epoch,
 				     self->root, w->s_output.arg_clean,
 				     totals.disk_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.disk_error_count, this_epoch,
-				     "");
+				     self->root, w->s_output.arg_clean, totals.disk_error_count, this_epoch, "");
 
 		if (wrote_len < 0 || wrote_len >= len) {
 		    /* should we warn? */
@@ -208,9 +197,7 @@ void *graphite_worker_thread(void *arg)
 			     self->root, "mallinfo",
 			     meminfo.uordblks + meminfo.usmblks +
 			     meminfo.hblkhd, this_epoch, self->root,
-			     "mallinfo",
-			     meminfo.fordblks + meminfo.fsmblks,
-			     this_epoch, "");
+			     "mallinfo", meminfo.fordblks + meminfo.fsmblks, this_epoch, "");
 
 	if (wrote_len < 0 || wrote_len >= len) {
 	    /* should we warn? */

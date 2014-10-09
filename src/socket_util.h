@@ -46,8 +46,7 @@ struct sock {
 typedef struct sock sock_t;
 
 /* util.c */
-void socketize(const char *arg, sock_t * s, int default_proto,
-	       int conn_dir, char *type_str);
+void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, char *type_str);
 int open_socket(sock_t * s, int flags, int snd, int rcv);
 int setnonblocking(int fd);
 /* try to get the OS to send our packets more efficiently when sending
@@ -56,9 +55,7 @@ static INLINE void cork(struct sock *s, int flag)
 {
     if (!s || s->proto != IPPROTO_TCP)
 	return;
-    if (setsockopt
-	(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag,
-	 sizeof(int)) < 0)
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag, sizeof(int)) < 0)
 	WARN_ERRNO("setsockopt: %s", strerror(errno));
 }
 

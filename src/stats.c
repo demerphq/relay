@@ -1,8 +1,6 @@
 #include "stats.h"
 
-void
-snapshot_stats(stats_basic_counters_t * counters,
-	       stats_basic_counters_t * totals)
+void snapshot_stats(stats_basic_counters_t * counters, stats_basic_counters_t * totals)
 {
     stats_count_t received_count = RELAY_ATOMIC_READ(counters->received_count);	/* number of items we have received */
     stats_count_t sent_count = RELAY_ATOMIC_READ(counters->sent_count);	/* number of items we have sent */

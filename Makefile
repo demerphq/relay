@@ -17,7 +17,7 @@ clang:
 	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/relay.clang $(RELAY)
 
 indent:
-	indent -kr src/*.[hc]
+	indent -kr --line-length 120 src/*.[hc]
 
 clean:
 	rm -f bin/relay* test/sock/*

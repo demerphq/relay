@@ -35,8 +35,7 @@ int main(int ac, char **av)
     srand(time(NULL) + rdtsc());
     if (ac < 2)
 	DIE_RC(EXIT_FAILURE, "%s remote-ip:remote-port", av[0]);
-    socketize(av[1], &s, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
-	      "test-client");
+    socketize(av[1], &s, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "test-client");
     open_socket(&s, DO_NOTHING, 0, 0);
     if (ac > 2)
 	do_max = atoi(av[2]);
@@ -88,8 +87,7 @@ int main(int ac, char **av)
 	if (recv(fd, &expected, 4, MSG_WAITALL) != 4)
 	    DIE("recv");
 	if (expected != sizeof(DATA))
-	    DIE_RC(EXIT_FAILURE, "expected: %zu, got: %d", sizeof(DATA),
-		   expected);
+	    DIE_RC(EXIT_FAILURE, "expected: %zu, got: %d", sizeof(DATA), expected);
 	if ((rc = recv(fd, DATA, sizeof(DATA), MSG_WAITALL)) <= 0) {
 	    if (rc == 0)	// shutdown
 		break;
@@ -97,11 +95,9 @@ int main(int ac, char **av)
 	}
 	if (*magic_place != MAGIC)
 	    DIE_RC(EXIT_FAILURE,
-		   "magic not found in the received packet %x recv: %d, data_size: %d",
-		   *magic_place, rc, data_size);
+		   "magic not found in the received packet %x recv: %d, data_size: %d", *magic_place, rc, data_size);
 #else
-	rc = sendto(fd, DATA, sizeof(DATA), 0,
-		    (struct sockaddr *) &s.sa.in, s.addrlen);
+	rc = sendto(fd, DATA, sizeof(DATA), 0, (struct sockaddr *) &s.sa.in, s.addrlen);
 	if (rc < 0)
 	    DIE("sendto");
 	if (sleep_us)
@@ -109,7 +105,6 @@ int main(int ac, char **av)
 #endif
     }
     ms = (clock() - start) * 1000 / CLOCKS_PER_SEC;
-    SAY(PREFIX " %lu with size %d for %lu ms (expected %f per second)", i,
-	data_size, ms, i / ((double) ms / 1000));
+    SAY(PREFIX " %lu with size %d for %lu ms (expected %f per second)", i, data_size, ms, i / ((double) ms / 1000));
     return (0);
 }
