@@ -14,7 +14,7 @@ export LISTENER_PORT=9003
 
 export RELAY=../bin/relay
 #export RELAY=../bin/relay.clang
-killall -9 relay
+killall -9 $(basename $RELAY)
 
 if test ! -f $RELAY; then
     echo "$0: No relay $RELAY, aborting."
@@ -25,6 +25,8 @@ fi
 
 export THIS_PORT=$FIRST_PORT
 export PROTO=udp
+
+echo "Starting relays"
 
 for NEXT_PORT in $(seq $FIRST_PORT_PLUS_ONE $LAST_PORT)
 do
@@ -38,9 +40,16 @@ done
 CMD="$RELAY tcp@localhost:$THIS_PORT tcp@localhost:$LISTENER_PORT"
 echo "$CMD"
 $CMD &
+
+echo "All relays started"
 ps auwx | grep relay
+
+echo "Starting listener"
 ../test/simple-listener.pl
-killall relay
+
+echo "Listener done, killing relays"
+ps auwx | grep relay
+killall $(basename $RELAY)
 sleep 3
 
 exit 0
