@@ -313,6 +313,11 @@ static void sig_handler(int signum)
 static void stop_listener(pthread_t server_tid)
 {
     shutdown(s_listen->socket, SHUT_RDWR);
+    /* TODO: if the relay is interrupted rudely (^C), final_shutdown()
+     * is called, which will call stop_listener(), and this close()
+     * triggers the ire of the clang threadsanitizer, since the socket
+     * was opened by a worker thread with a recv() in udp_server, but
+     * the shutdown happens in the main thread. */
     close(s_listen->socket);
     pthread_join(server_tid, NULL);
 }
