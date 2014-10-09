@@ -168,5 +168,5 @@ sub read_more_or_cleanup {
         close($fh);
         $SELECT->remove($fh);
     }
-    return (exists $DATA{fn} && length($DATA{$fn}) == $size);
+    return (exists $DATA{$fn} && length($DATA{$fn}) == $size);
 }
