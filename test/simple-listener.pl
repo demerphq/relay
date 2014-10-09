@@ -26,14 +26,14 @@ die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N"
 		"period"   => \$Opt{period},
 	    ));
 
-if ($Opt{forever}) {
+if ($Opt{sec} > 0) {
+    print "NOTE: will exit after sec $Opt{sec}\n";
+    $Opt{forever} = 0;
+} elsif ($Opt{forever}) {
     print "NOTE: will loop forever\n";
     if ($Opt{sec} > 0) {
 	print "NOTE: ignoring sec\n";
     }
-} elsif ($Opt{sec} > 0) {
-    print "NOTE: will exit after sec $Opt{sec}\n";
-    $Opt{forever} = 0;
 }
 
 my $SELECT = IO::Select->new();
