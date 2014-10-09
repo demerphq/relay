@@ -264,8 +264,7 @@ int _main(config_t * config)
 	    unset_abort_bits(RELOAD);
 	}
 
-	update_process_status(RELAY_ATOMIC_READ
-			      (RECEIVED_STATS.active_connections),
+	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
 			      RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections));
 	sleep(1);
     }
