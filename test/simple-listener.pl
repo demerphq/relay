@@ -140,6 +140,7 @@ sub show_totals {
     }
 }
 
+show_totals();
 exit(0);
 
 sub set_non_blocking {
