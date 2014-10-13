@@ -23,7 +23,7 @@ die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N"
 		"port=i"   => \$Opt{port},
 		"sec=i"    => \$Opt{sec},
 		"forever"  => \$Opt{forever},
-		"period"   => \$Opt{period},
+		"period=i" => \$Opt{period},
 	    ));
 
 if ($Opt{sec} > 0) {
