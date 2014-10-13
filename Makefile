@@ -1,9 +1,9 @@
-FILES=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/socket_util.c src/config.c src/timer.c \
-      src/worker_pool.c src/disk_writer.c src/graphite_worker.c
-RELAY=src/relay.c $(FILES)
+RELAY=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/socket_util.c src/config.c src/timer.c \
+      src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
 CLANG=clang
-CLANG_FLAGS=-O0 -g3 -fsanitize=thread -fPIE -pie -fno-omit-frame-pointer
-# CLANG_FLAGS=-O1 -g3 -fsanitize=address -fno-omit-frame-pointer
+CLANG_FLAGS=-O0 -g3 -fno-omit-frame-pointer
+CLANG_ASAN_FLAGS=-fsanitize=address
+CLANG_TSAN_FLAGS=-fsanitize=thread -fPIE -pie
 GCC_FLAGS=-O3
 CC=gcc
 CFLAGS=-Wall -Wextra -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
@@ -15,6 +15,14 @@ all:
 clang:
 	mkdir -p bin
 	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/relay.clang $(RELAY)
+
+clang.asan:
+	mkdir -p bin
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_ASAN_FLAGS) -o bin/relay.clang.asan $(RELAY)
+
+clang.tsan:
+	mkdir -p bin
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_TSAN_FLAGS) -o bin/relay.clang.tsan $(RELAY)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
