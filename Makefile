@@ -3,7 +3,7 @@ RELAY=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/soc
 CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fno-omit-frame-pointer
 CLANG_ASAN_FLAGS=-fsanitize=address
-CLANG_TSAN_FLAGS=-fsanitize=thread -fPIE -pie
+CLANG_TSAN_FLAGS=-fsanitize=thread
 GCC_FLAGS=-O3
 CC=gcc
 CFLAGS=-Wall -Wextra -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
@@ -18,11 +18,11 @@ clang:
 
 clang.asan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_ASAN_FLAGS) -o bin/relay.clang.asan $(RELAY)
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_ASAN_FLAGS) -o bin/relay.clang $(RELAY)
 
 clang.tsan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_TSAN_FLAGS) -o bin/relay.clang.tsan $(RELAY)
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_TSAN_FLAGS) -o bin/relay.clang $(RELAY)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
