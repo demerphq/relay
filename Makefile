@@ -3,6 +3,8 @@ RELAY=src/setproctitle.c src/stats.c src/abort.c src/blob.c src/worker.c src/soc
 CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fno-omit-frame-pointer
 CLANG_ASAN_FLAGS=-fsanitize=address
+# -fsanitize-memory-track-origins=2 requires newer clang (3.6?)
+CLANG_MSAN_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins
 CLANG_TSAN_FLAGS=-fsanitize=thread
 GCC_FLAGS=-O3
 CC=gcc
@@ -19,6 +21,10 @@ clang:
 clang.asan:
 	mkdir -p bin
 	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_ASAN_FLAGS) -o bin/relay.clang $(RELAY)
+
+clang.msan:
+	mkdir -p bin
+	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_MSAN_FLAGS) -o bin/relay.clang $(RELAY)
 
 clang.tsan:
 	mkdir -p bin
