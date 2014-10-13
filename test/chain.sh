@@ -11,6 +11,7 @@ export FIRST_PORT_PLUS_ONE=$(expr $FIRST_PORT + 1)
 export RELAY_COUNT=10
 export LAST_PORT=$(expr $FIRST_PORT + $RELAY_COUNT - 1)
 export LISTENER_PORT=9003
+export LISTENER_FLAGS
 
 export RELAY=../bin/relay
 #export RELAY=../bin/relay.clang
@@ -46,7 +47,7 @@ echo "All relays started"
 ps auwx | grep /$(basename $RELAY)
 
 echo "Starting listener"
-../test/simple-listener.pl
+../test/simple-listener.pl $LISTENER_FLAGS
 
 echo "Listener done, killing relays"
 ps auwx | grep /$(basename $RELAY)
