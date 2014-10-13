@@ -14,12 +14,13 @@ export LISTENER_PORT=9003
 
 export RELAY=../bin/relay
 #export RELAY=../bin/relay.clang
-killall -9 $(basename $RELAY)
 
 if test ! -f $RELAY; then
     echo "$0: No relay $RELAY, aborting."
     exit 1
 fi
+
+killall -9 $(basename $RELAY)
 
 ####################################################
 
@@ -42,13 +43,13 @@ echo "$CMD"
 $CMD &
 
 echo "All relays started"
-ps auwx | grep relay
+ps auwx | grep /$(basename $RELAY)
 
 echo "Starting listener"
 ../test/simple-listener.pl
 
 echo "Listener done, killing relays"
-ps auwx | grep relay
+ps auwx | grep /$(basename $RELAY)
 killall $(basename $RELAY)
 sleep 3
 
