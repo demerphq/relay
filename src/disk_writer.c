@@ -85,7 +85,7 @@ void *disk_writer_thread(void *arg)
 
     while (1) {
 
-	q_hijack(main_queue, &private_queue, &POOL.lock);
+	queue_hijack(main_queue, &private_queue, &POOL.lock);
 	b = private_queue.head;
 
 	if (b == NULL) {
@@ -105,7 +105,7 @@ void *disk_writer_thread(void *arg)
 	    do {
 		done_work++;
 		write_blob_to_disk(self, b);
-		blob_destroy(q_shift_nolock(&private_queue));
+		blob_destroy(queue_shift_nolock(&private_queue));
 	    }
 	    while ((b = private_queue.head) != NULL);
 

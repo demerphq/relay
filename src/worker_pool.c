@@ -58,7 +58,7 @@ int enqueue_blob_for_transmission(blob_t * b)
 	    /* not the last, so we need to clone the original object */
 	    to_enqueue = blob_clone_no_refcnt_inc(b);
 	}
-	q_append_nolock(&w->queue, to_enqueue);
+	queue_append_nolock(&w->queue, to_enqueue);
 
 	i++;
     }

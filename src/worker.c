@@ -8,14 +8,14 @@ extern config_t CONFIG;
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(worker_t * worker, struct blob *b)
 {
-    q_append(&worker->disk_writer->queue, b, &POOL.lock);	/* XXX: change this to a worker level lock */
+    queue_append(&worker->disk_writer->queue, b, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
 
 /* if a worker failed to send we need to write the item to the disk */
 /* XXX */
 static void enqueue_queue_for_disk_writing(worker_t * worker, queue_t * q)
 {
-    q_append_q(&worker->disk_writer->queue, q, &POOL.lock);	/* XXX: change this to a worker level lock */
+    queue_append_tail(&worker->disk_writer->queue, q, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
 
 /* create a normal relay worker thread
@@ -63,7 +63,7 @@ void *worker_thread(void *arg)
 	     * and then reset the queue state to empty. So the formerly
 	     * shared queue is now private. We only do this if necessary.
 	     */
-	    if (!q_hijack(main_queue, &private_queue, &POOL.lock)) {
+	    if (!queue_hijack(main_queue, &private_queue, &POOL.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
 		worker_wait(CONFIG.polling_interval_ms);
 		continue;
@@ -109,7 +109,7 @@ void *worker_thread(void *arg)
 		enqueue_queue_for_disk_writing(self, &spill_queue);
 	    }
 
-	    cur_blob = q_shift_nolock(&private_queue);
+	    cur_blob = queue_shift_nolock(&private_queue);
 	    if (!cur_blob)
 		break;
 
