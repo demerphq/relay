@@ -127,11 +127,12 @@ void *graphite_worker_thread(void *arg)
 
 	    accumulate_and_clear_stats(&w->totals, &totals);
 
-	    snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean, this_epoch);
+	    snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean,
+		     this_epoch);
 
 	    {
 		int i;
-		for (i = 0; ; i++) {
+		for (i = 0;; i++) {
 		    const char *label = NULL;
 		    uint64_t value = 0;
 		    switch (i) {
@@ -184,7 +185,7 @@ void *graphite_worker_thread(void *arg)
 
 	{
 	    int i;
-	    for (i = 0; ; i++) {
+	    for (i = 0;; i++) {
 		const char *label = NULL;
 		int value = -1;
 		switch (i) {
