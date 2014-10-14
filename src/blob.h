@@ -74,7 +74,7 @@ typedef struct queue queue_t;
 /* blob.c */
 void *realloc_or_die(void *p, size_t size);
 void *malloc_or_die(size_t size);
-void *mallocz_or_die(size_t size);
+void *calloc_or_die(size_t size);
 blob_t *blob_new(size_t size);
 blob_t *blob_clone_no_refcnt_inc(blob_t * b);
 void blob_destroy(blob_t * b);

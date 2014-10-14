@@ -184,8 +184,8 @@ void *worker_thread(void *arg)
 /* initialize a worker safely */
 worker_t *worker_init(char *arg)
 {
-    worker_t *worker = mallocz_or_die(sizeof(*worker));
-    disk_writer_t *disk_writer = mallocz_or_die(sizeof(disk_writer_t));
+    worker_t *worker = calloc_or_die(sizeof(*worker));
+    disk_writer_t *disk_writer = calloc_or_die(sizeof(disk_writer_t));
     int create_err;
 
     worker->exists = 1;

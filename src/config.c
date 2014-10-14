@@ -76,7 +76,7 @@ config_t *config_from_file(char *file)
     char *line = NULL;
     ssize_t read;
     size_t len = 0;
-    config_t *config = mallocz_or_die(sizeof(config_t));
+    config_t *config = calloc_or_die(sizeof(config_t));
     config_set_defaults(config);
 
     f = fopen(file, "r");

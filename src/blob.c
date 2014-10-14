@@ -16,7 +16,7 @@ void *malloc_or_die(size_t size)
 }
 
 /* malloc a buffer or die - via realloc_or_die() */
-void *mallocz_or_die(size_t size)
+void *calloc_or_die(size_t size)
 {
     void *ptr = realloc_or_die(NULL, size);
     memset(ptr, 0, size);

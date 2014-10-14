@@ -92,7 +92,7 @@ void *tcp_server(void *arg)
     setnonblocking(s->socket);
 
     nfds = 1;
-    pfds = mallocz_or_die(nfds * sizeof(struct pollfd));
+    pfds = calloc_or_die(nfds * sizeof(struct pollfd));
     pfds->fd = s->socket;
     pfds->events = POLLIN;
     clients = NULL;
@@ -121,7 +121,7 @@ void *tcp_server(void *arg)
 		clients = realloc_or_die(clients, (nfds + 1) * sizeof(*clients));
 
 		clients[nfds].pos = 0;
-		clients[nfds].buf = mallocz_or_die(ASYNC_BUFFER_SIZE);
+		clients[nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
 //                WARN("[%d] CREATE %p fd: %d",i,clients[nfds].buf,fd);
 		pfds[nfds].fd = fd;
 		pfds[nfds].events = POLLIN;
@@ -238,11 +238,11 @@ int _main(config_t * config)
 
     setproctitle("starting");
 
-    s_listen = mallocz_or_die(sizeof(*s_listen));
+    s_listen = calloc_or_die(sizeof(*s_listen));
 
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
-    graphite_worker = mallocz_or_die(sizeof(graphite_worker_t));
+    graphite_worker = calloc_or_die(sizeof(graphite_worker_t));
     pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {

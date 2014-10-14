@@ -63,7 +63,7 @@ char *graphite_worker_setup_root(config_t * config)
 	*tmp++ = '_';
 
     root_len = strlen(CONFIG.graphite_root) + strlen(canonname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
-    root = mallocz_or_die(root_len);
+    root = calloc_or_die(root_len);
     wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, canonname, s_listen->arg_clean);
 
     if (wrote >= root_len)
@@ -82,7 +82,7 @@ void *graphite_worker_thread(void *arg)
     ssize_t sent_bytes;
     time_t this_epoch;
 
-    self->buffer = mallocz_or_die(GRAPHITE_BUFFER_MAX);
+    self->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
     self->arg = strdup(CONFIG.graphite_arg);
     self->root = graphite_worker_setup_root(&CONFIG);
 
