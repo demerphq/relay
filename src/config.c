@@ -1,24 +1,12 @@
 #include "config.h"
 
 #include "log.h"
+#include "string_util.h"
 #include "worker.h"
 
 static const char *OUR_NAME = "event-relay";
 
 config_t CONFIG;
-
-void trim(char *s)
-{
-    char *p = s;
-    int l = strlen(p);
-
-    while (isspace(p[l - 1]))
-	p[--l] = 0;
-    while (*p && isspace(*p))
-	++p, --l;
-
-    memmove(s, p, l + 1);
-}
 
 void config_destroy(void)
 {
@@ -88,7 +76,7 @@ config_t *config_from_file(char *file)
 	if ((p = strchr(line, '#')))
 	    *p = '\0';
 
-	trim(line);
+	trim_space(line);
 
 	if (strlen(line) != 0) {
 	    if ((p = strchr(line, '='))) {
