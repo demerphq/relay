@@ -37,9 +37,9 @@ void *worker_thread(void *arg)
     memset(&spill_queue, 0, sizeof(spill_queue));
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
-	mytime_t send_start_time;
-	mytime_t send_end_time;
-	mytime_t now;
+	struct timeval send_start_time;
+	struct timeval send_end_time;
+	struct timeval now;
 	uint64_t usec;
 	stats_count_t spilled = 0;
 

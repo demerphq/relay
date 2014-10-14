@@ -23,7 +23,7 @@ typedef struct __data_blob __data_blob_t;
  * the lock to guard refcnt modifications */
 struct _refcnt_blob {
     volatile int32_t refcnt;
-    mytime_t received_time;
+    struct timeval received_time;
     __data_blob_t data;
 };
 typedef struct _refcnt_blob _refcnt_blob_t;
