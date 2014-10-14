@@ -96,6 +96,7 @@ void *graphite_worker_thread(void *arg)
 	worker_t *w;
 	struct mallinfo meminfo;
 	int wrote_len;
+	char meminfo_format[1024];
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -165,47 +166,83 @@ void *graphite_worker_thread(void *arg)
 
 	/* get memory details */
 	meminfo = mallinfo();
-	wrote_len = snprintf(str, len,
-			     "%s.%s.arena %d %lu\n"
-			     "%s.%s.ordblks %d %lu\n"
-			     "%s.%s.smblks %d %lu\n"
-			     "%s.%s.hblks %d %lu\n"
-			     "%s.%s.hblkhd %d %lu\n"
-			     "%s.%s.usmblks %d %lu\n"
-			     "%s.%s.fsmblks %d %lu\n"
-			     "%s.%s.uordblks %d %lu\n"
-			     "%s.%s.fordblks %d %lu\n"
-			     "%s.%s.keepcost %d %lu\n"
-			     "%s.%s.total_from_system %d %lu\n"
-			     "%s.%s.total_in_use %d %lu\n"
-			     "%s.%s.total_free_in_process %d %lu\n"
-			     "%s",
-			     self->root, "mallinfo", meminfo.arena,
-			     this_epoch, self->root, "mallinfo",
-			     meminfo.ordblks, this_epoch, self->root,
-			     "mallinfo", meminfo.smblks, this_epoch,
-			     self->root, "mallinfo", meminfo.hblks,
-			     this_epoch, self->root, "mallinfo",
-			     meminfo.hblkhd, this_epoch, self->root,
-			     "mallinfo", meminfo.usmblks, this_epoch,
-			     self->root, "mallinfo", meminfo.fsmblks,
-			     this_epoch, self->root, "mallinfo",
-			     meminfo.uordblks, this_epoch, self->root,
-			     "mallinfo", meminfo.fordblks, this_epoch,
-			     self->root, "mallinfo", meminfo.keepcost,
-			     this_epoch, self->root, "mallinfo",
-			     meminfo.arena + meminfo.hblkhd, this_epoch,
-			     self->root, "mallinfo",
-			     meminfo.uordblks + meminfo.usmblks +
-			     meminfo.hblkhd, this_epoch, self->root,
-			     "mallinfo", meminfo.fordblks + meminfo.fsmblks, this_epoch, "");
 
-	if (wrote_len < 0 || wrote_len >= len) {
-	    /* should we warn? */
-	    break;
+	/* No need to keep reformatting root, "mallinfo", and epoch. */
+	snprintf(meminfo_format, sizeof(meminfo_format), "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
+
+	{
+	    int i;
+	    int done = 0;
+	    for (i = 0; !done; i++) {
+		const char *label = NULL;
+		int value = -1;
+		switch (i) {
+		case 0:
+		    label = "arena";
+		    value = meminfo.arena;
+		    break;
+		case 1:
+		    label = "ordblks";
+		    value = meminfo.ordblks;
+		    break;
+		case 2:
+		    label = "smblks";
+		    value = meminfo.smblks;
+		    break;
+		case 3:
+		    label = "hblks";
+		    value = meminfo.hblks;
+		    break;
+		case 4:
+		    label = "hblkhd";
+		    value = meminfo.hblkhd;
+		    break;
+		case 5:
+		    label = "usmblks";
+		    value = meminfo.usmblks;
+		    break;
+		case 6:
+		    label = "fsmblks";
+		    value = meminfo.fsmblks;
+		    break;
+		case 7:
+		    label = "uordblks";
+		    value = meminfo.uordblks;
+		    break;
+		case 8:
+		    label = "fordblks";
+		    value = meminfo.fordblks;
+		    break;
+		case 9:
+		    label = "keepcost";
+		    value = meminfo.keepcost;
+		    break;
+		case 10:
+		    label = "total_from_system";
+		    value = meminfo.arena + meminfo.hblkhd;
+		    break;
+		case 11:
+		    label = "total_in_use";
+		    value = meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd;
+		    break;
+		case 12:
+		    label = "total_free_in_process";
+		    value = meminfo.fordblks + meminfo.fsmblks;
+		    done = 1;
+		    break;
+		default:
+		    done = 1;
+		    break;
+		}
+		wrote_len = snprintf(str, len, meminfo_format, label, value);
+		if (wrote_len < 0 || wrote_len >= len) {
+		    /* should we warn? */
+		    break;
+		}
+		str += wrote_len;
+		len -= wrote_len;
+	    }
 	}
-	str += wrote_len;
-	len -= wrote_len;
 
 	/* convert len from "amount remaining" to "amount used" */
 	len = GRAPHITE_BUFFER_MAX - len;
