@@ -249,9 +249,9 @@ int _main(config_t * config)
 	int control;
 
 	control = get_control_val();
-	if (control & STOP) {
+	if (control & RELAY_STOP) {
 	    break;
-	} else if (control & RELOAD) {
+	} else if (control & RELAY_RELOAD) {
 	    if (config_reload(config)) {
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
@@ -261,7 +261,7 @@ int _main(config_t * config)
 		graphite_worker_destroy(graphite_worker);
 		pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 	    }
-	    unset_control_bits(RELOAD);
+	    unset_control_bits(RELAY_RELOAD);
 	}
 
 	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
@@ -278,7 +278,7 @@ static void sig_handler(int signum)
 {
     switch (signum) {
     case SIGHUP:
-	set_control_bits(RELOAD);
+	set_control_bits(RELAY_RELOAD);
 	break;
     case SIGTERM:
     case SIGINT:

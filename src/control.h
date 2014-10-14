@@ -5,8 +5,8 @@
 #include "relay_common.h"
 #include <stdint.h>
 
-#define STOP    1
-#define RELOAD  2
+#define RELAY_STOP    1
+#define RELAY_RELOAD  2
 
 void set_control_bits(uint32_t v);
 void unset_control_bits(uint32_t v);
