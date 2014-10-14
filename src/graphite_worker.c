@@ -110,9 +110,6 @@ void *graphite_worker_thread(void *arg)
 	    }
 	}
 
-
-
-
 	/* Because of the POOL lock here we build up the full graphite send packet
 	 * in one buffer and send it using a single sendto() call.
 	 *
@@ -131,15 +128,15 @@ void *graphite_worker_thread(void *arg)
 
 	    if (len >= 1000) {
 		wrote_len = snprintf(str, len,
-				     "%s.%s.received_count " STATSfmt
-				     " %lu\n" "%s.%s.sent_count " STATSfmt
+				     "%s.%s.received_count %lu"
+				     " %lu\n" "%s.%s.sent_count %lu"
 				     " %lu\n" "%s.%s.partial_count "
-				     STATSfmt " %lu\n"
-				     "%s.%s.spilled_count " STATSfmt
-				     " %lu\n" "%s.%s.error_count " STATSfmt
-				     " %lu\n" "%s.%s.disk_count " STATSfmt
+				     "%lu %lu\n"
+				     "%s.%s.spilled_count %lu"
+				     " %lu\n" "%s.%s.error_count %lu"
+				     " %lu\n" "%s.%s.disk_count %lu"
 				     " %lu\n" "%s.%s.disk_error_count "
-				     STATSfmt " %lu\n" "%s", self->root,
+				     "%lu %lu\n" "%s", self->root,
 				     w->s_output.arg_clean,
 				     totals.received_count, this_epoch,
 				     self->root, w->s_output.arg_clean,

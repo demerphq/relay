@@ -7,7 +7,6 @@
 #include "relay_threads.h"
 #include "setproctitle.h"
 
-#define STATSfmt "%lu"
 typedef uint64_t stats_count_t;
 
 struct stats_basic_counters {

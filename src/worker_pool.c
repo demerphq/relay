@@ -14,7 +14,7 @@ void update_process_status(stats_count_t received, stats_count_t active)
     int wrote_len = 0;
 
     LOCK(&POOL.lock);
-    wrote_len = snprintf(buf, len, "received " STATSfmt " active " STATSfmt, received, active);
+    wrote_len = snprintf(buf, len, "received %lu active %lu", received, active);
     if (wrote_len > 0 && wrote_len < len) {
 	buf += wrote_len;
 	len -= wrote_len;
@@ -23,9 +23,9 @@ void update_process_status(stats_count_t received, stats_count_t active)
 		break;
 	    wrote_len =
 		snprintf(buf, len,
-			 " %d: sent " STATSfmt " spilled "
-			 STATSfmt " disk " STATSfmt " disk_error "
-			 STATSfmt, ++worker_id,
+			 " %d: sent %lu spilled "
+			 "%lu disk %lu disk_error %lu",
+			 ++worker_id,
 			 RELAY_ATOMIC_READ(w->totals.sent_count),
 			 RELAY_ATOMIC_READ(w->totals.spilled_count),
 			 RELAY_ATOMIC_READ(w->totals.disk_count), RELAY_ATOMIC_READ(w->totals.disk_error_count));
