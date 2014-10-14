@@ -8,7 +8,7 @@ CLANG_MSAN_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins
 CLANG_TSAN_FLAGS=-fsanitize=thread
 GCC_FLAGS=-O3
 CC=gcc
-CFLAGS=-Wall -Wextra -pthread -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS=-Wall -Wextra -pthread
 
 all:
 	mkdir -p bin
