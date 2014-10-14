@@ -130,42 +130,34 @@ void *graphite_worker_thread(void *arg)
 	    snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean, this_epoch);
 
 	    {
-		int done = 0;
 		int i;
-		for (i = 0; !done; i++) {
+		for (i = 0; ; i++) {
 		    const char *label = NULL;
 		    uint64_t value = 0;
 		    switch (i) {
+#define STATS_LABEL(name) label = #name; value = totals.name##_count
 		    case 0:
-			label = "received";
-			value = totals.received_count;
+			STATS_LABEL(received);
 			break;
 		    case 1:
-			label = "sent";
-			value = totals.sent_count;
+			STATS_LABEL(sent);
 			break;
 		    case 2:
-			label = "partial";
-			value = totals.partial_count;
+			STATS_LABEL(partial);
 			break;
 		    case 3:
-			label = "spilled";
-			value = totals.spilled_count;
+			STATS_LABEL(spilled);
 			break;
 		    case 4:
-			label = "error";
-			value = totals.error_count;
+			STATS_LABEL(error);
 			break;
 		    case 5:
-			label = "disk";
-			value = totals.disk_count;
+			STATS_LABEL(disk);
 			break;
 		    case 6:
-			label = "disk_error";
-			value = totals.disk_error_count;
+			STATS_LABEL(disk_error);
 			break;
 		    default:
-			done = 1;
 			break;
 		    }
 		    if (label == NULL)
@@ -191,51 +183,41 @@ void *graphite_worker_thread(void *arg)
 	snprintf(meminfo_format, sizeof(meminfo_format), "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
 
 	{
-	    int done = 0;
 	    int i;
-	    for (i = 0; !done; i++) {
+	    for (i = 0; ; i++) {
 		const char *label = NULL;
 		int value = -1;
 		switch (i) {
+#define MEMINFO_LABEL(name) label = #name; value = meminfo.name
 		case 0:
-		    label = "arena";
-		    value = meminfo.arena;
+		    MEMINFO_LABEL(arena);
 		    break;
 		case 1:
-		    label = "ordblks";
-		    value = meminfo.ordblks;
+		    MEMINFO_LABEL(ordblks);
 		    break;
 		case 2:
-		    label = "smblks";
-		    value = meminfo.smblks;
+		    MEMINFO_LABEL(smblks);
 		    break;
 		case 3:
-		    label = "hblks";
-		    value = meminfo.hblks;
+		    MEMINFO_LABEL(hblks);
 		    break;
 		case 4:
-		    label = "hblkhd";
-		    value = meminfo.hblkhd;
+		    MEMINFO_LABEL(hblkhd);
 		    break;
 		case 5:
-		    label = "usmblks";
-		    value = meminfo.usmblks;
+		    MEMINFO_LABEL(usmblks);
 		    break;
 		case 6:
-		    label = "fsmblks";
-		    value = meminfo.fsmblks;
+		    MEMINFO_LABEL(fsmblks);
 		    break;
 		case 7:
-		    label = "uordblks";
-		    value = meminfo.uordblks;
+		    MEMINFO_LABEL(uordblks);
 		    break;
 		case 8:
-		    label = "fordblks";
-		    value = meminfo.fordblks;
+		    MEMINFO_LABEL(fordblks);
 		    break;
 		case 9:
-		    label = "keepcost";
-		    value = meminfo.keepcost;
+		    MEMINFO_LABEL(keepcost);
 		    break;
 		case 10:
 		    label = "total_from_system";
@@ -248,10 +230,8 @@ void *graphite_worker_thread(void *arg)
 		case 12:
 		    label = "total_free_in_process";
 		    value = meminfo.fordblks + meminfo.fsmblks;
-		    done = 1;
 		    break;
 		default:
-		    done = 1;
 		    break;
 		}
 		if (label == NULL)
