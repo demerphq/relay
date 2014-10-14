@@ -125,7 +125,7 @@ void *graphite_worker_thread(void *arg)
 
 	    memset(&totals, 0, sizeof(stats_basic_counters_t));
 
-	    snapshot_stats(&w->totals, &totals);
+	    accumulate_and_clear_stats(&w->totals, &totals);
 
 	    if (len >= 1000) {
 		wrote_len = snprintf(str, len,

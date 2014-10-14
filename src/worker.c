@@ -150,7 +150,7 @@ void *worker_thread(void *arg)
 	usec = elapsed_usec(&send_start_time, &send_end_time);
 	RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
 
-	(void) snapshot_stats(&self->counters, &self->totals);
+	(void) accumulate_and_clear_stats(&self->counters, &self->totals);
 
 	/*
 	   SAY("worker[%s] count: " STATSfmt " sent usec: " STATSfmt,
@@ -161,7 +161,7 @@ void *worker_thread(void *arg)
     if (sck)
 	close(sck->socket);
 
-    (void) snapshot_stats(&self->counters, &self->totals);
+    (void) accumulate_and_clear_stats(&self->counters, &self->totals);
 
     SAY("worker[%s] processed " STATSfmt " packets in its lifetime",
 	(sck ? sck->to_string : self->arg), RELAY_ATOMIC_READ(self->totals.received_count));
