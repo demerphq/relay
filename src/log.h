@@ -1,5 +1,5 @@
-#ifndef _LOG_H
-#define _LOG_H
+#ifndef RELAY_LOG_H
+#define RELAY_LOG_H
 
 #include <syslog.h>
 #include <stdint.h>
@@ -61,6 +61,5 @@ struct _ts {
 #define WARN_ERRNO(fmt, arg...) \
     WARN(fmt " { %s }", ## arg, errno ? strerror(errno) : "undefined error");
 
+#endif /* #ifndef RELAY_LOG_H */
 
-
-#endif

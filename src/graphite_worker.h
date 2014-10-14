@@ -1,5 +1,5 @@
-#ifndef _GRAPHITE_WORKER_H
-#define _GRAPHITE_WORKER_H
+#ifndef RELAY_GRAPHITE_WORKER_H
+#define RELAY_GRAPHITE_WORKER_H
 
 #define GRAPHITE_BUFFER_MAX 16384
 #include <pthread.h>
@@ -21,4 +21,4 @@ typedef struct graphite_worker graphite_worker_t;
 void graphite_worker_destroy(graphite_worker_t * worker);
 void *graphite_worker_thread(void *arg);
 
-#endif
+#endif /* #ifndef RELAY_GRAPHITE_WORKER_H */

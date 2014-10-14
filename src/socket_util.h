@@ -1,5 +1,5 @@
-#ifndef _SOCKET_UTIL_H
-#define _SOCKET_UTIL_H
+#ifndef RELAY_SOCKET_UTIL_H
+#define RELAY_SOCKET_UTIL_H
 
 #include "relay_common.h"
 #include "config.h"
@@ -59,5 +59,5 @@ static INLINE void cork(struct sock *s, int flag)
 	WARN_ERRNO("setsockopt: %s", strerror(errno));
 }
 
+#endif /* #ifndef RELAY_SOCKET_UTIL_H */
 
-#endif

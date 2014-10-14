@@ -1,5 +1,5 @@
-#ifndef _RELAY_COMMON_H
-#define _RELAY_COMMON_H
+#ifndef RELAY_RELAY_COMMON_H
+#define RELAY_RELAY_COMMON_H
 
 #include <time.h>
 #include <sys/time.h>
@@ -55,4 +55,4 @@
 
 #define EXIT_FLAG 1
 
-#endif
+#endif /* #ifndef RELAY_RELAY_COMMON_H */

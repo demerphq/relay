@@ -1,5 +1,5 @@
-#ifndef _DISK_WRITER_H
-#define _DISK_WRITER_H
+#ifndef RELAY_DISK_WRITER_H
+#define RELAY_DISK_WRITER_H
 
 #define EXIT_FLAG 1
 
@@ -26,4 +26,5 @@ struct disk_writer {
 typedef struct disk_writer disk_writer_t;
 
 void *disk_writer_thread(void *arg);
-#endif
+
+#endif /* #ifndef RELAY_DISK_WRITER_H */

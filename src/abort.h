@@ -1,3 +1,6 @@
+#ifndef RELAY_ABORT_H
+#define RELAY_ABORT_H
+
 #include "relay_threads.h"
 #include "relay_common.h"
 #include <stdint.h>
@@ -11,3 +14,5 @@ void set_aborted();
 uint32_t get_abort_val();
 uint32_t not_aborted();
 uint32_t is_aborted();
+
+#endif /* #ifndef RELAY_ABORT_H */

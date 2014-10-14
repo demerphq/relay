@@ -7,4 +7,4 @@ extern void destroy_proctitle(void);
 
 #define STR_AND_LEN(s,l) (( l= sizeof(s "")), (s ""))
 
-#endif
+#endif /* #ifndef UTIL_LINUX_SETPROCTITLE_H */

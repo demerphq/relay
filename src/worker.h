@@ -1,5 +1,5 @@
-#ifndef _WORKER_H
-#define _WORKER_H
+#ifndef RELAY_WORKER_H
+#define RELAY_WORKER_H
 
 #include "relay.h"
 #include "setproctitle.h"
@@ -47,4 +47,4 @@ INLINE static void worker_wait(int ms)
     usleep(ms * 1000);
 }
 
-#endif
+#endif /* #ifndef RELAY_WORKER_H */

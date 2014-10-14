@@ -1,5 +1,6 @@
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef RELAY_CONFIG_H
+#define RELAY_CONFIG_H
+
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -85,4 +86,5 @@ void config_set_defaults(config_t * config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);
 void config_destroy(void);
-#endif
+
+#endif /* #ifndef RELAY_CONFIG_H */

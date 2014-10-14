@@ -1,5 +1,5 @@
-#ifndef _RELAY_H
-#define _RELAY_H
+#ifndef RELAY_RELAY_H
+#define RELAY_RELAY_H
 
 #include "relay_common.h"
 #include "socket_util.h"
@@ -24,4 +24,4 @@ struct tcp_client {
     int pos;
 };
 
-#endif
+#endif /* #ifndef RELAY_RELAY_H */

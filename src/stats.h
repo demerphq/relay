@@ -1,5 +1,5 @@
-#ifndef _STATS_H
-#define _STATS_H
+#ifndef RELAY_STATS_H
+#define RELAY_STATS_H
 
 #include "relay_common.h"
 #include "relay_threads.h"
@@ -28,4 +28,4 @@ typedef struct stats_basic_counters stats_basic_counters_t;
  * Effectively this means zeroing the counters, except for threads. */
 void accumulate_and_clear_stats(stats_basic_counters_t * counters, stats_basic_counters_t * totals);
 
-#endif
+#endif /* #ifndef RELAY_STATS_H */

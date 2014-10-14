@@ -1,5 +1,5 @@
-#ifndef _RELAY_THREADS_H
-#define _RELAY_THREADS_H
+#ifndef RELAY_RELAY_THREADS_H
+#define RELAY_RELAY_THREADS_H
 
 #include <pthread.h>
 #define LOCK_T pthread_mutex_t
@@ -8,4 +8,5 @@
 #define LOCK_INIT(x) pthread_mutex_init(x, NULL)
 #define LOCK_DESTROY(x) pthread_mutex_destroy(x)
 
-#endif
+#endif /* #ifndef RELAY_RELAY_THREADS_H */
+
