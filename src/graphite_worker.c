@@ -1,6 +1,7 @@
 #include <malloc.h>
 
 #include "graphite_worker.h"
+#include "string_util.h"
 #include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
@@ -31,7 +32,6 @@ char *graphite_worker_setup_root(config_t * config)
     struct addrinfo hints, *info;
     int gai_result;
     char *root;
-    char *tmp, *canonname;
     int root_len;
     int wrote;
 
@@ -51,26 +51,15 @@ char *graphite_worker_setup_root(config_t * config)
     if (!info)
 	DIE("No info from getaddrinfo(localhost)");
 
-    /*
-       for(p = info; p != NULL; p = p->ai_next) {
-       printf("hostname: %s\n", p->ai_canonname);
-       }
-     */
+    scrub_nonalnum(hostname, sizeof(hostname));
 
-
-    tmp = canonname = strdup(info->ai_canonname);
-    /* scrub the hostname of unfortunate characters */
-    while (NULL != (tmp = strpbrk(tmp, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
-	*tmp++ = '_';
-
-    root_len = strlen(CONFIG.graphite_root) + strlen(canonname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(CONFIG.graphite_root) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_die(root_len);
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, canonname, s_listen->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, hostname, s_listen->arg_clean);
 
     if (wrote >= root_len)
 	DIE("panic: failed to sprintf hostname in graphite_worker_setup_root()");
     SAY("Using '%s' as root namespace for graphite", root);
-    free(canonname);
     freeaddrinfo(info);
     return root;
 }

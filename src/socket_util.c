@@ -1,4 +1,6 @@
 #include "socket_util.h"
+#include "string_util.h"
+
 extern config_t CONFIG;
 
 #define DEBUG_SOCKETIZE 0
@@ -12,13 +14,7 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 
     strncpy(s->arg, arg, PATH_MAX);
     strncpy(s->arg_clean, arg, PATH_MAX);
-    {
-	char *str = s->arg_clean;
-
-	/* scrub the string of unfortunate characters */
-	while (NULL != (str = strpbrk(str, "./@:~!@#$%^&*(){}[]\";<>,/?` \t\n")))
-	    *str++ = '_';
-    }
+    scrub_nonalnum(s->arg_clean, PATH_MAX);
 
     SAY("socketizing %s argument '%s'", type_str, arg);
     if ((p = strchr(a, ':')) != NULL) {

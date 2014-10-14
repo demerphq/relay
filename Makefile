@@ -1,5 +1,4 @@
-RELAY=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/config.c src/timer.c \
-      src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
+RELAY=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/string_util.c src/config.c src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
 CLANG=clang
 CLANG_FLAGS=-O0 -g3 -fno-omit-frame-pointer
 CLANG_ASAN_FLAGS=-fsanitize=address
