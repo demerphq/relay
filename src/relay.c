@@ -246,7 +246,7 @@ int _main(config_t * config)
     pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {
-	int control;
+	uint32_t control;
 
 	control = get_control_val();
 	if (control & RELAY_STOP) {
