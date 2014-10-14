@@ -136,7 +136,7 @@ void *worker_thread(void *arg)
 	    } else {
 		RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
 	    }
-	    b_destroy(cur_blob);
+	    blob_destroy(cur_blob);
 	}
 	cork(sck, 0);
 

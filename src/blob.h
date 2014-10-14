@@ -75,9 +75,9 @@ typedef struct queue queue_t;
 void *realloc_or_die(void *p, size_t size);
 void *malloc_or_die(size_t size);
 void *mallocz_or_die(size_t size);
-blob_t *b_new(size_t size);
-blob_t *b_clone_no_refcnt_inc(blob_t * b);
-void b_destroy(blob_t * b);
+blob_t *blob_new(size_t size);
+blob_t *blob_clone_no_refcnt_inc(blob_t * b);
+void blob_destroy(blob_t * b);
 
 /* queue stuff */
 uint32_t q_append_nolock(queue_t * q, blob_t * b);

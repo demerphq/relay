@@ -56,7 +56,7 @@ int enqueue_blob_for_transmission(blob_t * b)
 	    to_enqueue = b;
 	} else {
 	    /* not the last, so we need to clone the original object */
-	    to_enqueue = b_clone_no_refcnt_inc(b);
+	    to_enqueue = blob_clone_no_refcnt_inc(b);
 	}
 	q_append_nolock(&w->queue, to_enqueue);
 
@@ -65,7 +65,7 @@ int enqueue_blob_for_transmission(blob_t * b)
     UNLOCK(&POOL.lock);
     if (i == 0) {
 	WARN("no living workers, not sure what to do");	// dump the packet on disk?
-	b_destroy(b);
+	blob_destroy(b);
     }
     return i;
 }

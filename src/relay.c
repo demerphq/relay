@@ -46,7 +46,7 @@ static inline blob_t *buf_to_blob_enqueue(char *buf, size_t size)
     }
 
     RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.received_count, 1);
-    b = b_new(size);
+    b = blob_new(size);
     memcpy(BLOB_BUF_addr(b), buf, size);
     enqueue_blob_for_transmission(b);
     return b;

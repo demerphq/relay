@@ -23,8 +23,8 @@ void *mallocz_or_die(size_t size)
     return ptr;
 }
 
-/* blob= b_new(size) - create a new empty blob with space for size bytes */
-INLINE blob_t *b_new(size_t size)
+/* blob= blob_new(size) - create a new empty blob with space for size bytes */
+INLINE blob_t *blob_new(size_t size)
 {
     blob_t *b;
 
@@ -38,10 +38,10 @@ INLINE blob_t *b_new(size_t size)
     return b;
 }
 
-/* blob= b_clone_no_refcnt_inc(a_blob) - lightweight clone of the original
+/* blob= blob_clone_no_refcnt_inc(a_blob) - lightweight clone of the original
  * note the refcount of the underlying _refcnt_blob_t is NOT
  * incremented, that must be done externally. */
-INLINE blob_t *b_clone_no_refcnt_inc(blob_t * b)
+INLINE blob_t *blob_clone_no_refcnt_inc(blob_t * b)
 {
     blob_t *clone;
 
@@ -58,8 +58,8 @@ INLINE blob_t *b_clone_no_refcnt_inc(blob_t * b)
     return clone;
 }
 
-/* b_destroy(blob) - destroy a blob object */
-void b_destroy(blob_t * b)
+/* blob_destroy(blob) - destroy a blob object */
+void blob_destroy(blob_t * b)
 {
     if (BLOB_REF_PTR(b)) {
 	int32_t refcnt = RELAY_ATOMIC_DECREMENT(BLOB_REFCNT(b), 1);
