@@ -1,17 +1,17 @@
 #include "control.h"
 #include "relay_threads.h"
 
-volatile uint32_t CONTROL = 0;
+static volatile uint32_t __control = 0;
 
 void set_control_bits(uint32_t v)
 {
-    RELAY_ATOMIC_OR(CONTROL, v);
+    RELAY_ATOMIC_OR(__control, v);
 }
 
 void unset_control_bits(uint32_t v)
 {
     v = ~v;
-    RELAY_ATOMIC_AND(CONTROL, v);
+    RELAY_ATOMIC_AND(__control, v);
 }
 
 void set_stopped()
@@ -21,17 +21,17 @@ void set_stopped()
 
 uint32_t get_control_val()
 {
-    return RELAY_ATOMIC_READ(CONTROL);
+    return RELAY_ATOMIC_READ(__control);
 }
 
 uint32_t not_stopped()
 {
-    uint32_t v = RELAY_ATOMIC_READ(CONTROL);
+    uint32_t v = RELAY_ATOMIC_READ(__control);
     return (v & STOP) == 0;
 }
 
 uint32_t is_stopped()
 {
-    uint32_t v = RELAY_ATOMIC_READ(CONTROL);
+    uint32_t v = RELAY_ATOMIC_READ(__control);
     return (v & STOP) == STOP;
 }
