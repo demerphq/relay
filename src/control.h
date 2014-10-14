@@ -10,9 +10,9 @@
 
 void set_control_bits(uint32_t v);
 void unset_control_bits(uint32_t v);
-void set_stopped();
-uint32_t get_control_val();
-uint32_t not_stopped();
-uint32_t is_stopped();
+void set_stopped(void);
+uint32_t get_control_val(void);
+uint32_t not_stopped(void);
+uint32_t is_stopped(void);
 
 #endif /* #ifndef RELAY_CONTROL_H */
