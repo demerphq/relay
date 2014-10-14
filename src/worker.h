@@ -47,4 +47,4 @@ INLINE static void worker_wait(int ms)
     usleep(ms * 1000);
 }
 
-#endif /* #ifndef RELAY_WORKER_H */
+#endif				/* #ifndef RELAY_WORKER_H */

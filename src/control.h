@@ -15,4 +15,4 @@ uint32_t get_control_val(void);
 uint32_t not_stopped(void);
 uint32_t is_stopped(void);
 
-#endif /* #ifndef RELAY_CONTROL_H */
+#endif				/* #ifndef RELAY_CONTROL_H */

@@ -1,7 +1,7 @@
 #include "timer.h"
 
 
-int get_time(struct timeval * t)
+int get_time(struct timeval *t)
 {
     return gettimeofday(t, 0);
 }

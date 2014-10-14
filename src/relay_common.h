@@ -55,4 +55,4 @@
 
 #define EXIT_FLAG 1
 
-#endif /* #ifndef RELAY_RELAY_COMMON_H */
+#endif				/* #ifndef RELAY_RELAY_COMMON_H */

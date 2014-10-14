@@ -24,4 +24,4 @@ struct tcp_client {
     int pos;
 };
 
-#endif /* #ifndef RELAY_RELAY_H */
+#endif				/* #ifndef RELAY_RELAY_H */

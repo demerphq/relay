@@ -90,4 +90,4 @@ uint32_t q_append_q(queue_t * q, queue_t * tail, LOCK_T * lock);
 blob_t *q_shift(queue_t * q, LOCK_T * lock);
 uint32_t q_hijack(queue_t * q, queue_t * hijacked_queue, LOCK_T * lock);
 
-#endif /* #ifndef RELAY_BLOB_H */
+#endif				/* #ifndef RELAY_BLOB_H */

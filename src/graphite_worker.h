@@ -21,4 +21,4 @@ typedef struct graphite_worker graphite_worker_t;
 void graphite_worker_destroy(graphite_worker_t * worker);
 void *graphite_worker_thread(void *arg);
 
-#endif /* #ifndef RELAY_GRAPHITE_WORKER_H */
+#endif				/* #ifndef RELAY_GRAPHITE_WORKER_H */

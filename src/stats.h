@@ -28,4 +28,4 @@ typedef struct stats_basic_counters stats_basic_counters_t;
  * Effectively this means zeroing the counters, except for threads. */
 void accumulate_and_clear_stats(stats_basic_counters_t * counters, stats_basic_counters_t * totals);
 
-#endif /* #ifndef RELAY_STATS_H */
+#endif				/* #ifndef RELAY_STATS_H */

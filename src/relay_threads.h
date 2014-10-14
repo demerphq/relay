@@ -8,5 +8,4 @@
 #define LOCK_INIT(x) pthread_mutex_init(x, NULL)
 #define LOCK_DESTROY(x) pthread_mutex_destroy(x)
 
-#endif /* #ifndef RELAY_RELAY_THREADS_H */
-
+#endif				/* #ifndef RELAY_RELAY_THREADS_H */

@@ -59,5 +59,4 @@ static INLINE void cork(struct sock *s, int flag)
 	WARN_ERRNO("setsockopt: %s", strerror(errno));
 }
 
-#endif /* #ifndef RELAY_SOCKET_UTIL_H */
-
+#endif				/* #ifndef RELAY_SOCKET_UTIL_H */

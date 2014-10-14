@@ -27,4 +27,4 @@ typedef struct disk_writer disk_writer_t;
 
 void *disk_writer_thread(void *arg);
 
-#endif /* #ifndef RELAY_DISK_WRITER_H */
+#endif				/* #ifndef RELAY_DISK_WRITER_H */

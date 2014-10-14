@@ -87,4 +87,4 @@ void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);
 void config_destroy(void);
 
-#endif /* #ifndef RELAY_CONFIG_H */
+#endif				/* #ifndef RELAY_CONFIG_H */

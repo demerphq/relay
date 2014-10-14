@@ -61,5 +61,4 @@ struct _ts {
 #define WARN_ERRNO(fmt, arg...) \
     WARN(fmt " { %s }", ## arg, errno ? strerror(errno) : "undefined error");
 
-#endif /* #ifndef RELAY_LOG_H */
-
+#endif				/* #ifndef RELAY_LOG_H */

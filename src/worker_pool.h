@@ -21,4 +21,4 @@ void worker_pool_destroy_static(void);
 int enqueue_blob_for_transmission(blob_t * b);
 void update_process_status(stats_count_t received, stats_count_t active);
 
-#endif /* #ifndef RELAY_WORKER_POOL_H */
+#endif				/* #ifndef RELAY_WORKER_POOL_H */
