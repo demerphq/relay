@@ -217,6 +217,7 @@ void config_die_args(int argc, char **argv)
 {
     (void) argc;
     /* XXX: fix me! */
+    /* XXX: how?!!! */
     DIE_RC(EXIT_FAILURE,
 	   "%s local-host:local-port tcp@remote-host:remote-port ...\n"
 	   "or file with socket description like:\n"
