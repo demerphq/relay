@@ -2,7 +2,7 @@
 #include "worker.h"
 #include "worker_pool.h"
 #include "setproctitle.h"
-#include "abort.h"
+#include "control.h"
 #include "config.h"
 #include "timer.h"
 #define MAX_BUF_LEN 128
@@ -61,7 +61,7 @@ void *udp_server(void *arg)
     uint32_t epoch, prev_epoch = 0;
 #endif
     char buf[MAX_CHUNK_SIZE];	// unused, but makes recv() happy
-    while (not_aborted()) {
+    while (not_stopped()) {
 	received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
 	if ((epoch = time(0)) != prev_epoch) {
@@ -76,7 +76,7 @@ void *udp_server(void *arg)
 	buf_to_blob_enqueue(buf, received);
     }
     WARN_ERRNO("recv failed");
-    set_aborted();
+    set_stopped();
     pthread_exit(NULL);
 }
 
@@ -203,7 +203,7 @@ void *tcp_server(void *arg)
     }
     free(pfds);
     free(clients);
-    set_aborted();
+    set_stopped();
     pthread_exit(NULL);
 }
 
@@ -246,12 +246,12 @@ int _main(config_t * config)
     pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {
-	int abort;
+	int control;
 
-	abort = get_abort_val();
-	if (abort & STOP) {
+	control = get_control_val();
+	if (control & STOP) {
 	    break;
-	} else if (abort & RELOAD) {
+	} else if (control & RELOAD) {
 	    if (config_reload(config)) {
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
@@ -261,7 +261,7 @@ int _main(config_t * config)
 		graphite_worker_destroy(graphite_worker);
 		pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 	    }
-	    unset_abort_bits(RELOAD);
+	    unset_control_bits(RELOAD);
 	}
 
 	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
@@ -278,11 +278,11 @@ static void sig_handler(int signum)
 {
     switch (signum) {
     case SIGHUP:
-	set_abort_bits(RELOAD);
+	set_control_bits(RELOAD);
 	break;
     case SIGTERM:
     case SIGINT:
-	set_aborted();
+	set_stopped();
 	break;
     default:
 	WARN("IGNORE: unexpected signal %d", signum);

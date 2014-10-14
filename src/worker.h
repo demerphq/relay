@@ -5,7 +5,7 @@
 #include "setproctitle.h"
 #include "relay_threads.h"
 #include "blob.h"
-#include "abort.h"
+#include "control.h"
 #include "stats.h"
 #include "config.h"
 #include "timer.h"

@@ -84,7 +84,7 @@ void worker_pool_init_static(config_t * config)
     LOCK(&POOL.lock);
     POOL.n_workers = 0;
     for (i = 1; i < config->argc; i++) {
-	if (is_aborted())
+	if (is_stopped())
 	    break;
 	new_worker = worker_init(config->argv[i]);
 	TAILQ_INSERT_HEAD(&POOL.workers, new_worker, entries);
