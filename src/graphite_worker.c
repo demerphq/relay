@@ -82,6 +82,8 @@ void *graphite_worker_thread(void *arg)
     graphite_worker_t *self = (graphite_worker_t *) arg;
     ssize_t sent_bytes;
     time_t this_epoch;
+    char stats_format[256];
+    char meminfo_format[256];
 
     self->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
     self->arg = strdup(CONFIG.graphite_arg);
@@ -96,7 +98,6 @@ void *graphite_worker_thread(void *arg)
 	worker_t *w;
 	struct mallinfo meminfo;
 	int wrote_len;
-	char meminfo_format[1024];
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -126,37 +127,59 @@ void *graphite_worker_thread(void *arg)
 
 	    accumulate_and_clear_stats(&w->totals, &totals);
 
-	    if (len >= 1000) {
-		wrote_len = snprintf(str, len,
-				     "%s.%s.received_count %lu"
-				     " %lu\n" "%s.%s.sent_count %lu"
-				     " %lu\n" "%s.%s.partial_count "
-				     "%lu %lu\n"
-				     "%s.%s.spilled_count %lu"
-				     " %lu\n" "%s.%s.error_count %lu"
-				     " %lu\n" "%s.%s.disk_count %lu"
-				     " %lu\n" "%s.%s.disk_error_count "
-				     "%lu %lu\n" "%s", self->root,
-				     w->s_output.arg_clean,
-				     totals.received_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.sent_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.partial_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.spilled_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.error_count, this_epoch,
-				     self->root, w->s_output.arg_clean,
-				     totals.disk_count, this_epoch,
-				     self->root, w->s_output.arg_clean, totals.disk_error_count, this_epoch, "");
+	    snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean, this_epoch);
 
-		if (wrote_len < 0 || wrote_len >= len) {
-		    /* should we warn? */
-		    break;
+	    {
+		int done = 0;
+		int i;
+		for (i = 0; !done; i++) {
+		    const char *label = NULL;
+		    uint64_t value = 0;
+		    switch (i) {
+		    case 0:
+			label = "received";
+			value = totals.received_count;
+			break;
+		    case 1:
+			label = "sent";
+			value = totals.sent_count;
+			break;
+		    case 2:
+			label = "partial";
+			value = totals.partial_count;
+			break;
+		    case 3:
+			label = "spilled";
+			value = totals.spilled_count;
+			break;
+		    case 4:
+			label = "error";
+			value = totals.error_count;
+			break;
+		    case 5:
+			label = "disk";
+			value = totals.disk_count;
+			break;
+		    case 6:
+			label = "disk_error";
+			value = totals.disk_error_count;
+			break;
+		    default:
+			done = 1;
+			break;
+		    }
+		    if (label == NULL)
+			break;
+		    wrote_len = snprintf(str, len, stats_format, label, value);
+		    if (wrote_len < 0 || wrote_len >= len) {
+			/* should we warn? */
+			break;
+		    }
+		    if (len > GRAPHITE_BUFFER_MAX)
+			break;
+		    str += wrote_len;
+		    len -= wrote_len;
 		}
-		str += wrote_len;
-		len -= wrote_len;
 	    }
 	}
 	UNLOCK(&POOL.lock);
@@ -168,8 +191,8 @@ void *graphite_worker_thread(void *arg)
 	snprintf(meminfo_format, sizeof(meminfo_format), "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
 
 	{
-	    int i;
 	    int done = 0;
+	    int i;
 	    for (i = 0; !done; i++) {
 		const char *label = NULL;
 		int value = -1;
@@ -231,11 +254,15 @@ void *graphite_worker_thread(void *arg)
 		    done = 1;
 		    break;
 		}
+		if (label == NULL)
+		    break;
 		wrote_len = snprintf(str, len, meminfo_format, label, value);
 		if (wrote_len < 0 || wrote_len >= len) {
 		    /* should we warn? */
 		    break;
 		}
+		if (len > GRAPHITE_BUFFER_MAX)
+		    break;
 		str += wrote_len;
 		len -= wrote_len;
 	    }
