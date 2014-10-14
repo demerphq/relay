@@ -1,6 +1,7 @@
+#include "relay.h"
+
 #include "config.h"
 #include "control.h"
-#include "relay.h"
 #include "setproctitle.h"
 #include "timer.h"
 #include "worker.h"

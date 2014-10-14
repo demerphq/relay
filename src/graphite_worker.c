@@ -1,6 +1,7 @@
+#include "graphite_worker.h"
+
 #include <malloc.h>
 
-#include "graphite_worker.h"
 #include "string_util.h"
 #include "worker_pool.h"
 

@@ -1,4 +1,5 @@
 #include "control.h"
+
 #include "relay_threads.h"
 
 static volatile uint32_t __control = 0;

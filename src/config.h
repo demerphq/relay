@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 struct config {
-    /* original argc/argv, or synethisized from config file */
+    /* original argc/argv, or synthesized from config file */
     int argc;
     char **argv;
 
