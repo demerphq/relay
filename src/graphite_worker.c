@@ -1,6 +1,7 @@
+#include <malloc.h>
+
 #include "graphite_worker.h"
 #include "worker_pool.h"
-#include <malloc.h>
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;

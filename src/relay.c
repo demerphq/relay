@@ -1,10 +1,11 @@
+#include "config.h"
+#include "control.h"
 #include "relay.h"
+#include "setproctitle.h"
+#include "timer.h"
 #include "worker.h"
 #include "worker_pool.h"
-#include "setproctitle.h"
-#include "control.h"
-#include "config.h"
-#include "timer.h"
+
 #define MAX_BUF_LEN 128
 
 static void sig_handler(int signum);

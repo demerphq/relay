@@ -3,10 +3,11 @@
  *
  *  Clobbers argv of our main procedure so ps(1) will display the title.
  */
+
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 
 #include "setproctitle.h"
 

@@ -1,4 +1,5 @@
 #include "blob.h"
+
 /* reallocate a buffer or die - (wonder if we should be more graceful
  * when we shutdown? */
 void *realloc_or_die(void *p, size_t size)

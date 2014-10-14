@@ -1,13 +1,14 @@
 #ifndef RELAY_BLOB_H
 #define RELAY_BLOB_H
 
-#include "relay_common.h"
-#include "relay_threads.h"
-#include "timer.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <stdio.h>
+
+#include "relay_common.h"
+#include "relay_threads.h"
+#include "timer.h"
 
 /* this structure is shared between different threads */
 /* the idea here is that we want a data structure which is exactly

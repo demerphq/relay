@@ -1,21 +1,22 @@
 #ifndef RELAY_SOCKET_UTIL_H
 #define RELAY_SOCKET_UTIL_H
 
-#include "relay_common.h"
-#include "config.h"
+#include <arpa/inet.h>
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <fcntl.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/un.h>
+
+#include "config.h"
+#include "relay_common.h"
 
 #define RELAY_CONN_IS_INBOUND   0
 #define RELAY_CONN_IS_OUTBOUND  1

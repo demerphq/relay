@@ -1,11 +1,11 @@
 #ifndef RELAY_STATS_H
 #define RELAY_STATS_H
 
+#include <stdio.h>
+
 #include "relay_common.h"
 #include "relay_threads.h"
 #include "setproctitle.h"
-#include <stdio.h>
-
 
 #define STATSfmt "%lu"
 typedef uint64_t stats_count_t;

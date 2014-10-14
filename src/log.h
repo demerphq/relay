@@ -1,13 +1,12 @@
 #ifndef RELAY_LOG_H
 #define RELAY_LOG_H
 
-#include <syslog.h>
 #include <stdint.h>
-#include <time.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
-
+#include <syslog.h>
+#include <time.h>
 
 #define OUR_FACILITY LOG_LOCAL5
 

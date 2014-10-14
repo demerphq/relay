@@ -1,9 +1,11 @@
 #ifndef RELAY_GRAPHITE_WORKER_H
 #define RELAY_GRAPHITE_WORKER_H
 
-#define GRAPHITE_BUFFER_MAX 16384
 #include <pthread.h>
+
 #include "socket_util.h"
+
+#define GRAPHITE_BUFFER_MAX 16384
 
 struct graphite_worker {
     pthread_t tid;

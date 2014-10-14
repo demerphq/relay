@@ -2,6 +2,7 @@
 #include "relay_threads.h"
 
 static sock_t s;
+
 #ifdef USE_SERVER
 #define PREFIX "SERVER"
 #else

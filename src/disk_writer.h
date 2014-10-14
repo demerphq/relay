@@ -3,12 +3,13 @@
 
 #define EXIT_FLAG 1
 
-#include "relay_common.h"
-#include "blob.h"
-#include "stats.h"
 #include <pthread.h>
-/* disk worker thread */
 
+#include "blob.h"
+#include "relay_common.h"
+#include "stats.h"
+
+/* disk worker thread */
 struct disk_writer {
     queue_t queue;
     pthread_t tid;

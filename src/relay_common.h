@@ -1,15 +1,15 @@
 #ifndef RELAY_RELAY_COMMON_H
 #define RELAY_RELAY_COMMON_H
 
-#include <time.h>
-#include <sys/time.h>
 #include <assert.h>
-#include "relay_threads.h"
-#include <sys/types.h>
-#include <unistd.h>
 #include <stdint.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "log.h"
+#include "relay_threads.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 256

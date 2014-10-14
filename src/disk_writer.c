@@ -1,6 +1,6 @@
+#include "config.h"
 #include "disk_writer.h"
 #include "worker_pool.h"
-#include "config.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;

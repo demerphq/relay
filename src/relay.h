@@ -1,14 +1,15 @@
 #ifndef RELAY_RELAY_H
 #define RELAY_RELAY_H
 
-#include "relay_common.h"
-#include "socket_util.h"
-#include <poll.h>
-#include <unistd.h>
-#include <signal.h>
 #include <ctype.h>
+#include <poll.h>
+#include <signal.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+
+#include "relay_common.h"
+#include "socket_util.h"
 
 #if defined(__APPLE__) || defined(__MACH__)
 #include <sys/syslimits.h>

@@ -1,7 +1,6 @@
 #include "config.h"
-#include "worker.h"
-
 #include "log.h"
+#include "worker.h"
 
 static const char *OUR_NAME = "event-relay";
 

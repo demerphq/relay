@@ -1,9 +1,10 @@
 #ifndef RELAY_CONTROL_H
 #define RELAY_CONTROL_H
 
+#include <stdint.h>
+
 #include "relay_threads.h"
 #include "relay_common.h"
-#include <stdint.h>
 
 #define RELAY_STOP    1
 #define RELAY_RELOAD  2
