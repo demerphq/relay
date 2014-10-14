@@ -1,5 +1,7 @@
 #include "worker_pool.h"
 
+#include "string_util.h"
+
 worker_pool_t POOL;
 
 #define PROCESS_STATUS_BUF_LEN 128
@@ -116,7 +118,7 @@ void worker_pool_reload_static(config_t * config)
     for (i = 1; i < config->argc; i++) {
 	must_add = 1;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
-	    if (!w->exists && strcmp(config->argv[i], w->arg) == 0) {
+	    if (!w->exists && STREQ(config->argv[i], w->arg)) {
 		w->exists = 1;
 		must_add = 0;
 		break;

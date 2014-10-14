@@ -40,8 +40,8 @@ void config_set_defaults(config_t * config)
 #define TRY_OPT_BEGIN do
 #define TRY_OPT_END   while (0)
 
-#define TRY_NUM_OPT(name,line,p)                                             \
-    if ( strcmp(#name, line) == 0 ) {                                       \
+#define TRY_NUM_OPT(name,line,p)                                            \
+    if ( STREQ(#name, line) ) {                                             \
         int tmp= atoi(p);                                                   \
         if (tmp > 0) {                                                      \
             config->name = tmp;                                             \
@@ -51,8 +51,8 @@ void config_set_defaults(config_t * config)
         break;                                                              \
     }
 
-#define TRY_STR_OPT(name,line,p)                                             \
-    if ( strcmp(#name, line) == 0 ) {                                       \
+#define TRY_STR_OPT(name,line,p)                                            \
+    if ( STREQ(#name, line) ) {                                             \
         free(config->name);                                                 \
         config->name = strdup(p);                                           \
         break;                                                              \
@@ -127,7 +127,7 @@ config_t *config_from_file(char *file)
 
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
   do { \
-    if ( strcmp(config->name, new_config->name) != 0 ) {    \
+    if ( STRNE(config->name, new_config->name) )       {    \
         SAY("changed '" #name "' from '%s' to '%s'",        \
                 config->name, new_config->name);            \
         free(config->name);                                 \
@@ -168,7 +168,7 @@ int config_reload(config_t * config)
 
     for (i = 0; i < config->argc; i++) {
 	if (i < new_config->argc) {
-	    if (strcmp(config->argv[i], new_config->argv[i]) != 0) {
+	    if (STRNE(config->argv[i], new_config->argv[i])) {
 		SAY("Changing %s socket config from '%s' to '%s'",
 		    i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
 		requires_restart = 1;

@@ -31,11 +31,11 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 	    if (DEBUG_SOCKETIZE)
 		SAY("found '@'");
 	    *p++ = '\0';	/* get rid of the @ and move to the next char */
-	    if (strcmp("tcp", a) == 0) {
+	    if (STREQ("tcp", a)) {
 		if (DEBUG_SOCKETIZE)
 		    SAY("protocol is tcp");
 		proto = IPPROTO_TCP;
-	    } else if (strcmp("udp", a) == 0) {
+	    } else if (STREQ("udp", a)) {
 		if (DEBUG_SOCKETIZE)
 		    SAY("protocol is udp");
 		proto = IPPROTO_UDP;
