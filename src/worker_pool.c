@@ -66,7 +66,7 @@ int enqueue_blob_for_transmission(blob_t * b)
     }
     UNLOCK(&POOL.lock);
     if (i == 0) {
-	WARN("no living workers, not sure what to do");	// dump the packet on disk?
+	WARN("no living workers, not sure what to do");	/*  dump the packet on disk? */
 	blob_destroy(b);
     }
     return i;
@@ -135,7 +135,7 @@ void worker_pool_reload_static(config_t * config)
 	    TAILQ_REMOVE(&POOL.workers, w, entries);
 	    UNLOCK(&POOL.lock);
 
-	    worker_destroy(w);	// might lock
+	    worker_destroy(w);	/*  might lock */
 
 	    LOCK(&POOL.lock);
 	} else {
@@ -155,7 +155,7 @@ void worker_pool_destroy_static(void)
 	TAILQ_REMOVE(&POOL.workers, w, entries);
 	UNLOCK(&POOL.lock);
 
-	worker_destroy(w);	// might lock
+	worker_destroy(w);	/*  might lock */
 
 	LOCK(&POOL.lock);
     }

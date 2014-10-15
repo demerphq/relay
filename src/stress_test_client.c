@@ -90,7 +90,7 @@ int main(int ac, char **av)
 	if (expected != sizeof(DATA))
 	    DIE_RC(EXIT_FAILURE, "expected: %zu, got: %d", sizeof(DATA), expected);
 	if ((rc = recv(fd, DATA, sizeof(DATA), MSG_WAITALL)) <= 0) {
-	    if (rc == 0)	// shutdown
+	    if (rc == 0)	/*  shutdown */
 		break;
 	    DIE("recv");
 	}

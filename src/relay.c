@@ -62,7 +62,7 @@ void *udp_server(void *arg)
     uint32_t packets = 0, prev_packets = 0;
     uint32_t epoch, prev_epoch = 0;
 #endif
-    char buf[MAX_CHUNK_SIZE];	// unused, but makes recv() happy
+    char buf[MAX_CHUNK_SIZE];	/*  unused, but makes recv() happy */
     while (not_stopped()) {
 	received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
@@ -103,10 +103,10 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
 
     shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
     close(ctxt->pfds[i].fd);
-    // WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd);
+    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
     free(client->buf);
 
-    // shift left
+    /*  shift left */
     memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
     memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
 
@@ -154,14 +154,14 @@ void *tcp_server(void *arg)
 
 		ctxt.clients[ctxt.nfds].pos = 0;
 		ctxt.clients[ctxt.nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
-		// WARN("[%d] CREATE %p fd: %d", i, ctxt.clients[ctxt.nfds].buf, fd);
+		/*  WARN("[%d] CREATE %p fd: %d", i, ctxt.clients[ctxt.nfds].buf, fd); */
 		ctxt.pfds[ctxt.nfds].fd = fd;
 		ctxt.pfds[ctxt.nfds].events = POLLIN;
 		ctxt.pfds[ctxt.nfds].revents = 0;
 		ctxt.nfds++;
 	    } else {
 		struct tcp_client *client = &ctxt.clients[i];
-		try_to_read = ASYNC_BUFFER_SIZE - client->pos;	// try to read as much as possible
+		try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
 		if (try_to_read <= 0) {
 		    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
 		    tcp_disconnect(&ctxt, i);
@@ -198,15 +198,15 @@ void *tcp_server(void *arg)
 			continue;
 		    }
 		    if (client->pos > 0) {
-			// [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-			//                                                                     ^ pos(12)
-			// after we remove the first packet + header it becomes:
-			// [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-			//                           ^ pos (5)
-			// and then we copy from header + data, to position 0, 5 bytes
-			//
-			// [ h ] [ h ] [ h ] [ h ] [ D ]
-			//                           ^ pos (5)
+			/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+			/*                                                                      ^ pos(12) */
+			/*  after we remove the first packet + header it becomes: */
+			/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+			/*                            ^ pos (5) */
+			/*  and then we copy from header + data, to position 0, 5 bytes */
+			/*  */
+			/*  [ h ] [ h ] [ h ] [ h ] [ D ] */
+			/*                            ^ pos (5) */
 			memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
 			if (client->pos >= EXPECTED_HEADER_SIZE)
 			    goto try_to_consume_one_more;
@@ -329,7 +329,7 @@ static void final_shutdown(pthread_t server_tid)
     stop_listener(server_tid);
     worker_pool_destroy_static();
     free(s_listen);
-    sleep(1);			// give a chance to the detachable tcp worker threads to pthread_exit()
+    sleep(1);			/*  give a chance to the detachable tcp worker threads to pthread_exit() */
     config_destroy();
     destroy_proctitle();
 }
