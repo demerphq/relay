@@ -164,43 +164,45 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 
     client->pos += received;
 
-  try_to_consume_one_more:
+    /* NOTE: the flow control of this loop is somewhat unusual. */
+    for (;;) {
 
-    if (client->pos < EXPECTED_HEADER_SIZE)
-	return TCP_SUCCESS;
+	if (client->pos < EXPECTED_HEADER_SIZE)
+	    return TCP_SUCCESS;
 
-    if (EXPECTED(client) > MAX_CHUNK_SIZE) {
-	WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
-	return TCP_FAILURE;
-    }
-
-    if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
-	buf_to_blob_enqueue(client->buf, EXPECTED(client));
-
-	client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
-	if (client->pos < 0) {
-	    WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
-		 client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
+	if (EXPECTED(client) > MAX_CHUNK_SIZE) {
+	    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
 	    return TCP_FAILURE;
 	}
 
-	if (client->pos > 0) {
-	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-	    /*                                                                      ^ pos(12) */
-	    /*  after we remove the first packet + header it becomes: */
-	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-	    /*                            ^ pos (5) */
-	    /*  and then we copy from header + data, to position 0, 5 bytes */
-	    /*  */
-	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] */
-	    /*                            ^ pos (5) */
-	    memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
-	    if (client->pos >= EXPECTED_HEADER_SIZE)
-		goto try_to_consume_one_more;
-	}
-    }
+	if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
+	    buf_to_blob_enqueue(client->buf, EXPECTED(client));
 
-    return TCP_SUCCESS;
+	    client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
+	    if (client->pos < 0) {
+		WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
+		     client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
+		return TCP_FAILURE;
+	    }
+
+	    if (client->pos > 0) {
+		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+		/*                                                                      ^ pos(12) */
+		/*  after we remove the first packet + header it becomes: */
+		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+		/*                            ^ pos (5) */
+		/*  and then we copy from header + data, to position 0, 5 bytes */
+		/*  */
+		/*  [ h ] [ h ] [ h ] [ h ] [ D ] */
+		/*                            ^ pos (5) */
+		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
+		if (client->pos >= EXPECTED_HEADER_SIZE)
+		    continue;
+	    }
+	}
+
+	return TCP_SUCCESS;
+    }
 }
 
 void *tcp_server(void *arg)
