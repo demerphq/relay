@@ -96,6 +96,27 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
     ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
 }
 
+static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
+{
+    int fd = accept(server_fd, NULL, NULL);
+    if (fd == -1) {
+	WARN_ERRNO("accept");
+	return 0;
+    }
+    setnonblocking(fd);
+    RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
+
+    tcp_context_realloc(ctxt, ctxt->nfds + 1);
+
+    ctxt->clients[ctxt->nfds].pos = 0;
+    ctxt->clients[ctxt->nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
+    /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
+    ctxt->pfds[ctxt->nfds].fd = fd;
+    ctxt->pfds[ctxt->nfds].events = POLLIN;
+    ctxt->nfds++;
+    return 1;
+}
+
 static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
@@ -142,22 +163,8 @@ void *tcp_server(void *arg)
 	    if (!ctxt.pfds[i].revents)
 		continue;
 	    if (ctxt.pfds[i].fd == s->socket) {
-		int fd = accept(s->socket, NULL, NULL);
-		if (fd == -1) {
-		    WARN_ERRNO("accept");
+		if (!tcp_accept(&ctxt, s->socket))
 		    goto out;
-		}
-		setnonblocking(fd);
-		RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
-
-		tcp_context_realloc(&ctxt, ctxt.nfds + 1);
-
-		ctxt.clients[ctxt.nfds].pos = 0;
-		ctxt.clients[ctxt.nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
-		/*  WARN("[%d] CREATE %p fd: %d", i, ctxt.clients[ctxt.nfds].buf, fd); */
-		ctxt.pfds[ctxt.nfds].fd = fd;
-		ctxt.pfds[ctxt.nfds].events = POLLIN;
-		ctxt.nfds++;
 	    } else {
 		struct tcp_client *client = &ctxt.clients[i];
 		int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
