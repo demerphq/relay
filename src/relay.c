@@ -118,7 +118,6 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
 void *tcp_server(void *arg)
 {
     sock_t *s = (sock_t *) arg;
-    int i, fd, try_to_read, received;
     tcp_server_context_t ctxt;
 
     setnonblocking(s->socket);
@@ -131,6 +130,7 @@ void *tcp_server(void *arg)
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
 
     for (;;) {
+	int i;
 	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_ms);
 	if (rc == -1) {
 	    if (rc == EINTR)
@@ -142,7 +142,7 @@ void *tcp_server(void *arg)
 	    if (!ctxt.pfds[i].revents)
 		continue;
 	    if (ctxt.pfds[i].fd == s->socket) {
-		fd = accept(s->socket, NULL, NULL);
+		int fd = accept(s->socket, NULL, NULL);
 		if (fd == -1) {
 		    WARN_ERRNO("accept");
 		    goto out;
@@ -160,7 +160,8 @@ void *tcp_server(void *arg)
 		ctxt.nfds++;
 	    } else {
 		struct tcp_client *client = &ctxt.clients[i];
-		try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
+		int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
+		int received;
 		if (try_to_read <= 0) {
 		    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
 		    tcp_disconnect(&ctxt, i);
@@ -216,11 +217,14 @@ void *tcp_server(void *arg)
     }
 
   out:
-    for (i = 0; i < (int) ctxt.nfds; i++) {
-	if (ctxt.pfds[i].fd != s->socket)
-	    free(ctxt.clients[i].buf);
-	shutdown(ctxt.pfds[i].fd, SHUT_RDWR);
-	close(ctxt.pfds[i].fd);
+    {
+	int i;
+	for (i = 0; i < (int) ctxt.nfds; i++) {
+	    if (ctxt.pfds[i].fd != s->socket)
+		free(ctxt.clients[i].buf);
+	    shutdown(ctxt.pfds[i].fd, SHUT_RDWR);
+	    close(ctxt.pfds[i].fd);
+	}
     }
     free(ctxt.pfds);
     free(ctxt.clients);
