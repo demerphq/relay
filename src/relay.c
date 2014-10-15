@@ -96,12 +96,16 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
     ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
 }
 
+#define TCP_FAILURE 0
+#define TCP_SUCCESS 1
+
+/* Returns zero if failed, non-zero if successful. */
 static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 {
     int fd = accept(server_fd, NULL, NULL);
     if (fd == -1) {
 	WARN_ERRNO("accept");
-	return 0;
+	return TCP_FAILURE;
     }
     setnonblocking(fd);
     RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
@@ -114,7 +118,8 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
     ctxt->pfds[ctxt->nfds].fd = fd;
     ctxt->pfds[ctxt->nfds].events = POLLIN;
     ctxt->nfds++;
-    return 1;
+
+    return TCP_SUCCESS;
 }
 
 static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
@@ -134,6 +139,68 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     ctxt->nfds--;
     tcp_context_realloc(ctxt, ctxt->nfds);
     RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
+}
+
+/* Returns zero if failed, non-zero if successful. */
+static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
+{
+    struct tcp_client *client = &ctxt->clients[i];
+
+    int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
+    int received;
+
+    if (try_to_read <= 0) {
+	WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
+	return TCP_FAILURE;
+    }
+
+    received = recv(ctxt->pfds[i].fd, client->buf + client->pos, try_to_read, 0);
+    if (received <= 0) {
+	if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+	    return TCP_SUCCESS;
+
+	return TCP_FAILURE;
+    }
+
+    client->pos += received;
+
+  try_to_consume_one_more:
+
+    if (client->pos < EXPECTED_HEADER_SIZE)
+	return TCP_SUCCESS;
+
+    if (EXPECTED(client) > MAX_CHUNK_SIZE) {
+	WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
+	return TCP_FAILURE;
+    }
+
+    if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
+	buf_to_blob_enqueue(client->buf, EXPECTED(client));
+
+	client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
+	if (client->pos < 0) {
+	    WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
+		 client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
+	    return TCP_FAILURE;
+	}
+
+	if (client->pos > 0) {
+	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+	    /*                                                                      ^ pos(12) */
+	    /*  after we remove the first packet + header it becomes: */
+	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
+	    /*                            ^ pos (5) */
+	    /*  and then we copy from header + data, to position 0, 5 bytes */
+	    /*  */
+	    /*  [ h ] [ h ] [ h ] [ h ] [ D ] */
+	    /*                            ^ pos (5) */
+	    memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
+	    if (client->pos >= EXPECTED_HEADER_SIZE)
+		goto try_to_consume_one_more;
+	}
+    }
+
+    return TCP_SUCCESS;
 }
 
 void *tcp_server(void *arg)
@@ -166,58 +233,8 @@ void *tcp_server(void *arg)
 		if (!tcp_accept(&ctxt, s->socket))
 		    goto out;
 	    } else {
-		struct tcp_client *client = &ctxt.clients[i];
-		int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
-		int received;
-		if (try_to_read <= 0) {
-		    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
+		if (!tcp_read(&ctxt, i)) {
 		    tcp_disconnect(&ctxt, i);
-		    continue;
-		}
-		received = recv(ctxt.pfds[i].fd, client->buf + client->pos, try_to_read, 0);
-		if (received <= 0) {
-		    if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-			continue;
-
-		    tcp_disconnect(&ctxt, i);
-		    continue;
-		}
-		client->pos += received;
-
-	      try_to_consume_one_more:
-
-		if (client->pos < EXPECTED_HEADER_SIZE)
-		    continue;
-
-		if (EXPECTED(client) > MAX_CHUNK_SIZE) {
-		    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
-		    tcp_disconnect(&ctxt, i);
-		    continue;
-		}
-		if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
-		    buf_to_blob_enqueue(client->buf, EXPECTED(client));
-
-		    client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
-		    if (client->pos < 0) {
-			WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
-			     client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
-			tcp_disconnect(&ctxt, i);
-			continue;
-		    }
-		    if (client->pos > 0) {
-			/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-			/*                                                                      ^ pos(12) */
-			/*  after we remove the first packet + header it becomes: */
-			/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-			/*                            ^ pos (5) */
-			/*  and then we copy from header + data, to position 0, 5 bytes */
-			/*  */
-			/*  [ h ] [ h ] [ h ] [ h ] [ D ] */
-			/*                            ^ pos (5) */
-			memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
-			if (client->pos >= EXPECTED_HEADER_SIZE)
-			    goto try_to_consume_one_more;
-		    }
 		}
 	    }
 	}
