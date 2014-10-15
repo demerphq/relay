@@ -82,7 +82,7 @@ void *udp_server(void *arg)
     pthread_exit(NULL);
 }
 
-#define EXPECTED(x) (*(int *) &(x)->buf[0])
+#define EXPECTED(x) (*(int32_t *) &(x)->buf[0])
 
 typedef struct {
     struct pollfd *pfds;
@@ -171,7 +171,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	if (client->pos < EXPECTED_HEADER_SIZE)
 	    return TCP_SUCCESS;
 
-	if (EXPECTED(client) > MAX_CHUNK_SIZE) {
+	if (EXPECTED(client) > MAX_CHUNK_SIZE || EXPECTED(client) < 0) {
 	    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
 	    return TCP_FAILURE;
 	}
