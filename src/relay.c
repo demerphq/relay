@@ -157,7 +157,6 @@ void *tcp_server(void *arg)
 		/*  WARN("[%d] CREATE %p fd: %d", i, ctxt.clients[ctxt.nfds].buf, fd); */
 		ctxt.pfds[ctxt.nfds].fd = fd;
 		ctxt.pfds[ctxt.nfds].events = POLLIN;
-		ctxt.pfds[ctxt.nfds].revents = 0;
 		ctxt.nfds++;
 	    } else {
 		struct tcp_client *client = &ctxt.clients[i];
