@@ -96,7 +96,7 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
     ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
 }
 
-void tcp_disconnect(tcp_server_context_t * ctxt, int i)
+static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client = &ctxt->clients[i];
