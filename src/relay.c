@@ -117,6 +117,7 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
     /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
     ctxt->pfds[ctxt->nfds].fd = fd;
     ctxt->pfds[ctxt->nfds].events = POLLIN;
+    ctxt->pfds[ctxt->nfds].revents = 0;
     ctxt->nfds++;
 
     return TCP_SUCCESS;
