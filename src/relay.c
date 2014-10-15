@@ -84,34 +84,59 @@ void *udp_server(void *arg)
 
 #define EXPECTED(x) (*(int *) &(x)->buf[0])
 
+typedef struct {
+    struct pollfd *pfds;
+    volatile nfds_t nfds;
+    struct tcp_client *clients;
+} tcp_server_context_t;
+
+void tcp_disconnect(tcp_server_context_t * ctxt, int i)
+{
+    /* We could pass in both client and i, but then there's danger of mismatch. */
+    struct tcp_client *client = &ctxt->clients[i];
+
+    shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
+    close(ctxt->pfds[i].fd);
+    // WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd);
+    free(client->buf);
+
+    // shift left
+    memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
+    memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
+
+    ctxt->nfds--;
+    ctxt->pfds = realloc_or_die(ctxt->pfds, ctxt->nfds * sizeof(struct pollfd));
+    ctxt->clients = realloc_or_die(ctxt->clients, ctxt->nfds * sizeof(struct tcp_client));
+    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
+}
+
 void *tcp_server(void *arg)
 {
     sock_t *s = (sock_t *) arg;
     int i, fd, try_to_read, received;
-    struct tcp_client *clients, *client;
-    struct pollfd *pfds = NULL;
-    volatile nfds_t nfds;
+    tcp_server_context_t ctxt;
+
     setnonblocking(s->socket);
 
-    nfds = 1;
-    pfds = calloc_or_die(nfds * sizeof(struct pollfd));
-    pfds->fd = s->socket;
-    pfds->events = POLLIN;
-    clients = NULL;
+    ctxt.nfds = 1;
+    ctxt.pfds = calloc_or_die(ctxt.nfds * sizeof(struct pollfd));
+    ctxt.pfds[0].fd = s->socket;
+    ctxt.pfds[0].events = POLLIN;
+    ctxt.clients = NULL;
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
-    int rc;
+
     for (;;) {
-	rc = poll(pfds, nfds, CONFIG.polling_interval_ms);
+	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_ms);
 	if (rc == -1) {
 	    if (rc == EINTR)
 		continue;
 	    WARN_ERRNO("poll");
 	    goto out;
 	}
-	for (i = 0; i < (int) nfds; i++) {
-	    if (!pfds[i].revents)
+	for (i = 0; i < (int) ctxt.nfds; i++) {
+	    if (!ctxt.pfds[i].revents)
 		continue;
-	    if (pfds[i].fd == s->socket) {
+	    if (ctxt.pfds[i].fd == s->socket) {
 		fd = accept(s->socket, NULL, NULL);
 		if (fd == -1) {
 		    WARN_ERRNO("accept");
@@ -119,42 +144,30 @@ void *tcp_server(void *arg)
 		}
 		setnonblocking(fd);
 		RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
-		pfds = realloc_or_die(pfds, (nfds + 1) * sizeof(*pfds));
-		clients = realloc_or_die(clients, (nfds + 1) * sizeof(*clients));
+		ctxt.pfds = realloc_or_die(ctxt.pfds, (ctxt.nfds + 1) * sizeof(struct pollfd));
+		ctxt.clients = realloc_or_die(ctxt.clients, (ctxt.nfds + 1) * sizeof(struct tcp_client));
 
-		clients[nfds].pos = 0;
-		clients[nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
-//                WARN("[%d] CREATE %p fd: %d",i,clients[nfds].buf,fd);
-		pfds[nfds].fd = fd;
-		pfds[nfds].events = POLLIN;
-		pfds[nfds].revents = 0;
-		nfds++;
+		ctxt.clients[ctxt.nfds].pos = 0;
+		ctxt.clients[ctxt.nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
+		// WARN("[%d] CREATE %p fd: %d", i, ctxt.clients[ctxt.nfds].buf, fd);
+		ctxt.pfds[ctxt.nfds].fd = fd;
+		ctxt.pfds[ctxt.nfds].events = POLLIN;
+		ctxt.pfds[ctxt.nfds].revents = 0;
+		ctxt.nfds++;
 	    } else {
-		client = &clients[i];
+		struct tcp_client *client = &ctxt.clients[i];
 		try_to_read = ASYNC_BUFFER_SIZE - client->pos;	// try to read as much as possible
 		if (try_to_read <= 0) {
 		    WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
-		    goto disconnect;
+		    tcp_disconnect(&ctxt, i);
+		    continue;
 		}
-		received = recv(pfds[i].fd, client->buf + client->pos, try_to_read, 0);
+		received = recv(ctxt.pfds[i].fd, client->buf + client->pos, try_to_read, 0);
 		if (received <= 0) {
 		    if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 			continue;
 
-		  disconnect:
-		    shutdown(pfds[i].fd, SHUT_RDWR);
-		    close(pfds[i].fd);
-//                    WARN("[%d] DESTROY %p %d %d fd: %d vs %d",i,client->buf,client->x,i,pfds[i].fd,client->fd);
-		    free(client->buf);
-
-		    // shft left
-		    memcpy(pfds + i, pfds + i + 1, (nfds - i - 1) * sizeof(struct pollfd));
-		    memcpy(clients + i, clients + i + 1, (nfds - i - 1) * sizeof(struct tcp_client));
-
-		    nfds--;
-		    pfds = realloc_or_die(pfds, nfds * sizeof(struct pollfd));
-		    clients = realloc_or_die(clients, nfds * sizeof(struct tcp_client));
-		    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
+		    tcp_disconnect(&ctxt, i);
 		    continue;
 		}
 		client->pos += received;
@@ -166,7 +179,8 @@ void *tcp_server(void *arg)
 
 		if (EXPECTED(client) > MAX_CHUNK_SIZE) {
 		    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
-		    goto disconnect;
+		    tcp_disconnect(&ctxt, i);
+		    continue;
 		}
 		if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
 		    buf_to_blob_enqueue(client->buf, EXPECTED(client));
@@ -175,7 +189,8 @@ void *tcp_server(void *arg)
 		    if (client->pos < 0) {
 			WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
 			     client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
-			goto disconnect;
+			tcp_disconnect(&ctxt, i);
+			continue;
 		    }
 		    if (client->pos > 0) {
 			// [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
@@ -197,14 +212,14 @@ void *tcp_server(void *arg)
     }
 
   out:
-    for (i = 0; i < (int) nfds; i++) {
-	if (pfds[i].fd != s->socket)
-	    free(clients[i].buf);
-	shutdown(pfds[i].fd, SHUT_RDWR);
-	close(pfds[i].fd);
+    for (i = 0; i < (int) ctxt.nfds; i++) {
+	if (ctxt.pfds[i].fd != s->socket)
+	    free(ctxt.clients[i].buf);
+	shutdown(ctxt.pfds[i].fd, SHUT_RDWR);
+	close(ctxt.pfds[i].fd);
     }
-    free(pfds);
-    free(clients);
+    free(ctxt.pfds);
+    free(ctxt.clients);
     set_stopped();
     pthread_exit(NULL);
 }
