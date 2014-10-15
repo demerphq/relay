@@ -90,6 +90,12 @@ typedef struct {
     struct tcp_client *clients;
 } tcp_server_context_t;
 
+static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
+{
+    ctxt->pfds = realloc_or_die(ctxt->pfds, n * sizeof(struct pollfd));
+    ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
+}
+
 void tcp_disconnect(tcp_server_context_t * ctxt, int i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
@@ -105,8 +111,7 @@ void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
 
     ctxt->nfds--;
-    ctxt->pfds = realloc_or_die(ctxt->pfds, ctxt->nfds * sizeof(struct pollfd));
-    ctxt->clients = realloc_or_die(ctxt->clients, ctxt->nfds * sizeof(struct tcp_client));
+    tcp_context_realloc(ctxt, ctxt->nfds);
     RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
 }
 
@@ -144,8 +149,8 @@ void *tcp_server(void *arg)
 		}
 		setnonblocking(fd);
 		RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
-		ctxt.pfds = realloc_or_die(ctxt.pfds, (ctxt.nfds + 1) * sizeof(struct pollfd));
-		ctxt.clients = realloc_or_die(ctxt.clients, (ctxt.nfds + 1) * sizeof(struct tcp_client));
+
+		tcp_context_realloc(&ctxt, ctxt.nfds + 1);
 
 		ctxt.clients[ctxt.nfds].pos = 0;
 		ctxt.clients[ctxt.nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
