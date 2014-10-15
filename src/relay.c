@@ -82,7 +82,7 @@ void *udp_server(void *arg)
     pthread_exit(NULL);
 }
 
-#define EXPECTED(x) (*(int32_t *) &(x)->buf[0])
+#define EXPECTED_PACKET_SIZE(x) (*(uint32_t *) &(x)->buf[0])
 
 typedef struct {
     struct pollfd *pfds;
@@ -171,21 +171,15 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	if (client->pos < EXPECTED_HEADER_SIZE)
 	    return TCP_SUCCESS;
 
-	if (EXPECTED(client) > MAX_CHUNK_SIZE || EXPECTED(client) < 0) {
-	    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED(client), MAX_CHUNK_SIZE);
+	if (EXPECTED_PACKET_SIZE(client) > MAX_CHUNK_SIZE) {
+	    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED_PACKET_SIZE(client), MAX_CHUNK_SIZE);
 	    return TCP_FAILURE;
 	}
 
-	if (client->pos >= EXPECTED(client) + EXPECTED_HEADER_SIZE) {
-	    buf_to_blob_enqueue(client->buf, EXPECTED(client));
+	if (client->pos >= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE) {
+	    buf_to_blob_enqueue(client->buf, EXPECTED_PACKET_SIZE(client));
 
-	    client->pos -= EXPECTED(client) + EXPECTED_HEADER_SIZE;
-	    if (client->pos < 0) {
-		WARN("BAD PACKET wrong 'next' position(< 0) pos: %d expected packet size:%d header_size: %d",
-		     client->pos, EXPECTED(client), EXPECTED_HEADER_SIZE);
-		return TCP_FAILURE;
-	    }
-
+	    client->pos -= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE;
 	    if (client->pos > 0) {
 		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                                                                      ^ pos(12)
@@ -193,12 +187,13 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 		 *  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                            ^ pos (5)
 		 *  and then we copy from header + data, to position 0, 5 bytes
-		 *
+                 *
 		 *  [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                            ^ pos (5) */
-		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
+
+		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED_PACKET_SIZE(client), client->pos);
 		if (client->pos >= EXPECTED_HEADER_SIZE)
-		    continue;
+		    continue; /* there is one more packet left in the buffer, consume it */
 	    }
 	}
 

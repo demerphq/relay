@@ -22,7 +22,7 @@
 #define ASYNC_BUFFER_SIZE (MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE)
 struct tcp_client {
     char *buf;
-    int pos;
+    uint32_t pos;
 };
 
 #endif				/* #ifndef RELAY_RELAY_H */
