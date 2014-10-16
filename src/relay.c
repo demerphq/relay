@@ -221,14 +221,14 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
 }
 
-static void tcp_context_close(tcp_server_context_t * ctxt, int fd)
+static void tcp_context_close(tcp_server_context_t * ctxt, int server_fd)
 {
     /* In addition to releasing resources (free, close) also reset
      * the various fields to invalid values (NULL, -1) just in case
      * someone accidentally tries using them. */
     int i;
     for (i = 0; i < (int) ctxt->nfds; i++) {
-	if (ctxt->pfds[i].fd != fd) {
+	if (ctxt->pfds[i].fd != server_fd) {
 	    free(ctxt->clients[i].buf);
 	    ctxt->clients[i].buf = NULL;
 	}
