@@ -84,9 +84,17 @@ void *udp_server(void *arg)
 
 #define EXPECTED_PACKET_SIZE(x) (*(uint32_t *) &(x)->buf[0])
 
+/* The server socket and the client contexts. */
 typedef struct {
+    /* The number of clients. */
     volatile nfds_t nfds;
+
+    /* The file descriptors.  The pfds[0] is the server socket,
+     * the pfds[1...] are the client sockets. */
     struct pollfd *pfds;
+
+    /* The clients[0] is unused (it is the server),
+     * the pfds[1..] are the client contexts. */
     struct tcp_client *clients;
 } tcp_server_context_t;
 
