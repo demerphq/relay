@@ -144,7 +144,10 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
  * If not successful, this connection should probably be disconnected. */
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
-    struct tcp_client *client = &ctxt->clients[i];
+    struct tcp_client *client;
+
+    assert(i < ctxt->nfds);
+    client = &ctxt->clients[i];
 
     /* try to read as much as possible */
     ssize_t try_to_read = ASYNC_BUFFER_SIZE - (int) client->pos;
@@ -204,7 +207,10 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
-    struct tcp_client *client = &ctxt->clients[i];
+    struct tcp_client *client;
+
+    assert(i < ctxt->nfds);
+    client = &ctxt->clients[i];
 
     /* WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
 
@@ -221,12 +227,14 @@ static void tcp_close(tcp_server_context_t * ctxt, nfds_t i)
 
 static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
 {
+    assert(i < ctxt->nfds);
     tcp_close(ctxt, i);
 
     /* Remove the disconnected connection by shifting left
      * the connections coming after it. */
     {
 	nfds_t tail = ctxt->nfds - i - 1;
+	assert(tail < ctxt->nfds);
 	memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, tail * sizeof(struct pollfd));
 	memcpy(ctxt->clients + i, ctxt->clients + i + 1, tail * sizeof(struct tcp_client));
     }
