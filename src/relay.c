@@ -85,8 +85,8 @@ void *udp_server(void *arg)
 #define EXPECTED_PACKET_SIZE(x) (*(uint32_t *) &(x)->buf[0])
 
 typedef struct {
-    struct pollfd *pfds;
     volatile nfds_t nfds;
+    struct pollfd *pfds;
     struct tcp_client *clients;
 } tcp_server_context_t;
 
@@ -234,13 +234,19 @@ void tcp_context_close(tcp_server_context_t * ctxt, int fd)
     ctxt->clients = NULL;
 }
 
+void tcp_context_init(tcp_server_context_t * ctxt)
+{
+    ctxt->nfds = 0;
+    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));	/* Just the server socket. */
+    ctxt->clients = NULL;
+}
+
 void *tcp_server(void *arg)
 {
     sock_t *s = (sock_t *) arg;
     tcp_server_context_t ctxt;
 
-    ctxt.nfds = 0;
-    ctxt.pfds = calloc_or_die(sizeof(struct pollfd));
+    tcp_context_init(&ctxt);
 
     tcp_add_fd(&ctxt, s->socket);
 
