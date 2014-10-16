@@ -57,14 +57,13 @@ static inline blob_t *buf_to_blob_enqueue(char *buf, size_t size)
 void *udp_server(void *arg)
 {
     sock_t *s = (sock_t *) arg;
-    ssize_t received;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
     uint32_t epoch, prev_epoch = 0;
 #endif
     char buf[MAX_CHUNK_SIZE];	/* unused, but makes recv() happy */
     while (not_stopped()) {
-	received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
+	ssize_t received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
 	if ((epoch = time(0)) != prev_epoch) {
 	    SAY("packets: %d", packets - prev_packets);
