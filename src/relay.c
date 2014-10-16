@@ -144,21 +144,18 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
  * If not successful, this connection should probably be removed. */
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
-    struct tcp_client *client;
-
     assert(i < ctxt->nfds);
-    client = &ctxt->clients[i];
+    struct tcp_client *client = &ctxt->clients[i];
 
     /* try to read as much as possible */
     ssize_t try_to_read = ASYNC_BUFFER_SIZE - (int) client->pos;
-    ssize_t received;
 
     if (try_to_read <= 0) {
 	WARN("try_to_read: %zd, pos: %u", try_to_read, client->pos);
 	return TCP_FAILURE;
     }
 
-    received = recv(ctxt->pfds[i].fd, client->buf + client->pos, try_to_read, 0);
+    ssize_t received = recv(ctxt->pfds[i].fd, client->buf + client->pos, try_to_read, 0);
     if (received <= 0) {
 	if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 	    return TCP_SUCCESS;
@@ -208,10 +205,8 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
-    struct tcp_client *client;
-
     assert(i < ctxt->nfds);
-    client = &ctxt->clients[i];
+    struct tcp_client *client = &ctxt->clients[i];
 
     /* WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
 
@@ -248,8 +243,7 @@ static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 
 static void tcp_context_close(tcp_server_context_t * ctxt)
 {
-    nfds_t i;
-    for (i = 0; i < ctxt->nfds; i++) {
+    for (nfds_t i = 0; i < ctxt->nfds; i++) {
 	tcp_client_close(ctxt, i);
     }
     /* Release and reset. */
@@ -279,8 +273,7 @@ void *tcp_server(void *arg)
 	    WARN_ERRNO("poll");
 	    goto out;
 	} else {
-	    nfds_t i;
-	    for (i = 0; i < ctxt.nfds; i++) {
+	    for (nfds_t i = 0; i < ctxt.nfds; i++) {
 		if (!ctxt.pfds[i].revents)
 		    continue;
 		if (ctxt.pfds[i].fd == s->socket) {
