@@ -72,11 +72,12 @@ void *udp_server(void *arg)
 	}
 	packets++;
 #endif
-	if (received < 0)
+	if (received < 0) {
+	    WARN_ERRNO("recv failed");
 	    break;
+	}
 	buf_to_blob_enqueue(buf, received);
     }
-    WARN_ERRNO("recv failed");
     set_stopped();
     pthread_exit(NULL);
 }
