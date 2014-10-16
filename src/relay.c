@@ -187,13 +187,13 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 		 *  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                            ^ pos (5)
 		 *  and then we copy from header + data, to position 0, 5 bytes
-                 *
+		 *
 		 *  [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                            ^ pos (5) */
 
 		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED_PACKET_SIZE(client), client->pos);
 		if (client->pos >= EXPECTED_HEADER_SIZE)
-		    continue; /* there is one more packet left in the buffer, consume it */
+		    continue;	/* there is one more packet left in the buffer, consume it */
 	    }
 	}
 
