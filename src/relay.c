@@ -272,7 +272,7 @@ void *tcp_server(void *arg)
     for (;;) {
 	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_ms);
 	if (rc == -1) {
-	    if (rc == EINTR)
+	    if (errno == EINTR)
 		continue;
 	    WARN_ERRNO("poll");
 	    goto out;
