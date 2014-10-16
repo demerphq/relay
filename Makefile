@@ -7,7 +7,7 @@ CLANG_MSAN_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins
 CLANG_TSAN_FLAGS=-fsanitize=thread
 GCC_FLAGS=-O3
 CC=gcc
-CFLAGS=-Wall -Wextra -pthread
+CFLAGS=-Wall -Wextra -pthread -std=c99 -D_BSD_SOURCE -D_POSIX_SOURCE
 
 all:
 	mkdir -p bin
