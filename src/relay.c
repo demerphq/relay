@@ -104,8 +104,18 @@ typedef struct {
 static void tcp_context_init(tcp_server_context_t * ctxt)
 {
     ctxt->nfds = 0;
-    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));	/* Just the server socket. */
-    ctxt->clients = NULL;
+
+    /* Just the server socket. */
+    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));
+
+    /* tcp_add_fd() will set this right soon. */
+    ctxt->pfds[0].fd = -1;
+
+    /* The clients[0] is unused but let's make it a "null client" so
+     * that looping over the contexts can have less special cases. */
+    ctxt->clients = calloc_or_die(sizeof(struct tcp_client));
+    ctxt->clients[0].buf = NULL;
+    ctxt->clients[0].pos = 0;
 }
 
 static void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
@@ -226,7 +236,6 @@ static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
     ctxt->pfds[i].fd = -1;
     free(client->buf);
     client->buf = NULL;
-
 }
 
 /* Remove the client connection (first closes it) */
