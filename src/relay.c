@@ -201,6 +201,28 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
+void tcp_context_close(tcp_server_context_t * ctxt, int fd)
+{
+    /* In addition to releasing resources (free, close) also reset
+     * the various fields to invalid values (NULL, -1) just in case
+     * someone accidentally tries using them. */
+    int i;
+    for (i = 0; i < (int) ctxt->nfds; i++) {
+	if (ctxt->pfds[i].fd != fd) {
+	    free(ctxt->clients[i].buf);
+	    ctxt->clients[i].buf = NULL;
+	}
+	shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
+	close(ctxt->pfds[i].fd);
+	ctxt->pfds[i].fd = -1;
+    }
+    free(ctxt->pfds);
+    free(ctxt->clients);
+    ctxt->nfds = -1;
+    ctxt->pfds = NULL;
+    ctxt->clients = NULL;
+}
+
 void *tcp_server(void *arg)
 {
     sock_t *s = (sock_t *) arg;
@@ -216,40 +238,31 @@ void *tcp_server(void *arg)
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
 
     for (;;) {
-	int i;
 	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_ms);
 	if (rc == -1) {
 	    if (rc == EINTR)
 		continue;
 	    WARN_ERRNO("poll");
 	    goto out;
-	}
-	for (i = 0; i < (int) ctxt.nfds; i++) {
-	    if (!ctxt.pfds[i].revents)
-		continue;
-	    if (ctxt.pfds[i].fd == s->socket) {
-		if (!tcp_accept(&ctxt, s->socket))
-		    goto out;
-	    } else {
-		if (!tcp_read(&ctxt, i)) {
-		    tcp_disconnect(&ctxt, i);
+	} else {
+	    int i;
+	    for (i = 0; i < (int) ctxt.nfds; i++) {
+		if (!ctxt.pfds[i].revents)
+		    continue;
+		if (ctxt.pfds[i].fd == s->socket) {
+		    if (!tcp_accept(&ctxt, s->socket))
+			goto out;
+		} else {
+		    if (!tcp_read(&ctxt, i)) {
+			tcp_disconnect(&ctxt, i);
+		    }
 		}
 	    }
 	}
     }
 
   out:
-    {
-	int i;
-	for (i = 0; i < (int) ctxt.nfds; i++) {
-	    if (ctxt.pfds[i].fd != s->socket)
-		free(ctxt.clients[i].buf);
-	    shutdown(ctxt.pfds[i].fd, SHUT_RDWR);
-	    close(ctxt.pfds[i].fd);
-	}
-    }
-    free(ctxt.pfds);
-    free(ctxt.clients);
+    tcp_context_close(&ctxt, s->socket);
     set_stopped();
     pthread_exit(NULL);
 }
