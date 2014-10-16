@@ -99,6 +99,14 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
 #define TCP_FAILURE 0
 #define TCP_SUCCESS 1
 
+void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
+{
+    setnonblocking(fd);
+    ctxt->pfds[ctxt->nfds].fd = fd;
+    ctxt->pfds[ctxt->nfds].events = POLLIN;
+    ctxt->nfds++;
+}
+
 /* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
  * If not successful the server loop should probably finish. */
 static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
@@ -108,18 +116,17 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 	WARN_ERRNO("accept");
 	return TCP_FAILURE;
     }
-    setnonblocking(fd);
     RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
 
     tcp_context_realloc(ctxt, ctxt->nfds + 1);
 
     ctxt->clients[ctxt->nfds].pos = 0;
     ctxt->clients[ctxt->nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
-    /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
-    ctxt->pfds[ctxt->nfds].fd = fd;
-    ctxt->pfds[ctxt->nfds].events = POLLIN;
     ctxt->pfds[ctxt->nfds].revents = 0;
-    ctxt->nfds++;
+
+    tcp_add_fd(ctxt, fd);
+
+    /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
 
     return TCP_SUCCESS;
 }
@@ -232,13 +239,11 @@ void *tcp_server(void *arg)
     sock_t *s = (sock_t *) arg;
     tcp_server_context_t ctxt;
 
-    setnonblocking(s->socket);
+    ctxt.nfds = 0;
+    ctxt.pfds = calloc_or_die(sizeof(struct pollfd));
 
-    ctxt.nfds = 1;
-    ctxt.pfds = calloc_or_die(ctxt.nfds * sizeof(struct pollfd));
-    ctxt.pfds[0].fd = s->socket;
-    ctxt.pfds[0].events = POLLIN;
-    ctxt.clients = NULL;
+    tcp_add_fd(&ctxt, s->socket);
+
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
 
     for (;;) {
