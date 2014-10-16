@@ -90,14 +90,15 @@ typedef struct {
     struct tcp_client *clients;
 } tcp_server_context_t;
 
-static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
-{
-    ctxt->pfds = realloc_or_die(ctxt->pfds, n * sizeof(struct pollfd));
-    ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
-}
-
 #define TCP_FAILURE 0
 #define TCP_SUCCESS 1
+
+static void tcp_context_init(tcp_server_context_t * ctxt)
+{
+    ctxt->nfds = 0;
+    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));	/* Just the server socket. */
+    ctxt->clients = NULL;
+}
 
 static void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
 {
@@ -105,6 +106,12 @@ static void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
     ctxt->pfds[ctxt->nfds].fd = fd;
     ctxt->pfds[ctxt->nfds].events = POLLIN;
     ctxt->nfds++;
+}
+
+static void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
+{
+    ctxt->pfds = realloc_or_die(ctxt->pfds, n * sizeof(struct pollfd));
+    ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
 }
 
 /* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
@@ -129,27 +136,6 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
     /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
 
     return TCP_SUCCESS;
-}
-
-static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
-{
-    /* We could pass in both client and i, but then there's danger of mismatch. */
-    struct tcp_client *client = &ctxt->clients[i];
-
-    shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
-    close(ctxt->pfds[i].fd);
-    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
-    free(client->buf);
-    ctxt->pfds[i].fd = -1;
-    client->buf = NULL;
-
-    /*  shift left */
-    memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
-    memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
-
-    ctxt->nfds--;
-    tcp_context_realloc(ctxt, ctxt->nfds);
-    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
 }
 
 /* Returns TCP_FAILURE if failed, TCP_SUCCESS successful.
@@ -214,6 +200,27 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
+static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
+{
+    /* We could pass in both client and i, but then there's danger of mismatch. */
+    struct tcp_client *client = &ctxt->clients[i];
+
+    shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
+    close(ctxt->pfds[i].fd);
+    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
+    free(client->buf);
+    ctxt->pfds[i].fd = -1;
+    client->buf = NULL;
+
+    /*  shift left */
+    memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
+    memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
+
+    ctxt->nfds--;
+    tcp_context_realloc(ctxt, ctxt->nfds);
+    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
+}
+
 static void tcp_context_close(tcp_server_context_t * ctxt, int fd)
 {
     /* In addition to releasing resources (free, close) also reset
@@ -235,13 +242,6 @@ static void tcp_context_close(tcp_server_context_t * ctxt, int fd)
     free(ctxt->clients);
     ctxt->nfds = -1;
     ctxt->pfds = NULL;
-    ctxt->clients = NULL;
-}
-
-static void tcp_context_init(tcp_server_context_t * ctxt)
-{
-    ctxt->nfds = 0;
-    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));	/* Just the server socket. */
     ctxt->clients = NULL;
 }
 
