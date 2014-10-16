@@ -225,9 +225,11 @@ void tcp_context_close(tcp_server_context_t * ctxt, int fd)
 	    free(ctxt->clients[i].buf);
 	    ctxt->clients[i].buf = NULL;
 	}
-	shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
-	close(ctxt->pfds[i].fd);
-	ctxt->pfds[i].fd = -1;
+	if (ctxt->pfds[i].fd != -1) {
+	    shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
+	    close(ctxt->pfds[i].fd);
+	    ctxt->pfds[i].fd = -1;
+	}
     }
     free(ctxt->pfds);
     free(ctxt->clients);
