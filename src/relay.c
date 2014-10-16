@@ -140,6 +140,8 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     close(ctxt->pfds[i].fd);
     /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
     free(client->buf);
+    ctxt->pfds[i].fd = -1;
+    client->buf = NULL;
 
     /*  shift left */
     memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
