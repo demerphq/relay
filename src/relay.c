@@ -99,7 +99,7 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
 #define TCP_FAILURE 0
 #define TCP_SUCCESS 1
 
-void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
+static void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
 {
     setnonblocking(fd);
     ctxt->pfds[ctxt->nfds].fd = fd;
@@ -214,7 +214,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
-void tcp_context_close(tcp_server_context_t * ctxt, int fd)
+static void tcp_context_close(tcp_server_context_t * ctxt, int fd)
 {
     /* In addition to releasing resources (free, close) also reset
      * the various fields to invalid values (NULL, -1) just in case
@@ -238,7 +238,7 @@ void tcp_context_close(tcp_server_context_t * ctxt, int fd)
     ctxt->clients = NULL;
 }
 
-void tcp_context_init(tcp_server_context_t * ctxt)
+static void tcp_context_init(tcp_server_context_t * ctxt)
 {
     ctxt->nfds = 0;
     ctxt->pfds = calloc_or_die(sizeof(struct pollfd));	/* Just the server socket. */
