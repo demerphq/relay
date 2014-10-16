@@ -201,18 +201,27 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
-static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
+static void tcp_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client = &ctxt->clients[i];
 
     /* WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
 
+    /* In addition to releasing resources (free, close) also reset
+     * the various fields to invalid values (NULL, -1) just in case
+     * someone accidentally tries using them. */
     shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
     close(ctxt->pfds[i].fd);
     ctxt->pfds[i].fd = -1;
     free(client->buf);
     client->buf = NULL;
+
+}
+
+static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
+{
+    tcp_close(ctxt, i);
 
     /* shift left */
     memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
@@ -225,21 +234,11 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
 
 static void tcp_context_close(tcp_server_context_t * ctxt)
 {
-    /* In addition to releasing resources (free, close) also reset
-     * the various fields to invalid values (NULL, -1) just in case
-     * someone accidentally tries using them. */
     nfds_t i;
     for (i = 0; i < ctxt->nfds; i++) {
-	if (ctxt->clients[i].buf) {
-	    free(ctxt->clients[i].buf);
-	    ctxt->clients[i].buf = NULL;
-	}
-	if (ctxt->pfds[i].fd != -1) {
-	    shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
-	    close(ctxt->pfds[i].fd);
-	    ctxt->pfds[i].fd = -1;
-	}
+	tcp_close(ctxt, i);
     }
+    /* Release and reset. */
     free(ctxt->pfds);
     free(ctxt->clients);
     ctxt->nfds = 0;		/* Cannot be -1 since nfds_t is unsigned. */
@@ -274,9 +273,8 @@ void *tcp_server(void *arg)
 		    if (!tcp_accept(&ctxt, s->socket))
 			goto out;
 		} else {
-		    if (!tcp_read(&ctxt, i)) {
+		    if (!tcp_read(&ctxt, i))
 			tcp_disconnect(&ctxt, i);
-		    }
 		}
 	    }
 	}
