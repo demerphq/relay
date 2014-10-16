@@ -115,7 +115,7 @@ static void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
 }
 
 /* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
- * If not successful the server loop should probably finish. */
+ * If not successful the server should probably exit. */
 static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 {
     int fd = accept(server_fd, NULL, NULL);
@@ -138,10 +138,10 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
     return TCP_SUCCESS;
 }
 
-/* Returns TCP_FAILURE if failed, TCP_SUCCESS successful.
+/* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
  * If successful, we should move on to the next connection.
  * (Note that the success may be a full or a partial packet.)
- * If not successful, this connection should probably be disconnected. */
+ * If not successful, this connection should probably be removed. */
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     struct tcp_client *client;
@@ -154,7 +154,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     ssize_t received;
 
     if (try_to_read <= 0) {
-	WARN("disconnecting, try to read: %zd, pos: %u", try_to_read, client->pos);
+	WARN("try_to_read: %zd, pos: %u", try_to_read, client->pos);
 	return TCP_FAILURE;
     }
 
@@ -204,7 +204,8 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
-static void tcp_close(tcp_server_context_t * ctxt, nfds_t i)
+/* Close the given client connection. */
+static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client;
@@ -225,12 +226,13 @@ static void tcp_close(tcp_server_context_t * ctxt, nfds_t i)
 
 }
 
-static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
+/* Remove the client connection (first closes it) */
+static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 {
     assert(i < ctxt->nfds);
-    tcp_close(ctxt, i);
+    tcp_client_close(ctxt, i);
 
-    /* Remove the disconnected connection by shifting left
+    /* Remove the connection by shifting left
      * the connections coming after it. */
     {
 	nfds_t tail = ctxt->nfds - i - 1;
@@ -248,7 +250,7 @@ static void tcp_context_close(tcp_server_context_t * ctxt)
 {
     nfds_t i;
     for (i = 0; i < ctxt->nfds; i++) {
-	tcp_close(ctxt, i);
+	tcp_client_close(ctxt, i);
     }
     /* Release and reset. */
     free(ctxt->pfds);
@@ -286,7 +288,7 @@ void *tcp_server(void *arg)
 			goto out;
 		} else {
 		    if (!tcp_read(&ctxt, i))
-			tcp_disconnect(&ctxt, i);
+			tcp_client_remove(&ctxt, i);
 		}
 	    }
 	}
