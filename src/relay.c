@@ -205,11 +205,12 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client = &ctxt->clients[i];
 
+    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
+
     shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
     close(ctxt->pfds[i].fd);
-    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
-    free(client->buf);
     ctxt->pfds[i].fd = -1;
+    free(client->buf);
     client->buf = NULL;
 
     /*  shift left */
