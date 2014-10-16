@@ -187,15 +187,15 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	    }
 
 	    if (client->pos > 0) {
-		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-		/*                                                                      ^ pos(12) */
-		/*  after we remove the first packet + header it becomes: */
-		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ] */
-		/*                            ^ pos (5) */
-		/*  and then we copy from header + data, to position 0, 5 bytes */
-		/*  */
-		/*  [ h ] [ h ] [ h ] [ h ] [ D ] */
-		/*                            ^ pos (5) */
+		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                                                                      ^ pos(12)
+		 *  after we remove the first packet + header it becomes:
+		 *  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                            ^ pos (5)
+		 *  and then we copy from header + data, to position 0, 5 bytes
+		 *
+		 *  [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                            ^ pos (5) */
 		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED(client), client->pos);
 		if (client->pos >= EXPECTED_HEADER_SIZE)
 		    continue;
