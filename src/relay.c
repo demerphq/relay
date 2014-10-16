@@ -62,7 +62,7 @@ void *udp_server(void *arg)
     uint32_t packets = 0, prev_packets = 0;
     uint32_t epoch, prev_epoch = 0;
 #endif
-    char buf[MAX_CHUNK_SIZE];	/*  unused, but makes recv() happy */
+    char buf[MAX_CHUNK_SIZE];	/* unused, but makes recv() happy */
     while (not_stopped()) {
 	received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
@@ -133,7 +133,7 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 
     tcp_add_fd(ctxt, fd);
 
-    /*  WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
+    /* WARN("CREATE %p fd: %d", ctxt->clients[ctxt->nfds].buf, fd); */
 
     return TCP_SUCCESS;
 }
@@ -146,7 +146,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     struct tcp_client *client = &ctxt->clients[i];
 
-    int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/*  try to read as much as possible */
+    int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/* try to read as much as possible */
     int received;
 
     if (try_to_read <= 0) {
@@ -180,15 +180,15 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 
 	    client->pos -= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE;
 	    if (client->pos > 0) {
-		/*  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                                                                      ^ pos(12)
-		 *  after we remove the first packet + header it becomes:
-		 *  [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                            ^ pos (5)
-		 *  and then we copy from header + data, to position 0, 5 bytes
+		/* [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                                                                     ^ pos(12)
+		 * after we remove the first packet + header it becomes:
+		 * [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                           ^ pos (5)
+		 * and then we copy from header + data, to position 0, 5 bytes
 		 *
-		 *  [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                            ^ pos (5) */
+		 * [ h ] [ h ] [ h ] [ h ] [ D ]
+		 *                           ^ pos (5) */
 
 		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED_PACKET_SIZE(client), client->pos);
 		if (client->pos >= EXPECTED_HEADER_SIZE)
@@ -205,7 +205,7 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client = &ctxt->clients[i];
 
-    /*  WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
+    /* WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
 
     shutdown(ctxt->pfds[i].fd, SHUT_RDWR);
     close(ctxt->pfds[i].fd);
@@ -213,7 +213,7 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     free(client->buf);
     client->buf = NULL;
 
-    /*  shift left */
+    /* shift left */
     memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
     memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
 
@@ -387,7 +387,7 @@ static void final_shutdown(pthread_t server_tid)
     stop_listener(server_tid);
     worker_pool_destroy_static();
     free(s_listen);
-    sleep(1);			/*  give a chance to the detachable tcp worker threads to pthread_exit() */
+    sleep(1);			/* give a chance to the detachable tcp worker threads to pthread_exit() */
     config_destroy();
     destroy_proctitle();
 }
