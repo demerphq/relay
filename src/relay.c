@@ -318,7 +318,7 @@ pthread_t setup_listener(config_t * config)
     return server_tid;
 }
 
-int _main(config_t * config)
+static int serve(config_t * config)
 {
     pthread_t server_tid = 0;
 
@@ -407,6 +407,5 @@ int main(int argc, char **argv)
 {
     config_init(argc, argv);
     initproctitle(argc, argv);
-
-    return _main(&CONFIG);
+    return serve(&CONFIG);
 }
