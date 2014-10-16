@@ -146,11 +146,12 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     struct tcp_client *client = &ctxt->clients[i];
 
-    int try_to_read = ASYNC_BUFFER_SIZE - client->pos;	/* try to read as much as possible */
-    int received;
+    /* try to read as much as possible */
+    ssize_t try_to_read = ASYNC_BUFFER_SIZE - (int) client->pos;
+    ssize_t received;
 
     if (try_to_read <= 0) {
-	WARN("disconnecting, try to read: %d, pos: %d", try_to_read, client->pos);
+	WARN("disconnecting, try to read: %zd, pos: %u", try_to_read, client->pos);
 	return TCP_FAILURE;
     }
 
@@ -200,7 +201,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     }
 }
 
-static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
+static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
 {
     /* We could pass in both client and i, but then there's danger of mismatch. */
     struct tcp_client *client = &ctxt->clients[i];
@@ -227,8 +228,8 @@ static void tcp_context_close(tcp_server_context_t * ctxt)
     /* In addition to releasing resources (free, close) also reset
      * the various fields to invalid values (NULL, -1) just in case
      * someone accidentally tries using them. */
-    int i;
-    for (i = 0; i < (int) ctxt->nfds; i++) {
+    nfds_t i;
+    for (i = 0; i < ctxt->nfds; i++) {
 	if (ctxt->clients[i].buf) {
 	    free(ctxt->clients[i].buf);
 	    ctxt->clients[i].buf = NULL;
@@ -241,7 +242,7 @@ static void tcp_context_close(tcp_server_context_t * ctxt)
     }
     free(ctxt->pfds);
     free(ctxt->clients);
-    ctxt->nfds = -1;
+    ctxt->nfds = 0;		/* Cannot be -1 since nfds_t is unsigned. */
     ctxt->pfds = NULL;
     ctxt->clients = NULL;
 }
@@ -265,8 +266,8 @@ void *tcp_server(void *arg)
 	    WARN_ERRNO("poll");
 	    goto out;
 	} else {
-	    int i;
-	    for (i = 0; i < (int) ctxt.nfds; i++) {
+	    nfds_t i;
+	    for (i = 0; i < ctxt.nfds; i++) {
 		if (!ctxt.pfds[i].revents)
 		    continue;
 		if (ctxt.pfds[i].fd == s->socket) {
