@@ -99,7 +99,8 @@ static INLINE void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
 #define TCP_FAILURE 0
 #define TCP_SUCCESS 1
 
-/* Returns zero if failed, non-zero if successful. */
+/* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
+ * If not successful the server loop should probably finish. */
 static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 {
     int fd = accept(server_fd, NULL, NULL);
@@ -142,7 +143,10 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, int i)
     RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
 }
 
-/* Returns zero if failed, non-zero if successful. */
+/* Returns TCP_FAILURE if failed, TCP_SUCCESS successful.
+ * If successful, we should move on to the next connection.
+ * (Note that the success may be a full or a partial packet.)
+ * If not successful, this connection should probably be disconnected. */
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     struct tcp_client *client = &ctxt->clients[i];
