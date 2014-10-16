@@ -223,9 +223,13 @@ static void tcp_disconnect(tcp_server_context_t * ctxt, nfds_t i)
 {
     tcp_close(ctxt, i);
 
-    /* shift left */
-    memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, (ctxt->nfds - i - 1) * sizeof(struct pollfd));
-    memcpy(ctxt->clients + i, ctxt->clients + i + 1, (ctxt->nfds - i - 1) * sizeof(struct tcp_client));
+    /* Remove the disconnected connection by shifting left
+     * the connections coming after it. */
+    {
+	nfds_t tail = ctxt->nfds - i - 1;
+	memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, tail * sizeof(struct pollfd));
+	memcpy(ctxt->clients + i, ctxt->clients + i + 1, tail * sizeof(struct tcp_client));
+    }
 
     ctxt->nfds--;
     tcp_context_realloc(ctxt, ctxt->nfds);
