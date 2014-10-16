@@ -69,9 +69,9 @@ void *worker_thread(void *arg)
 		worker_wait(CONFIG.polling_interval_ms);
 		continue;
 	    }
-	} else {
-	    RELAY_ATOMIC_INCREMENT(self->counters.received_count, private_queue.count);
 	}
+
+	RELAY_ATOMIC_INCREMENT(self->counters.received_count, private_queue.count);
 
 	/* ok, so we have something in our queue to process */
 	assert(private_queue.head);
