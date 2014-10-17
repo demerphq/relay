@@ -115,10 +115,8 @@ sub flush_totals {
 	printf("RECEIVING packets %d / total %d epoch %d busy %d idle %d\n",
 	       $done, $TOTAL_PACKETS, $now, $BUSY_COUNT, $IDLE_COUNT);
         for my $e (@DONE) {
-            if (scalar_looks_like_sereal($e)) {
-                my $try = sereal_decode_with_object($srl, $e);
-		# TODO: fail? count?
-            }
+	    # Just die if not real sereal.
+	    sereal_decode_with_object($srl, $e);
         }
 	@DONE = ();
     } else {
