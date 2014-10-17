@@ -44,19 +44,17 @@ INLINE blob_t *blob_new(size_t size)
  * incremented, that must be done externally. */
 INLINE blob_t *blob_clone_no_refcnt_inc(blob_t * b)
 {
-    blob_t *clone;
-
-    clone = malloc_or_die(sizeof(blob_t));
-    BLOB_NEXT_set(clone, NULL);
+    blob_t *cloned = malloc_or_die(sizeof(blob_t));
+    BLOB_NEXT_set(cloned, NULL);
 
     /* Note we assume that BLOB_REFCNT(b) is setup externally
      * so we do NOT set the refcnt when we do this.
      *
      * This also avoid unnecessary lock churn.
      */
-    BLOB_REF_PTR_set(clone, BLOB_REF_PTR(b));
+    BLOB_REF_PTR_set(cloned, BLOB_REF_PTR(b));
 
-    return clone;
+    return cloned;
 }
 
 /* blob_destroy(blob) - destroy a blob object */
