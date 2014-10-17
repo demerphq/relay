@@ -62,7 +62,6 @@ config_t *config_from_file(char *file)
 {
     FILE *f;
     char *line = NULL;
-    ssize_t read_bytes;
     size_t len = 0;
     config_t *config = calloc_or_die(sizeof(config_t));
     config_set_defaults(config);
@@ -71,7 +70,7 @@ config_t *config_from_file(char *file)
     if (f == NULL)
 	DIE("fopen: %s", file);
 
-    while ((read_bytes = getline(&line, &len, f)) != -1) {
+    while (getline(&line, &len, f) != -1) {
 	char *p;
 	if ((p = strchr(line, '#')))
 	    *p = '\0';
