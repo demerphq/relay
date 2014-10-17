@@ -131,11 +131,12 @@ void *worker_thread(void *arg)
 		WARN("%s: tried sending %zd bytes, sent %zd",
 		     (sck->type == SOCK_DGRAM) ? "udp" : "tcp", bytes_to_send, bytes_sent);
 		void *p = raw_bytes;
-		for (int i = 0; i < 16; i++) {
+		int peek_bytes = bytes_to_send > 16 ? 16 : bytes_to_send;
+		for (int i = 0; i < peek_bytes; i++) {
 		    printf("%02x ", ((unsigned char *) p)[i]);
 		}
 		printf("| ");
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < peek_bytes; i++) {
 		    unsigned char c = ((unsigned char *) p)[i];
 		    printf("%c", isprint(c) ? c : '.');
 		}
