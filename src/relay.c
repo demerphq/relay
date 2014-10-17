@@ -195,7 +195,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	}
 
 	if (client->pos >= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE) {
-	    buf_to_blob_enqueue(client->buf, EXPECTED_PACKET_SIZE(client));
+	    buf_to_blob_enqueue(client->buf + sizeof(uint32_t), EXPECTED_PACKET_SIZE(client));
 
 	    client->pos -= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE;
 	    if (client->pos > 0) {
