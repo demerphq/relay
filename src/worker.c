@@ -114,14 +114,33 @@ void *worker_thread(void *arg)
 	    if (!cur_blob)
 		break;
 
+	    void *raw_bytes;
 	    if (sck->type == SOCK_DGRAM) {
 		bytes_to_send = BLOB_BUF_SIZE(cur_blob);
+		raw_bytes = BLOB_BUF_addr(cur_blob);
 		bytes_sent =
-		    sendto(sck->socket, BLOB_BUF_addr(cur_blob),
+		    sendto(sck->socket, raw_bytes,
 			   bytes_to_send, MSG_NOSIGNAL, (struct sockaddr *) &sck->sa.in, sck->addrlen);
 	    } else {
 		bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
-		bytes_sent = sendto(sck->socket, BLOB_DATA_MBR_addr(cur_blob), bytes_to_send, MSG_NOSIGNAL, NULL, 0);
+		raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
+		bytes_sent = sendto(sck->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
+	    }
+	    if (0) {
+		int saverrno = errno;
+		WARN("%s: tried sending %zd bytes, sent %zd",
+		     (sck->type == SOCK_DGRAM) ? "udp" : "tcp", bytes_to_send, bytes_sent);
+		void *p = raw_bytes;
+		for (int i = 0; i < 16; i++) {
+		    printf("%02x ", ((unsigned char *) p)[i]);
+		}
+		printf("| ");
+		for (int i = 0; i < 16; i++) {
+		    unsigned char c = ((unsigned char *) p)[i];
+		    printf("%c", isprint(c) ? c : '.');
+		}
+		printf("...\n");
+		errno = saverrno;
 	    }
 
 	    if (bytes_sent == -1) {
