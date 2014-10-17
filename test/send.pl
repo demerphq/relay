@@ -11,6 +11,8 @@ my %Opt =
     (
      file   => "out.srl",
      host   => "localhost",
+     proto  => "udp",
+     type   => undef,
      port   => 10000,
      waitns => 1000,
      period => 60,
@@ -25,6 +27,8 @@ my %Opt =
 die "usage: $0 --port=$Opt{port}  --host=$Opt{host} --file=$Opt{file} [--count=N|--MB=N|--sec=N|--forever] --waitns=$Opt{waitns} --period=N"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
+		       "proto=s"     => \$Opt{proto},
+		       "type=s"      => \$Opt{type},
 		       "count=i"     => \$Opt{count},
 		       "MB=f"        => \$Opt{mb},
 		       "sec=f"       => \$Opt{sec},
@@ -32,7 +36,7 @@ die "usage: $0 --port=$Opt{port}  --host=$Opt{host} --file=$Opt{file} [--count=N
 		       "period=i"    => \$Opt{period},
 		       "waitns=i"    => \$Opt{waitns},
 		       "host=s"      => \$Opt{host})
-	    && ($Opt{count} > 0 || $Opt{mb} > 0 || $Opt{sec} > 0 || $Opt{forever}));
+	    && ($Opt{count} > 0 || $Opt{mb} > 0 || $Opt{sec} > 0 || $Opt{forever}) && $Opt{proto} =~ /^(?:udp|tcp)/);
 
 open(my $fh, '<', $Opt{file}) or die qq[$0: failed to open "$Opt{file}" for reading: $!];
 my $data = do { local $/; <$fh> };
@@ -73,7 +77,7 @@ $SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
 $SIG{ALRM} = sub { show_totals(); alarm($Opt{period}); };
 alarm($Opt{period});
 
-my $remote = IO::Socket::INET->new(Proto => 'udp',
+my $remote = IO::Socket::INET->new(Proto => $Opt{proto},
 				   PeerAddr => $Opt{host},
 				   PeerPort => $Opt{port}) or die "$0: $!";
 while (1) {
@@ -90,7 +94,14 @@ while (1) {
 	$last_time = $now;
         $last_packets = $packets;
     }
-    $remote->send($data);
+    my $prefix = '';
+    if (defined $Opt{type}) {
+	$prefix = "$Opt{type}:1:";
+    }
+    if ($Opt{proto} eq 'tcp') {
+	$prefix = pack('L', length($prefix) + length($data)) . $prefix;
+    }
+    $remote->send($prefix . $data);
     $packets++;
     last if !$Opt{forever} &&
             ($Opt{count} > 0 && $packets >= $Opt{count}) ||
