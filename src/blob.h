@@ -13,6 +13,14 @@
 /* The size of the blob.  Note that the wire format is LITTLE-ENDIAN. */
 typedef uint32_t __blob_size_t;
 
+/* The below makes builds on non-x86 fail.  It is slightly overzealous
+ * in that other little-endian will fail, too, unnecessarily.
+ *
+ * What would need to be changed for big-endian:
+ * (1) before sendto() the size would need swapping to little-endian.
+ * (2) after sendto() the size would need unswapping.
+ * (3) after recv() the size would need swapping from little-endian.
+ */
 #if !(defined(__x86_64__) || defined(__x86__))
 # error "not x86, code needs porting"
 #endif
