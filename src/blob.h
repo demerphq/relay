@@ -10,11 +10,14 @@
 #include "relay_threads.h"
 #include "timer.h"
 
+/* The size of the blob.  Note that the wire format is LITTLE-ENDIAN. */
+typedef uint32_t __blob_size_t;
+
 /* this structure is shared between different threads */
 /* the idea here is that we want a data structure which is exactly
  * 4 bytes of length, followed by K bytes of string */
 struct __data_blob {
-    uint32_t size;
+    __blob_size_t size;
     char buf[0];
 } __attribute__ ((packed));
 typedef struct __data_blob __data_blob_t;
