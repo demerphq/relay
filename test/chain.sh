@@ -6,15 +6,15 @@
 #
 # The last relay is connected to a test listener.
 
-export FIRST_PORT=10000
+export FIRST_PORT=${FIRST_PORT:-10000}
 export FIRST_PORT_PLUS_ONE=$(expr $FIRST_PORT + 1)
-export RELAY_COUNT=10
+export RELAY_COUNT=${RELAY_COUNT:-10}
 export LAST_PORT=$(expr $FIRST_PORT + $RELAY_COUNT - 1)
-export LISTENER_PORT=9003
+export LISTENER_PORT=${LISTENER_PORT:-9003}
 export LISTENER_FLAGS
 
-export RELAY=../bin/relay
-#export RELAY=../bin/relay.clang
+export RELAY=${RELAY:-../bin/relay}
+#export RELAY=${RELAY:-../bin/relay.clang}
 
 if test ! -f $RELAY; then
     echo "$0: No relay $RELAY, aborting."
