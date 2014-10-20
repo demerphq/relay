@@ -13,6 +13,10 @@
 /* The size of the blob.  Note that the wire format is LITTLE-ENDIAN. */
 typedef uint32_t __blob_size_t;
 
+#if !(defined(__x86_64__) || defined(__x86__))
+# error "not x86, code needs porting"
+#endif
+
 /* this structure is shared between different threads */
 /* the idea here is that we want a data structure which is exactly
  * 4 bytes of length, followed by K bytes of string */
