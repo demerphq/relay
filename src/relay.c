@@ -189,17 +189,19 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	if (client->pos < EXPECTED_HEADER_SIZE)
 	    return TCP_SUCCESS;
 
-	if (EXPECTED_PACKET_SIZE(client) > MAX_CHUNK_SIZE) {
-	    WARN("received frame (%d) > MAX_CHUNK_SIZE(%d)", EXPECTED_PACKET_SIZE(client), MAX_CHUNK_SIZE);
+	__blob_size_t expected_packet_size = EXPECTED_PACKET_SIZE(client);
+
+	if (expected_packet_size > MAX_CHUNK_SIZE) {
+	    WARN("received frame (%d) > MAX_CHUNK_SIZE (%d)", expected_packet_size, MAX_CHUNK_SIZE);
 	    return TCP_FAILURE;
 	}
 
-	if (client->pos >= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE) {
-	    /* If this packet came from a TCP connection, its first four
+	if (client->pos >= expected_packet_size + EXPECTED_HEADER_SIZE) {
+	    /* Since this packet came from a TCP connection, its first four
 	     * bytes are supposed to be the length, so let's skip them. */
-	    buf_to_blob_enqueue(client->buf + EXPECTED_HEADER_SIZE, EXPECTED_PACKET_SIZE(client));
+	    buf_to_blob_enqueue(client->buf + EXPECTED_HEADER_SIZE, expected_packet_size);
 
-	    client->pos -= EXPECTED_PACKET_SIZE(client) + EXPECTED_HEADER_SIZE;
+	    client->pos -= expected_packet_size + EXPECTED_HEADER_SIZE;
 	    if (client->pos > 0) {
 		/* [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                                                                     ^ pos(12)
@@ -211,7 +213,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 		 * [ h ] [ h ] [ h ] [ h ] [ D ]
 		 *                           ^ pos (5) */
 
-		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + EXPECTED_PACKET_SIZE(client), client->pos);
+		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + expected_packet_size, client->pos);
 		if (client->pos >= EXPECTED_HEADER_SIZE)
 		    continue;	/* there is one more packet left in the buffer, consume it */
 	    }
