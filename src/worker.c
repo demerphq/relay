@@ -50,6 +50,7 @@ void *worker_thread(void *arg)
 	    if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->s_output;
+		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
 		worker_wait(CONFIG.sleep_after_disaster_ms);
@@ -121,7 +122,7 @@ void *worker_thread(void *arg)
 		bytes_sent =
 		    sendto(sck->socket, raw_bytes,
 			   bytes_to_send, MSG_NOSIGNAL, (struct sockaddr *) &sck->sa.in, sck->addrlen);
-	    } else {
+	    } else {		/* sck->type == SOCK_STREAM */
 		bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
 		raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
 		bytes_sent = sendto(sck->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
