@@ -73,8 +73,6 @@ typedef struct queue queue_t;
 #define BLOB_LOCK_set(B, v)         BLOB_REF_PTR(B)->lock = (v)
 #define BLOB_BUF_SIZE_set(B, v)     BLOB_DATA_MBR(B).size = (v)
 
-//#define BLOB_BUF_set(B)        (BLOB_DATA_PTR(B)->data)
-
 /* blob.c */
 void *realloc_or_die(void *p, size_t size);
 void *malloc_or_die(size_t size);
