@@ -185,7 +185,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 
     /* NOTE: the flow control of this loop is somewhat unusual. */
     for (;;) {
-
+	/* Partial header: better to declare success and retry later. */
 	if (client->pos < EXPECTED_HEADER_SIZE)
 	    return TCP_SUCCESS;
 
