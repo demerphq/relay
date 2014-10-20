@@ -18,7 +18,7 @@
 # endif
 #endif
 
-#define EXPECTED_HEADER_SIZE 4
+#define EXPECTED_HEADER_SIZE sizeof(__blob_size_t)
 #define ASYNC_BUFFER_SIZE (MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE)
 struct tcp_client {
     char *buf;
