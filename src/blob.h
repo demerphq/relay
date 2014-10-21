@@ -30,6 +30,8 @@ typedef uint32_t blob_size_t;
  * 4 bytes of length, followed by K bytes of string */
 struct data_blob {
     blob_size_t size;
+    /* "unwarranted chumminess with the C implementation":
+     * it's the technical term, look it up. */
     char buf[0];
 } __attribute__ ((packed));
 typedef struct data_blob data_blob_t;
