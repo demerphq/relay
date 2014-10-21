@@ -82,7 +82,7 @@ void *udp_server(void *arg)
     pthread_exit(NULL);
 }
 
-#define EXPECTED_PACKET_SIZE(x) (*(__blob_size_t *) &(x)->buf[0])
+#define EXPECTED_PACKET_SIZE(x) (*(blob_size_t *) &(x)->buf[0])
 
 /* The server socket and the client contexts. */
 typedef struct {
@@ -189,7 +189,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 	if (client->pos < EXPECTED_HEADER_SIZE)
 	    return TCP_SUCCESS;
 
-	__blob_size_t expected_packet_size = EXPECTED_PACKET_SIZE(client);
+	blob_size_t expected_packet_size = EXPECTED_PACKET_SIZE(client);
 
 	if (expected_packet_size > MAX_CHUNK_SIZE) {
 	    WARN("received frame (%d) > MAX_CHUNK_SIZE (%d)", expected_packet_size, MAX_CHUNK_SIZE);

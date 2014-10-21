@@ -11,7 +11,7 @@
 #include "timer.h"
 
 /* The size of the blob.  Note that the wire format is LITTLE-ENDIAN. */
-typedef uint32_t __blob_size_t;
+typedef uint32_t blob_size_t;
 
 /* The below makes builds on non-x86 fail.  It is slightly overzealous
  * in that other little-endian will fail, too, unnecessarily.
@@ -28,26 +28,26 @@ typedef uint32_t __blob_size_t;
 /* this structure is shared between different threads */
 /* the idea here is that we want a data structure which is exactly
  * 4 bytes of length, followed by K bytes of string */
-struct __data_blob {
-    __blob_size_t size;
+struct data_blob {
+    blob_size_t size;
     char buf[0];
 } __attribute__ ((packed));
-typedef struct __data_blob __data_blob_t;
+typedef struct data_blob data_blob_t;
 
 /* this structure is shared between different threads
  * we use this to refcount __blob_t items, and we use
  * the lock to guard refcnt modifications */
-struct _refcnt_blob {
+struct refcnt_blob {
     volatile int32_t refcnt;
     struct timeval received_time;
-    __data_blob_t data;
+    data_blob_t data;
 };
-typedef struct _refcnt_blob _refcnt_blob_t;
+typedef struct refcnt_blob refcnt_blob_t;
 
 /* this structure is private to each thread */
 struct blob {
     struct blob *next;
-    _refcnt_blob_t *ref;
+    refcnt_blob_t *ref;
 };
 typedef struct blob blob_t;
 
