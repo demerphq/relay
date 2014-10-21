@@ -12,7 +12,7 @@ my %Opt =
      file   => "out.srl",
      host   => "localhost",
      proto  => "udp",
-     type   => undef,
+     prefix => undef,
      port   => 10000,
      waitns => 1000,
      period => 60,
@@ -28,7 +28,7 @@ die "usage: $0 --port=$Opt{port}  --host=$Opt{host} --file=$Opt{file} [--count=N
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "proto=s"     => \$Opt{proto},
-		       "type=s"      => \$Opt{type},
+		       "prefix=s"    => \$Opt{prefix},
 		       "count=i"     => \$Opt{count},
 		       "MB=f"        => \$Opt{mb},
 		       "sec=f"       => \$Opt{sec},
@@ -94,10 +94,7 @@ while (1) {
 	$last_time = $now;
         $last_packets = $packets;
     }
-    my $prefix = '';
-    if (defined $Opt{type}) {
-	$prefix = "$Opt{type}:1:";
-    }
+    my $prefix = $Opt{prefix} // '';
     if ($Opt{proto} eq 'tcp') {
 	$prefix = pack('L', length($prefix) + length($data)) . $prefix;
     }
