@@ -221,8 +221,8 @@ worker_t *worker_init(char *arg)
     disk_writer->ptotals = &worker->totals;
 
     /* setup spillway_path */
-    if (snprintf
-	(disk_writer->spillway_path, PATH_MAX, "%s/%s", CONFIG.spillway_root, worker->s_output.arg_clean) >= PATH_MAX)
+    if (snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event-relay.%s", CONFIG.spillway_root,
+		 worker->s_output.arg_clean) >= PATH_MAX)
 	DIE_RC(EXIT_FAILURE, "spillway_path too big, had to be truncated: %s", disk_writer->spillway_path);
 
 
