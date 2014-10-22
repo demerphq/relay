@@ -175,8 +175,8 @@ void *worker_thread(void *arg)
 	accumulate_and_clear_stats(&self->counters, &self->totals);
 
 	/*
-	   SAY("worker[%s] count: %lu sent usec: " STATSfmt,
-	   sck->to_string, sent_count, usec/sent_count);
+	   SAY("worker[%s] count: %lu sent usec: %lu",
+	   sck->to_string, sent_count, sent_count ? usec/sent_count : 0);
 	 */
     }
 
