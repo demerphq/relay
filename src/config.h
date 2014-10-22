@@ -37,21 +37,12 @@ struct config {
 
 typedef struct config config_t;
 
-
-#ifndef DEFAULT_SPILL_USEC
-#define DEFAULT_SPILL_USEC 1000000
-#endif
-
-#ifndef DEFAULT_SLEEP_AFTER_DISASTER_MS
-#define DEFAULT_SLEEP_AFTER_DISASTER_MS 1000
+#ifndef DEFAULT_SYSLOG_TO_STDERR
+#define DEFAULT_SYSLOG_TO_STDERR 1
 #endif
 
 #ifndef DEFAULT_POLLING_INTERVAL_MS
 #define DEFAULT_POLLING_INTERVAL_MS 1
-#endif
-
-#ifndef DEFAULT_FALLBACK_ROOT
-#define DEFAULT_FALLBACK_ROOT "/tmp"
 #endif
 
 #ifndef DEFAULT_SEND_TIMEOUT
@@ -62,12 +53,24 @@ typedef struct config config_t;
 #define DEFAULT_SERVER_SOCKET_RCVBUF (32 * 1024 * 1024)
 #endif
 
+#ifndef DEFAULT_SLEEP_AFTER_DISASTER_MS
+#define DEFAULT_SLEEP_AFTER_DISASTER_MS 1000
+#endif
+
+#ifndef DEFAULT_SPILL_USEC
+#define DEFAULT_SPILL_USEC 1000000
+#endif
+
+#ifndef DEFAULT_SPILLWAY_ROOT
+#define DEFAULT_SPILLWAY_ROOT "/tmp"
+#endif
+
 #ifndef DEFAULT_GRAPHITE_ARG
 #define DEFAULT_GRAPHITE_ARG "/tmp/relay.graphite"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ROOT
-#define DEFAULT_GRAPHITE_ROOT "general.event-relay"
+#define DEFAULT_GRAPHITE_ROOT "general.event_relay"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_SEND_INTERVAL_MS
@@ -76,10 +79,6 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS
 #define DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS 500
-#endif
-
-#ifndef DEFAULT_SYSLOG_TO_STDERR
-#define DEFAULT_SYSLOG_TO_STDERR 1
 #endif
 
 int config_reload(config_t * config);

@@ -25,7 +25,7 @@ void config_set_defaults(config_t * config)
 
     config->graphite_arg = strdup(DEFAULT_GRAPHITE_ARG);
     config->graphite_root = strdup(DEFAULT_GRAPHITE_ROOT);
-    config->spillway_root = strdup(DEFAULT_FALLBACK_ROOT);
+    config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
 
     config->polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
     config->sleep_after_disaster_ms = DEFAULT_SLEEP_AFTER_DISASTER_MS;
