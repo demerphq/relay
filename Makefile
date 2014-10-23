@@ -36,39 +36,43 @@ CLANG_FLAGS=$(CFLAGS)
 SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/string_util.c src/config.c \
 	src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
 
+# The executable names.
+RELAY=relay
+RELAY_CLANG=$(RELAY).clang
+
 all:	gcc clang
 
 gcc:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) -o bin/relay $(SRC)
+	$(GCC) $(CFLAGS) -o bin/$(RELAY) $(SRC)
 
 gcc.asan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/relay $(SRC)
+	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY) $(SRC)
 
 gcc.tsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/relay $(SRC)
+	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/$(RELAY) $(SRC)
 
 gcc.ubsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/relay $(SRC)
+	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/$(RELAY) $(SRC)
 
 clang:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) -o bin/relay.clang $(SRC)
+	$(CLANG) $(CFLAGS) -o bin/$(RELAY_CLANG) $(SRC)
 
 clang.asan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/relay.clang $(SRC)
+	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
 
 clang.msan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/relay.clang $(SRC)
+	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
 
 clang.tsan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/relay.clang $(SRC)
+	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
