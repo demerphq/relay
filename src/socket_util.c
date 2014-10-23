@@ -136,9 +136,9 @@ int open_socket(sock_t * s, int flags, int snd, int rcv)
 	if (s->proto == IPPROTO_TCP) {
 	    if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
 		ERROR("connect[%s]", s->to_string);
-	    if (CONFIG.tcp_send_timeout > 0) {
+	    if (CONFIG.tcp_send_timeout_s > 0) {
 		struct timeval timeout;
-		timeout.tv_sec = CONFIG.tcp_send_timeout;
+		timeout.tv_sec = CONFIG.tcp_send_timeout_s;
 		timeout.tv_usec = 0;
 
 		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)

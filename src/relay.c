@@ -322,7 +322,7 @@ pthread_t setup_listener(config_t * config)
     socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener");
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf);
+    open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */

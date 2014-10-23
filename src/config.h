@@ -15,11 +15,13 @@ struct config {
     char *file;
 
     /* various meta data used for sending, etc */
+    /* TODO: if these _ms are really microseconds, rename them as _us,
+     * since _ms could be also milliseconds. */
     int polling_interval_ms;
     int sleep_after_disaster_ms;
     int max_pps;
-    int tcp_send_timeout;
-    int server_socket_rcvbuf;
+    int tcp_send_timeout_s;
+    int server_socket_rcvbuf_bytes;
     uint32_t spill_usec;
     int syslog_to_stderr;
 
@@ -45,12 +47,12 @@ typedef struct config config_t;
 #define DEFAULT_POLLING_INTERVAL_MS 1
 #endif
 
-#ifndef DEFAULT_SEND_TIMEOUT
-#define DEFAULT_SEND_TIMEOUT    2
+#ifndef DEFAULT_TCP_SEND_TIMEOUT_S
+#define DEFAULT_TCP_SEND_TIMEOUT_S 2
 #endif
 
-#ifndef DEFAULT_SERVER_SOCKET_RCVBUF
-#define DEFAULT_SERVER_SOCKET_RCVBUF (32 * 1024 * 1024)
+#ifndef DEFAULT_SERVER_SOCKET_RCVBUF_BYTES
+#define DEFAULT_SERVER_SOCKET_RCVBUF_BYTES (32 * 1024 * 1024)
 #endif
 
 #ifndef DEFAULT_SLEEP_AFTER_DISASTER_MS

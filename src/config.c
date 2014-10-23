@@ -6,6 +6,7 @@
 
 static const char *OUR_NAME = "event-relay";
 
+/* Global, boo, hiss. */
 config_t CONFIG;
 
 void config_destroy(void)
@@ -29,12 +30,26 @@ void config_set_defaults(config_t * config)
 
     config->polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
     config->sleep_after_disaster_ms = DEFAULT_SLEEP_AFTER_DISASTER_MS;
-    config->tcp_send_timeout = DEFAULT_SEND_TIMEOUT;
-    config->server_socket_rcvbuf = DEFAULT_SERVER_SOCKET_RCVBUF;
+    config->tcp_send_timeout_s = DEFAULT_TCP_SEND_TIMEOUT_S;
+    config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
     config->spill_usec = DEFAULT_SPILL_USEC;
     config->graphite_send_interval_ms = DEFAULT_GRAPHITE_SEND_INTERVAL_MS;
     config->graphite_sleep_poll_interval_ms = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
     config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
+}
+
+void config_dump(config_t * config)
+{
+    SAY("config->graphite_arg = %s", config->graphite_arg);
+    SAY("config->graphite_root = %s", config->graphite_root);
+    SAY("config->spillway_root = %s", config->spillway_root);
+    SAY("config->polling_interval_ms = %d", config->polling_interval_ms);
+    SAY("config->sleep_after_disaster_ms = %d", config->sleep_after_disaster_ms);
+    SAY("config->tcp_send_timeout_s = %d", config->tcp_send_timeout_s);
+    SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
+    SAY("config->graphite_send_interval_ms = %d", config->graphite_send_interval_ms);
+    SAY("config->graphite_sleep_poll_interval_ms = %d", config->graphite_sleep_poll_interval_ms);
+    SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
 }
 
 #define TRY_OPT_BEGIN do
@@ -42,7 +57,7 @@ void config_set_defaults(config_t * config)
 
 #define TRY_NUM_OPT(name,line,p)                                            \
     if ( STREQ(#name, line) ) {                                             \
-        int tmp= atoi(p);                                                   \
+        int tmp = atoi(p);                                                  \
         if (tmp > 0) {                                                      \
             config->name = tmp;                                             \
         } else {                                                            \
@@ -63,15 +78,22 @@ config_t *config_from_file(char *file)
     FILE *f;
     char *line = NULL;
     size_t len = 0;
+    int line_num = 0;
     config_t *config = calloc_or_die(sizeof(config_t));
+
     config_set_defaults(config);
 
+    SAY("loading config file %s", file);
     f = fopen(file, "r");
     if (f == NULL)
 	DIE("fopen: %s", file);
 
     while (getline(&line, &len, f) != -1) {
 	char *p;
+
+	line_num++;
+
+	/* End-of-line comment. */
 	if ((p = strchr(line, '#')))
 	    *p = '\0';
 
@@ -80,7 +102,7 @@ config_t *config_from_file(char *file)
 	if (strlen(line) != 0) {
 	    if ((p = strchr(line, '='))) {
 		if (strlen(p) == 1)
-		    DIE("bad config line: %s", line);
+		    DIE("config file %s:%d: %s", file, line_num, line);
 		*p = '\0';
 		p++;
 		TRY_OPT_BEGIN {
@@ -92,11 +114,11 @@ config_t *config_from_file(char *file)
 		    TRY_NUM_OPT(graphite_sleep_poll_interval_ms, line, p);
 		    TRY_NUM_OPT(polling_interval_ms, line, p);
 		    TRY_NUM_OPT(sleep_after_disaster_ms, line, p);
-		    TRY_NUM_OPT(tcp_send_timeout, line, p);
-		    TRY_NUM_OPT(server_socket_rcvbuf, line, p);
+		    TRY_NUM_OPT(tcp_send_timeout_s, line, p);
+		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
 		    TRY_NUM_OPT(spill_usec, line, p);
 
-		    WARN("ignoring bad config option: %s", line);
+		    DIE("config file %s:%d: bad config option: %s", file, line_num, line);
 		}
 		TRY_OPT_END;
 
@@ -111,6 +133,10 @@ config_t *config_from_file(char *file)
     if (line)
 	free(line);
     SAY("loaded config file %s", file);
+
+    config_dump(config);
+    /* TODO: check for sanity */
+
     return config;
 }
 
@@ -161,8 +187,8 @@ int config_reload(config_t * config)
     IF_NUM_OPT_CHANGED(graphite_sleep_poll_interval_ms, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_ms, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(tcp_send_timeout, config, new_config);
-    IF_NUM_OPT_CHANGED(server_socket_rcvbuf, config, new_config);
+    IF_NUM_OPT_CHANGED(tcp_send_timeout_s, config, new_config);
+    IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
     IF_NUM_OPT_CHANGED(spill_usec, config, new_config);
 
     for (i = 0; i < config->argc; i++) {
@@ -186,6 +212,10 @@ int config_reload(config_t * config)
     config->argc = new_config->argc;
     config->argv = new_config->argv;
     free(new_config);
+
+    config_dump(config);
+    /* TODO: check for sanity */
+
     return requires_restart;
 }
 
