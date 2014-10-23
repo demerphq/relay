@@ -21,7 +21,7 @@
 #define EXPECTED_HEADER_SIZE sizeof(blob_size_t)
 #define ASYNC_BUFFER_SIZE (MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE)
 struct tcp_client {
-    char *buf;
+    unsigned char *buf;
     uint32_t pos;
 };
 

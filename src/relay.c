@@ -38,7 +38,7 @@ static void spawn(pthread_t * tid, void *(*func) (void *), void *arg, int type)
     pthread_attr_destroy(&attr);
 }
 
-static inline blob_t *buf_to_blob_enqueue(char *buf, size_t size)
+static inline blob_t *buf_to_blob_enqueue(unsigned char *buf, size_t size)
 {
     blob_t *b;
     if (size == 0) {
@@ -61,7 +61,7 @@ void *udp_server(void *arg)
     uint32_t packets = 0, prev_packets = 0;
     uint32_t epoch, prev_epoch = 0;
 #endif
-    char buf[MAX_CHUNK_SIZE];
+    unsigned char buf[MAX_CHUNK_SIZE];
     while (not_stopped()) {
 	ssize_t received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
