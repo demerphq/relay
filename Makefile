@@ -1,35 +1,74 @@
-RELAY=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/string_util.c src/config.c src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
+GCC=gcc
 CLANG=clang
-CLANG_FLAGS=-O0 -g3 -fno-omit-frame-pointer
-CLANG_ASAN_FLAGS=-fsanitize=address
-# -fsanitize-memory-track-origins=2 requires newer clang (3.6?)
-CLANG_MSAN_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins
-CLANG_TSAN_FLAGS=-fsanitize=thread
-GCC_FLAGS=-O3
-CC=gcc
-# -Wconversion is still too noisy
-WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align
-CFLAGS=$(WARN_FLAGS) -pthread -std=c99 -D_BSD_SOURCE -D_POSIX_SOURCE
 
-all:
+# Sanitizer flags
+
+ASAN_FLAGS=-fsanitize=address
+TSAN_FLAGS=-fsanitize=thread
+
+# msan only works with clang, not gcc 4.9.1
+# -fsanitize-memory-track-origins=2 requires newer clang (3.6?)
+MSAN_FLAGS=-fsanitize=memory -fsanitize-memory-track-origins
+
+# ubsan only works with gcc 4.9.1, not clang 3.4.2
+UBSAN_FLAGS=-fsanitize=undefined
+# UBSAN_FLAGS=-fsanitize=undefined -fno-sanitize-recover
+# -fno-sanitize-recover would cause ubsan violations
+# to be fatal but it doesn't work with gcc 4.9.1.
+# The violations are just dumped to stderr.
+# (Silly since asan and tsan violations are deadly.)
+
+# Generic flags
+
+OPT_FLAGS=-O3
+DBG_FLAGS=-g
+
+# -Wconversion is still too noisy
+# -Wcast-align is useless with gcc on x86: it never warns.  Use it with clang.
+WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align
+
+# Flags common to all compilers.
+CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) -pthread -std=c99 -D_BSD_SOURCE -D_POSIX_SOURCE -fno-omit-frame-pointer
+
+GCC_FLAGS=$(CFLAGS)
+CLANG_FLAGS=$(CFLAGS)
+
+SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/string_util.c src/config.c \
+	src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
+
+all:	gcc clang
+
+gcc:
 	mkdir -p bin
-	$(CC) $(CFLAGS) $(GCC_FLAGS) -o bin/relay $(RELAY)
+	$(GCC) $(CFLAGS) -o bin/relay $(SRC)
+
+gcc.asan:
+	mkdir -p bin
+	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/relay $(SRC)
+
+gcc.tsan:
+	mkdir -p bin
+	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/relay $(SRC)
+
+gcc.ubsan:
+	mkdir -p bin
+	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/relay $(SRC)
 
 clang:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) -o bin/relay.clang $(RELAY)
+	$(CLANG) $(CFLAGS) -o bin/relay.clang $(SRC)
 
 clang.asan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_ASAN_FLAGS) -o bin/relay.clang $(RELAY)
+	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/relay.clang $(SRC)
 
 clang.msan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_MSAN_FLAGS) -o bin/relay.clang $(RELAY)
+	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/relay.clang $(SRC)
 
 clang.tsan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(CLANG_FLAGS) $(CLANG_TSAN_FLAGS) -o bin/relay.clang $(RELAY)
+	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/relay.clang $(SRC)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
