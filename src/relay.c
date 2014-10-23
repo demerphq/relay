@@ -82,7 +82,8 @@ void *udp_server(void *arg)
     pthread_exit(NULL);
 }
 
-#define EXPECTED_PACKET_SIZE(x) (*(blob_size_t *) &(x)->buf[0])
+/* The wire format is little-endian. */
+#define EXPECTED_PACKET_SIZE(x) ((x)->buf[0] | (x)->buf[1] << 8 | (x)->buf[2] << 16 | (x)->buf[3] << 24)
 
 /* The server socket and the client contexts. */
 typedef struct {
