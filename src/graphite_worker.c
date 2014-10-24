@@ -53,9 +53,9 @@ char *graphite_worker_setup_root(config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite_target) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_die(root_len);
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_target, hostname, s_listen->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, s_listen->arg_clean);
 
     if (wrote >= root_len)
 	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
@@ -71,7 +71,7 @@ graphite_worker_t *graphite_worker_create(config_t * config)
 
     gw->config = config;
     gw->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
-    gw->arg = strdup(config->graphite_addr);
+    gw->arg = strdup(config->graphite.addr);
     gw->root = graphite_worker_setup_root(config);
 
     socketize(gw->arg, &gw->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
@@ -259,14 +259,14 @@ void *graphite_worker_thread(void *arg)
 	    close(sck->socket);
 	    sck = NULL;
 	}
-	wait_remains_millisec = self->config->graphite_send_interval_millisec;
+	wait_remains_millisec = self->config->graphite.send_interval_millisec;
 	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains_millisec > 0)) {
-	    if (wait_remains_millisec < self->config->graphite_sleep_poll_interval_millisec) {
+	    if (wait_remains_millisec < self->config->graphite.sleep_poll_interval_millisec) {
 		worker_wait_millisec(wait_remains_millisec);
 		wait_remains_millisec = 0;
 	    } else {
-		worker_wait_millisec(self->config->graphite_sleep_poll_interval_millisec);
-		wait_remains_millisec -= self->config->graphite_sleep_poll_interval_millisec;
+		worker_wait_millisec(self->config->graphite.sleep_poll_interval_millisec);
+		wait_remains_millisec -= self->config->graphite.sleep_poll_interval_millisec;
 	    }
 	}
     }

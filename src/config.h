@@ -6,6 +6,17 @@
 #include <stdio.h>
 #include <stdint.h>
 
+struct graphite_config {
+    /* host:port for sending data to graphite,
+     * or a filename. */
+    char *addr;
+    /* foo.bar.val - "graphite_path" would
+     * be a bit ambiguous */
+    char *target;
+    uint32_t send_interval_millisec;
+    uint32_t sleep_poll_interval_millisec;
+};
+
 struct config {
     /* original argc/argv, or synthesized from config file */
     int argc;
@@ -27,15 +38,7 @@ struct config {
      * and "spilled" data */
     char *spillway_root;
 
-    /* host:port for sending data to graphite,
-     * or a filename. */
-    char *graphite_addr;
-    /* foo.bar.val - "graphite_path" would
-     * be a bit ambiguous */
-    char *graphite_target;
-    uint32_t graphite_send_interval_millisec;
-    uint32_t graphite_sleep_poll_interval_millisec;
-
+    struct graphite_config graphite;
 };
 
 typedef struct config config_t;
