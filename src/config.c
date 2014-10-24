@@ -192,7 +192,7 @@ static int config_valid(config_t * config)
         break;                                                              \
     }
 
-config_t *config_from_file(char *file)
+static config_t *config_from_file(char *file)
 {
     FILE *f;
     char *line = NULL;
@@ -253,10 +253,10 @@ config_t *config_from_file(char *file)
 	free(line);
     SAY("Loaded config file %s", file);
 
-    config_dump(config);
-
-    if (!config_valid(config))
+    if (!config_valid(config)) {
+	config_dump(config);
 	DIE("Invalid configuration");
+    }
 
     return config;
 }
