@@ -1,5 +1,7 @@
 #include "socket_util.h"
 
+#include <libgen.h>
+
 #include "string_util.h"
 
 extern config_t CONFIG;
@@ -83,6 +85,11 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 	    DIE_RC(EXIT_FAILURE, "path too long");
 	if (DEBUG_SOCKETIZE)
 	    SAY("writing to a file: %s", s->to_string);
+	struct stat st;
+	char *dir = dirname(a);	/* NOTE: MODIFIES a! */
+	if (*dir && !(stat(dir, &st) == 0 && S_ISDIR(st.st_mode))) {
+	    DIE_RC(EXIT_FAILURE, "%s: not a directory (for file %s)", dir, arg);
+	}
     } else {
 	DIE_RC(EXIT_FAILURE, "must specify a port in '%s'", arg);
     }
