@@ -322,7 +322,8 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener");
+    if (!socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener"))
+	DIE_RC(EXIT_FAILURE, "Failed to socketize listener");
 
     s_listen->polling_interval_millisec = config->polling_interval_millisec;
 

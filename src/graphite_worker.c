@@ -74,7 +74,8 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->arg = strdup(config->graphite.addr);
     worker->root = graphite_worker_setup_root(config);
 
-    socketize(worker->arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
+    if (!socketize(worker->arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
+	DIE_RC(EXIT_FAILURE, "Failed to socketize graphite worker");
 
     return worker;
 }

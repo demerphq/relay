@@ -77,11 +77,16 @@ static int is_valid_graphite_path(const char *path)
     return *p == 0;
 }
 
-static int is_valid_socketize(const char *arg)
+static int is_valid_socketize(const char *arg, int default_proto, int connection_direction, const char* role)
 {
     if (!is_non_empty_string(arg))
 	return 0;
-    /* TODO real parsing logic - refactor from socket_util */
+    /* NOTE: the result socketization is "lost" (beyond the success/failure)
+     * and redone later when the listener and workers are started.  This may
+     * be considered wasteful, but would get tricky on e.g. config reloads. */
+    sock_t s;
+    if (!socketize(arg, &s, default_proto, connection_direction, role))
+	return 0;
     return 1;
 }
 
@@ -126,6 +131,9 @@ static int is_valid_buffer_size(uint32_t size)
 #define CONFIG_VALID_STR(config, t, v, invalid)		\
     do { if (!t(config->v)) { SAY("%s value %s invalid", #v, config->v); invalid++; } } while (0)
 
+#define CONFIG_VALID_SOCKETIZE(config, p, d, r, v, invalid)		\
+    do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { SAY("%s value %s invalid", #v, config->v); invalid++; } } while (0)
+
 #define CONFIG_VALID_NUM(config, t, v, invalid)		\
     do { if (!t(config->v)) { SAY("%s value %d invalid", #v, config->v); invalid++; } } while (0)
 
@@ -140,23 +148,23 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_microsec, spill_usec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
 
-    CONFIG_VALID_STR(config, is_valid_socketize, graphite.addr, invalid);
+    CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.addr, invalid);
     CONFIG_VALID_STR(config, is_valid_graphite_path, graphite.target, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.send_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.sleep_poll_interval_millisec, invalid);
 
     if (config->argc < 1) {
-	SAY("Missing listen argument");
+	SAY("Missing listener address");
 	invalid++;
     } else {
-	CONFIG_VALID_STR(config, is_valid_socketize, argv[0], invalid);
+	CONFIG_VALID_SOCKETIZE(config, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener", argv[0], invalid);
     }
     if (config->argc < 2) {
-	SAY("Missing send arguments");
+	SAY("Missing forward addresses");
 	invalid++;
     } else {
 	for (int i = 1; i < config->argc; i++) {
-	    CONFIG_VALID_STR(config, is_valid_socketize, argv[i], invalid);
+	    CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "forward", argv[i], invalid);
 	}
     }
 

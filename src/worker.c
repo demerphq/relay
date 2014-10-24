@@ -214,7 +214,8 @@ worker_t *worker_init(const char *arg, const config_t * config)
     worker->exists = 1;
     worker->arg = strdup(arg);
 
-    socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "sender");
+    if (!socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker"))
+	DIE_RC(EXIT_FAILURE, "Failed to socketize worker");
 
     worker->disk_writer = disk_writer;
 

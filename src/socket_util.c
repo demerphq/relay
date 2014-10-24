@@ -9,28 +9,26 @@ extern config_t CONFIG;
 
 #define DEBUG_SOCKETIZE 0
 
-void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, char *type_str)
+static int socketize_validate(const char *arg, char *a, sock_t * s, int default_proto, int connection_direction)
 {
-    char *a = strdup(arg);
     char *p;
     int proto = SOCK_FAKE_ERROR;
     int wrote = 0;
 
-    strncpy(s->arg, arg, PATH_MAX);
-    strncpy(s->arg_clean, arg, PATH_MAX);
-    scrub_nonalnum(s->arg_clean, PATH_MAX);
-
-    SAY("Socketizing %s argument '%s'", type_str, arg);
     if ((p = strchr(a, ':')) != NULL) {
 
 	s->sa.in.sin_family = AF_INET;
 
-	if (!isdigit(p[1]) || p[1] == '0')
-	    DIE_RC(EXIT_FAILURE, "Invalid port number '%s' in '%s'", p + 1, arg);
+	if (!isdigit(p[1]) || p[1] == '0') {
+	    SAY("Invalid port number '%s' in '%s'", p + 1, arg);
+	    return 0;
+	}
 	char *endp;
 	long port = strtol(p + 1, &endp, 10);
-	if (port < 0 || port > 65535 || *endp)
-	    DIE_RC(EXIT_FAILURE, "Invalid port number '%s' in '%s'", p + 1, arg);
+	if (port < 0 || port > 65535 || *endp) {
+	    SAY("Invalid port number '%s' in '%s'", p + 1, arg);
+	    return 0;
+	}
 	s->sa.in.sin_port = htons(port);
 
 	/* replace the ":" with a null, effectively strip the proto off the end */
@@ -49,7 +47,8 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 		    SAY("protocol is udp");
 		proto = IPPROTO_UDP;
 	    } else {
-		DIE_RC(EXIT_FAILURE, "unknown protocol '%s' in argument '%s'", a, arg);
+		SAY("Unknown protocol '%s' in argument '%s'", a, arg);
+		return 0;
 	    }
 	} else {
 	    if (DEBUG_SOCKETIZE)
@@ -62,14 +61,17 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 	} else if (proto == IPPROTO_UDP) {
 	    s->type = SOCK_DGRAM;
 	} else {
-	    DIE_RC(EXIT_FAILURE, "unknown proto '%d'", proto);
+	    SAY("Unknown proto '%d'", proto);
+	    return 0;
 	}
 
 	struct in_addr ip;
 	if (inet_aton(p, &ip) == 0) {
 	    struct hostent *host = gethostbyname2(p, AF_INET);
-	    if (!host)
-		DIE_RC(EXIT_FAILURE, "failed to parse/resolve %s", p);
+	    if (!host) {
+		SAY("Failed to parse/resolve hostname %s", p);
+		return 0;
+	    }
 
 	    memcpy(&(s->sa.in.sin_addr), host->h_addr, host->h_length);
 	} else {
@@ -80,29 +82,58 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
 	wrote =
 	    snprintf(s->to_string, PATH_MAX, "%s@%s:%d",
 		     (proto == IPPROTO_TCP ? "tcp" : "udp"), inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
-	if (wrote >= PATH_MAX)
-	    DIE_RC(EXIT_FAILURE, "failed to stringify target descriptor");
+	if (wrote >= PATH_MAX) {
+	    SAY("Failed to stringify target descriptor");
+	    return 0;
+	}
 	if (DEBUG_SOCKETIZE)
 	    SAY("socket details: %s", s->to_string);
-    } else if (conn_dir == RELAY_CONN_IS_OUTBOUND && (*a == '/' || *a == '.')) {
+    } else if (connection_direction == RELAY_CONN_IS_OUTBOUND && (*a == '/' || *a == '.')) {
 	proto = SOCK_FAKE_FILE;
 	assert(proto != IPPROTO_TCP && proto != IPPROTO_UDP);
 	wrote = snprintf(s->to_string, PATH_MAX, "file@%s", a);
-	if (wrote >= PATH_MAX)
-	    DIE_RC(EXIT_FAILURE, "path too long");
+	if (wrote >= PATH_MAX) {
+	    SAY("Path too long");
+	    return 0;
+	}
 	if (DEBUG_SOCKETIZE)
-	    SAY("writing to a file: %s", s->to_string);
+	    SAY("Writing to a file: %s", s->to_string);
+
 	struct stat st;
 	char *dir = dirname(a);	/* NOTE: MODIFIES a! */
 	if (*dir && !(stat(dir, &st) == 0 && S_ISDIR(st.st_mode))) {
-	    DIE_RC(EXIT_FAILURE, "%s: not a directory (for file %s)", dir, arg);
+	    SAY("%s: not a directory (for file %s)", dir, arg);
+	    return 0;
 	}
     } else {
-	DIE_RC(EXIT_FAILURE, "must specify a port in '%s'", arg);
+	SAY("Must specify a port in '%s'", arg);
+	return 0;
     }
-    assert(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE);
+    if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE)) {
+	SAY("Unexpcted proto %d\n", proto);
+	return 0;
+    }
+
     s->proto = proto;
+
+    return 1;
+}
+
+int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char* role)
+{
+    char *a = strdup(arg);
+
+    SAY("Socketizing '%s' for %s", arg, role);
+
+    strncpy(s->arg, arg, PATH_MAX);
+    strncpy(s->arg_clean, arg, PATH_MAX);
+    scrub_nonalnum(s->arg_clean, PATH_MAX);
+
+    int valid = socketize_validate(arg, a, s, default_proto, connection_direction);
+
     free(a);
+
+    return valid;
 }
 
 #define ERROR(fmt, arg...)          \
