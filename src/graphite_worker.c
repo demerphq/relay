@@ -84,7 +84,7 @@ void *graphite_worker_thread(void *arg)
     while (!RELAY_ATOMIC_READ(self->exit)) {
 	char *str = self->buffer;	/* current position in buffer */
 	ssize_t len = GRAPHITE_BUFFER_MAX;	/* amount remaining to use */
-	uint32_t wait_remains;
+	uint32_t wait_remains_millisec;
 	worker_t *w;
 	struct mallinfo meminfo;
 	int wrote_len;
@@ -96,7 +96,7 @@ void *graphite_worker_thread(void *arg)
 		sck = &self->s_output;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait(CONFIG.sleep_after_disaster_ms);
+		worker_wait_millisec(CONFIG.sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -252,14 +252,14 @@ void *graphite_worker_thread(void *arg)
 	    close(sck->socket);
 	    sck = NULL;
 	}
-	wait_remains = CONFIG.graphite_send_interval_ms;
-	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains > 0)) {
-	    if (wait_remains < CONFIG.graphite_sleep_poll_interval_ms) {
-		worker_wait(wait_remains);
-		wait_remains = 0;
+	wait_remains_millisec = CONFIG.graphite_send_interval_millisec;
+	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains_millisec > 0)) {
+	    if (wait_remains_millisec < CONFIG.graphite_sleep_poll_interval_millisec) {
+		worker_wait_millisec(wait_remains_millisec);
+		wait_remains_millisec = 0;
 	    } else {
-		worker_wait(CONFIG.graphite_sleep_poll_interval_ms);
-		wait_remains -= CONFIG.graphite_sleep_poll_interval_ms;
+		worker_wait_millisec(CONFIG.graphite_sleep_poll_interval_millisec);
+		wait_remains_millisec -= CONFIG.graphite_sleep_poll_interval_millisec;
 	    }
 	}
     }

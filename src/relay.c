@@ -288,7 +288,7 @@ void *tcp_server(void *arg)
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
 
     for (;;) {
-	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_ms);
+	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_millisec);
 	if (rc == -1) {
 	    if (errno == EINTR)
 		continue;

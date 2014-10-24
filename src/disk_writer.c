@@ -100,7 +100,7 @@ void *disk_writer_thread(void *arg)
 		/* nothing to do and we have been asked to exit, so break from the loop */
 		break;
 	    } else {
-		worker_wait(CONFIG.polling_interval_ms);
+		worker_wait_millisec(CONFIG.polling_interval_millisec);
 	    }
 	} else {
 	    do {

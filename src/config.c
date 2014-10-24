@@ -28,13 +28,13 @@ void config_set_defaults(config_t * config)
     config->graphite_root = strdup(DEFAULT_GRAPHITE_ROOT);
     config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
 
-    config->polling_interval_ms = DEFAULT_POLLING_INTERVAL_MS;
-    config->sleep_after_disaster_ms = DEFAULT_SLEEP_AFTER_DISASTER_MS;
-    config->tcp_send_timeout_s = DEFAULT_TCP_SEND_TIMEOUT_S;
+    config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
+    config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
+    config->tcp_send_timeout_sec = DEFAULT_TCP_SEND_TIMEOUT_SEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
     config->spill_usec = DEFAULT_SPILL_USEC;
-    config->graphite_send_interval_ms = DEFAULT_GRAPHITE_SEND_INTERVAL_MS;
-    config->graphite_sleep_poll_interval_ms = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MS;
+    config->graphite_send_interval_millisec = DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC;
+    config->graphite_sleep_poll_interval_millisec = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC;
     config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
 }
 
@@ -43,12 +43,12 @@ void config_dump(config_t * config)
     SAY("config->graphite_arg = %s", config->graphite_arg);
     SAY("config->graphite_root = %s", config->graphite_root);
     SAY("config->spillway_root = %s", config->spillway_root);
-    SAY("config->polling_interval_ms = %d", config->polling_interval_ms);
-    SAY("config->sleep_after_disaster_ms = %d", config->sleep_after_disaster_ms);
-    SAY("config->tcp_send_timeout_s = %d", config->tcp_send_timeout_s);
+    SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
+    SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
+    SAY("config->tcp_send_timeout_sec = %d", config->tcp_send_timeout_sec);
     SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
-    SAY("config->graphite_send_interval_ms = %d", config->graphite_send_interval_ms);
-    SAY("config->graphite_sleep_poll_interval_ms = %d", config->graphite_sleep_poll_interval_ms);
+    SAY("config->graphite_send_interval_millisec = %d", config->graphite_send_interval_millisec);
+    SAY("config->graphite_sleep_poll_interval_millisec = %d", config->graphite_sleep_poll_interval_millisec);
     SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
 }
 
@@ -110,11 +110,11 @@ config_t *config_from_file(char *file)
 		    TRY_STR_OPT(graphite_arg, line, p);
 		    TRY_STR_OPT(graphite_root, line, p);
 		    TRY_NUM_OPT(syslog_to_stderr, line, p);
-		    TRY_NUM_OPT(graphite_send_interval_ms, line, p);
-		    TRY_NUM_OPT(graphite_sleep_poll_interval_ms, line, p);
-		    TRY_NUM_OPT(polling_interval_ms, line, p);
-		    TRY_NUM_OPT(sleep_after_disaster_ms, line, p);
-		    TRY_NUM_OPT(tcp_send_timeout_s, line, p);
+		    TRY_NUM_OPT(graphite_send_interval_millisec, line, p);
+		    TRY_NUM_OPT(graphite_sleep_poll_interval_millisec, line, p);
+		    TRY_NUM_OPT(polling_interval_millisec, line, p);
+		    TRY_NUM_OPT(sleep_after_disaster_millisec, line, p);
+		    TRY_NUM_OPT(tcp_send_timeout_sec, line, p);
 		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
 		    TRY_NUM_OPT(spill_usec, line, p);
 
@@ -183,11 +183,11 @@ int config_reload(config_t * config)
     IF_STR_OPT_CHANGED(graphite_arg, config, new_config);
     IF_STR_OPT_CHANGED(graphite_root, config, new_config);
     IF_NUM_OPT_CHANGED(syslog_to_stderr, config, new_config);
-    IF_NUM_OPT_CHANGED(graphite_send_interval_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(graphite_sleep_poll_interval_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(polling_interval_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(sleep_after_disaster_ms, config, new_config);
-    IF_NUM_OPT_CHANGED(tcp_send_timeout_s, config, new_config);
+    IF_NUM_OPT_CHANGED(graphite_send_interval_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(graphite_sleep_poll_interval_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(sleep_after_disaster_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(tcp_send_timeout_sec, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
     IF_NUM_OPT_CHANGED(spill_usec, config, new_config);
 

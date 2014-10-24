@@ -4,6 +4,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
+
 extern config_t CONFIG;
 
 /* add an item to a disk worker queue */
@@ -53,7 +54,7 @@ void *worker_thread(void *arg)
 		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait(CONFIG.sleep_after_disaster_ms);
+		worker_wait_millisec(CONFIG.sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -67,7 +68,7 @@ void *worker_thread(void *arg)
 	     */
 	    if (!queue_hijack(main_queue, &private_queue, &POOL.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
-		worker_wait(CONFIG.polling_interval_ms);
+		worker_wait_millisec(CONFIG.polling_interval_millisec);
 		continue;
 	    }
 	}

@@ -41,10 +41,11 @@ void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 
 /* worker sleeps while it waits for work
- * this should be configurable */
-static INLINE void worker_wait(unsigned int ms)
+ * XXX this should be configurable */
+static INLINE void worker_wait_millisec(unsigned int millisec)
 {
-    usleep(ms * 1000);
+    /* XXX should be replaced by more standard nanosleep() */
+    usleep(millisec * 1000);
 }
 
 #endif				/* #ifndef RELAY_WORKER_H */
