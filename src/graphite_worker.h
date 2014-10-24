@@ -10,11 +10,12 @@
 struct graphite_worker {
     pthread_t tid;
 
+    const config_t *config;
+
     volatile uint32_t exit;
 
     sock_t s_output;
 
-    config_t *config;
     char *arg;
     char *root;
     char *buffer;
@@ -22,7 +23,7 @@ struct graphite_worker {
 
 typedef struct graphite_worker graphite_worker_t;
 
-graphite_worker_t *graphite_worker_create(config_t * config);
+graphite_worker_t *graphite_worker_create(const config_t * config);
 void graphite_worker_destroy(graphite_worker_t * worker);
 void *graphite_worker_thread(void *arg);
 

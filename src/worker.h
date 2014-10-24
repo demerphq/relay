@@ -21,12 +21,12 @@ struct worker {
     queue_t queue;
     pthread_t tid;
 
+    const config_t *config;
+
     volatile uint32_t exit;
 
     stats_basic_counters_t counters;
     stats_basic_counters_t totals;
-
-    config_t *config;
 
     sock_t s_output;
     char *arg;
@@ -38,7 +38,7 @@ struct worker {
 typedef struct worker worker_t;
 
 /* worker.c */
-worker_t *worker_init(char *arg, config_t * config);
+worker_t *worker_init(const char *arg, const config_t * config);
 void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 

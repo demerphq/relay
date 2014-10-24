@@ -15,9 +15,9 @@ struct disk_writer {
     queue_t queue;
     pthread_t tid;
 
-    volatile uint32_t exit;
+    const config_t *config;
 
-    config_t *config;
+    volatile uint32_t exit;
 
     stats_basic_counters_t *pcounters;
     stats_basic_counters_t *ptotals;

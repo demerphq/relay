@@ -27,7 +27,7 @@ void graphite_worker_destroy(graphite_worker_t * worker)
 
 /* code shamelessly derived from
  * http://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info */
-char *graphite_worker_setup_root(config_t * config)
+char *graphite_worker_setup_root(const config_t * config)
 {
     struct addrinfo hints, *info;
     int gai_result;
@@ -65,18 +65,18 @@ char *graphite_worker_setup_root(config_t * config)
 }
 
 
-graphite_worker_t *graphite_worker_create(config_t * config)
+graphite_worker_t *graphite_worker_create(const config_t * config)
 {
-    graphite_worker_t *gw = calloc_or_die(sizeof(graphite_worker_t));
+    graphite_worker_t *worker = calloc_or_die(sizeof(graphite_worker_t));
 
-    gw->config = config;
-    gw->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
-    gw->arg = strdup(config->graphite.addr);
-    gw->root = graphite_worker_setup_root(config);
+    worker->config = config;
+    worker->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
+    worker->arg = strdup(config->graphite.addr);
+    worker->root = graphite_worker_setup_root(config);
 
-    socketize(gw->arg, &gw->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
+    socketize(worker->arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
 
-    return gw;
+    return worker;
 }
 
 void *graphite_worker_thread(void *arg)
