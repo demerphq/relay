@@ -7,7 +7,6 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern config_t CONFIG;
 extern sock_t *s_listen;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
@@ -54,12 +53,12 @@ char *graphite_worker_setup_root(config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(CONFIG.graphite_root) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite_root) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_die(root_len);
     wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, hostname, s_listen->arg_clean);
 
     if (wrote >= root_len)
-	DIE("panic: failed to sprintf hostname in graphite_worker_setup_root()");
+	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
     SAY("Using '%s' as root namespace for graphite", root);
     freeaddrinfo(info);
     return root;
@@ -70,6 +69,7 @@ graphite_worker_t *graphite_worker_create(config_t * config)
 {
     graphite_worker_t *gw = calloc_or_die(sizeof(graphite_worker_t));
 
+    gw->config = config;
     gw->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
     gw->arg = strdup(config->graphite_arg);
     gw->root = graphite_worker_setup_root(config);
@@ -103,7 +103,7 @@ void *graphite_worker_thread(void *arg)
 		sck = &self->s_output;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(CONFIG.sleep_after_disaster_millisec);
+		worker_wait_millisec(self->config->sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -259,14 +259,14 @@ void *graphite_worker_thread(void *arg)
 	    close(sck->socket);
 	    sck = NULL;
 	}
-	wait_remains_millisec = CONFIG.graphite_send_interval_millisec;
+	wait_remains_millisec = self->config->graphite_send_interval_millisec;
 	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains_millisec > 0)) {
-	    if (wait_remains_millisec < CONFIG.graphite_sleep_poll_interval_millisec) {
+	    if (wait_remains_millisec < self->config->graphite_sleep_poll_interval_millisec) {
 		worker_wait_millisec(wait_remains_millisec);
 		wait_remains_millisec = 0;
 	    } else {
-		worker_wait_millisec(CONFIG.graphite_sleep_poll_interval_millisec);
-		wait_remains_millisec -= CONFIG.graphite_sleep_poll_interval_millisec;
+		worker_wait_millisec(self->config->graphite_sleep_poll_interval_millisec);
+		wait_remains_millisec -= self->config->graphite_sleep_poll_interval_millisec;
 	    }
 	}
     }
