@@ -15,13 +15,28 @@ void scrub_nonalnum(char *str, size_t size)
 
 void trim_space(char *s)
 {
+    if (*s == 0)
+	return;
+
     char *p = s;
-    int l = strlen(p);
 
-    while (isspace(p[l - 1]))
-	p[--l] = 0;
-    while (*p && isspace(*p))
-	++p, --l;
+    while (isspace(*p))
+	p++;
+    if (*p == 0) {
+	if (p > s)
+	    *s = 0;
+	return;
+    }
 
-    memmove(s, p, l + 1);
+    char *q = s;
+    while (*p)
+	*q++ = *p++;
+    p--;
+    if (isspace(*p)) {
+	while (isspace(*p))
+	    p--;
+	p++;
+	*p = 0;
+    } else
+	*q = 0;
 }

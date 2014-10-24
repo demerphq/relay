@@ -48,7 +48,7 @@ struct sock {
 typedef struct sock sock_t;
 
 /* util.c */
-int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char* role);
+int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char *role);
 
 int open_socket(sock_t * s, int flags, int snd, int rcv);
 int setnonblocking(int fd);

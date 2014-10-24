@@ -80,7 +80,7 @@ static int is_valid_graphite_target(const char *path)
     return *p == 0;
 }
 
-static int is_valid_socketize(const char *arg, int default_proto, int connection_direction, const char* role)
+static int is_valid_socketize(const char *arg, int default_proto, int connection_direction, const char *role)
 {
     if (!is_non_empty_string(arg))
 	return 0;
@@ -221,7 +221,7 @@ static config_t *config_from_file(char *file)
 
 	trim_space(line);
 
-	if (strlen(line) != 0) {
+	if (*line) {
 	    if ((p = strchr(line, '='))) {
 		if (strlen(p) == 1)
 		    DIE("config file %s:%d: %s", file, line_num, line);

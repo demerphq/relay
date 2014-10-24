@@ -118,7 +118,7 @@ static int socketize_validate(const char *arg, char *a, sock_t * s, int default_
     return 1;
 }
 
-int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char* role)
+int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char *role)
 {
     char *a = strdup(arg);
 
