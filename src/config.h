@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <time.h>
 
 struct graphite_config {
     /* host:port for sending data to graphite,
@@ -21,6 +22,9 @@ struct config {
     /* original argc/argv, or synthesized from config file */
     int argc;
     char **argv;
+
+    uint64_t generation;
+    time_t epoch;
 
     /* config filename itself */
     char *file;

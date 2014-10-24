@@ -1,5 +1,8 @@
 #include "config.h"
 
+#include <errno.h>
+#include <string.h>
+
 #include "log.h"
 #include "string_util.h"
 #include "worker.h"
@@ -23,6 +26,9 @@ void config_destroy(void)
 
 void config_set_defaults(config_t * config)
 {
+    if (config == NULL)
+	return;
+
     config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
 
     config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
@@ -41,6 +47,8 @@ void config_set_defaults(config_t * config)
 
 void config_dump(config_t * config)
 {
+    if (config == NULL)
+	return;
     SAY("config->spillway_root = %s", config->spillway_root);
     SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
     SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
@@ -51,6 +59,10 @@ void config_dump(config_t * config)
     SAY("config->graphite.send_interval_millisec = %d", config->graphite.send_interval_millisec);
     SAY("config->graphite.sleep_poll_interval_millisec = %d", config->graphite.sleep_poll_interval_millisec);
     SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
+    if (config->argc > 0)
+	SAY("listener address = %s", config->argv[0]);
+    for (int i = 1; i < config->argc; i++)
+	SAY("forward address = %s", config->argv[i]);
 }
 
 static int is_non_empty_string(const char *s)
@@ -205,10 +217,16 @@ static config_t *config_from_file(char *file)
 
     config_set_defaults(config);
 
+    if (file == NULL) {
+	SAY("Config file unknown");
+	return NULL;
+    }
     SAY("Loading config file %s", file);
     f = fopen(file, "r");
-    if (f == NULL)
-	DIE("fopen: %s", file);
+    if (f == NULL) {
+	SAY("Failed to open: %s (%s)", file, strerror(errno));
+	return NULL;
+    }
 
     while (getline(&line, &len, f) != -1) {
 	char *p;
@@ -267,7 +285,7 @@ static config_t *config_from_file(char *file)
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
   do { \
     if ( config->name != new_config->name ) {               \
-        SAY("changed '" #name "' from '%d' to '%d'",        \
+        SAY("Changed '" #name "' from '%d' to '%d'",        \
                 config->name, new_config->name);            \
         config->name = new_config->name;                    \
         requires_restart = 1;                               \
@@ -277,7 +295,7 @@ static config_t *config_from_file(char *file)
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
   do { \
     if ( STRNE(config->name, new_config->name) )       {    \
-        SAY("changed '" #name "' from '%s' to '%s'",        \
+        SAY("Changed '" #name "' from '%s' to '%s'",        \
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name = new_config->name;                    \
@@ -287,17 +305,37 @@ static config_t *config_from_file(char *file)
 
 int config_reload(config_t * config)
 {
-    int i = 0;
     int requires_restart = 0;
-    config_t *new_config;
 
-    SAY("Reloading config file %s", config->file);
+    time_t now = time(0);
 
-    new_config = config_from_file(config->file);
+    SAY("Config generation %ld last config epoch %ld now %ld", config->generation, config->epoch, now);
 
-    SAY("Reloaded config file %s", config->file);
+    if (config->generation == 0) {
+	SAY("Loading config file %s", config->file);
+	requires_restart = 1;
+    }
+    else
+	SAY("Reloading config file %s", config->file);
 
-    SAY("New unmerged configuration");
+    config_t* new_config = config_from_file(config->file);
+
+    if (new_config == NULL) {
+	if (config->generation)  {
+	    SAY("Failed to reload config, not restarting");
+	    return 0;
+	} else
+	    DIE_RC(EXIT_FAILURE, "Failed to load config, not starting");
+    }
+
+    if (config->generation == 0) {
+	SAY("Loaded config file %s", config->file);
+        SAY("New configuration");
+    } else {
+	SAY("Reloaded config file %s", config->file);
+        SAY("New unmerged configuration");
+    }
+
     config_dump(new_config);
     if (!config_valid(new_config)) {
 	SAY("Invalid new configuration, ignoring it");
@@ -309,7 +347,10 @@ int config_reload(config_t * config)
 	closelog();
 	openlog(OUR_NAME,
 		LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
-	SAY("changed 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr, new_config->syslog_to_stderr);
+	if (config->generation == 0)
+	    SAY("Setting 'syslog_to_stderr' to '%d'", new_config->syslog_to_stderr);
+	else
+	    SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr, new_config->syslog_to_stderr);
 	config->syslog_to_stderr = new_config->syslog_to_stderr;
 	requires_restart = 1;
     }
@@ -326,11 +367,16 @@ int config_reload(config_t * config)
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
     IF_NUM_OPT_CHANGED(spill_usec, config, new_config);
 
-    for (i = 0; i < config->argc; i++) {
+    for (int i = 0; i < config->argc; i++) {
 	if (i < new_config->argc) {
 	    if (STRNE(config->argv[i], new_config->argv[i])) {
-		SAY("Changing %s socket config from '%s' to '%s'",
-		    i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
+		if (config->generation == 0) {
+		    SAY("Setting %s socket config to '%s'",
+			i == 0 ? "listen" : "forward", new_config->argv[i]);
+		} else {
+		    SAY("Changing %s socket config from '%s' to '%s'",
+			i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
+		}
 		requires_restart = 1;
 	    }
 	} else {
@@ -340,21 +386,27 @@ int config_reload(config_t * config)
 	free(config->argv[i]);
     }
     free(config->argv);
-    for (i = config->argc; i < new_config->argc; i++) {
-	SAY("Setting new %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
+    for (int i = config->argc; i < new_config->argc; i++) {
+	SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
 	requires_restart = 1;
     }
     config->argc = new_config->argc;
     config->argv = new_config->argv;
-    free(new_config);
 
-    SAY("Merged new configuration");
-    config_dump(config);
+    if (config->generation && requires_restart) {
+	SAY("Merged new configuration");
+	config_dump(config);
+    }
+
+    free(new_config);
 
     if (requires_restart)
 	SAY("Configuration changed: requires restart");
     else
 	SAY("Configuration unchanged: does not require restart");
+
+    config->generation++;
+    config->epoch = now;
 
     return requires_restart;
 }
