@@ -12,9 +12,11 @@
 static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
+
 sock_t *s_listen;
-extern config_t CONFIG;
 graphite_worker_t *graphite_worker;
+
+extern config_t CONFIG;
 
 stats_basic_counters_t RECEIVED_STATS = {
     .received_count = 0,	/* number of items we have received */
@@ -288,7 +290,7 @@ void *tcp_server(void *arg)
     RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
 
     for (;;) {
-	int rc = poll(ctxt.pfds, ctxt.nfds, CONFIG.polling_interval_millisec);
+	int rc = poll(ctxt.pfds, ctxt.nfds, s->polling_interval_millisec);
 	if (rc == -1) {
 	    if (errno == EINTR)
 		continue;
@@ -320,6 +322,8 @@ pthread_t setup_listener(config_t * config)
     pthread_t server_tid = 0;
 
     socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener");
+
+    s_listen->polling_interval_millisec = config->polling_interval_millisec;
 
     /* must open the socket BEFORE we create the worker pool */
     open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);

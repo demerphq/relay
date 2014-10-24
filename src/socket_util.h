@@ -43,6 +43,7 @@ struct sock {
     char to_string[PATH_MAX];
     char arg_clean[PATH_MAX];
     socklen_t addrlen;
+    int polling_interval_millisec;
 };
 typedef struct sock sock_t;
 
