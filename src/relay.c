@@ -350,7 +350,7 @@ static int serve(config_t * config)
 
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
-    graphite_worker = calloc_or_die(sizeof(graphite_worker_t));
+    graphite_worker = graphite_worker_create(config);
     pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
     for (;;) {

@@ -20,6 +20,8 @@ struct graphite_worker {
 };
 
 typedef struct graphite_worker graphite_worker_t;
+
+graphite_worker_t *graphite_worker_create(config_t * config);
 void graphite_worker_destroy(graphite_worker_t * worker);
 void *graphite_worker_thread(void *arg);
 

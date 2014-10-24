@@ -19,7 +19,7 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
     strncpy(s->arg_clean, arg, PATH_MAX);
     scrub_nonalnum(s->arg_clean, PATH_MAX);
 
-    SAY("socketizing %s argument '%s'", type_str, arg);
+    SAY("Socketizing %s argument '%s'", type_str, arg);
     if ((p = strchr(a, ':')) != NULL) {
 
 	s->sa.in.sin_family = AF_INET;

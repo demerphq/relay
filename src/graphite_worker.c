@@ -66,6 +66,19 @@ char *graphite_worker_setup_root(config_t * config)
 }
 
 
+graphite_worker_t *graphite_worker_create(config_t * config)
+{
+    graphite_worker_t *gw = calloc_or_die(sizeof(graphite_worker_t));
+
+    gw->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
+    gw->arg = strdup(config->graphite_arg);
+    gw->root = graphite_worker_setup_root(config);
+
+    socketize(gw->arg, &gw->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
+
+    return gw;
+}
+
 void *graphite_worker_thread(void *arg)
 {
     struct sock *sck = NULL;
@@ -74,12 +87,6 @@ void *graphite_worker_thread(void *arg)
     time_t this_epoch;
     char stats_format[256];
     char meminfo_format[256];
-
-    self->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
-    self->arg = strdup(CONFIG.graphite_arg);
-    self->root = graphite_worker_setup_root(&CONFIG);
-
-    socketize(self->arg, &self->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
 	char *str = self->buffer;	/* current position in buffer */
