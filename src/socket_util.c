@@ -1,5 +1,6 @@
 #include "socket_util.h"
 
+#include <ctype.h>
 #include <libgen.h>
 
 #include "string_util.h"
@@ -23,8 +24,14 @@ void socketize(const char *arg, sock_t * s, int default_proto, int conn_dir, cha
     if ((p = strchr(a, ':')) != NULL) {
 
 	s->sa.in.sin_family = AF_INET;
-	/* XXX: error handling? */
-	s->sa.in.sin_port = htons(atoi(p + 1));	/* skip the : */
+
+	if (!isdigit(p[1]) || p[1] == '0')
+	    DIE_RC(EXIT_FAILURE, "Invalid port number '%s' in '%s'", p + 1, arg);
+	char *endp;
+	long port = strtol(p + 1, &endp, 10);
+	if (port < 0 || port > 65535 || *endp)
+	    DIE_RC(EXIT_FAILURE, "Invalid port number '%s' in '%s'", p + 1, arg);
+	s->sa.in.sin_port = htons(port);
 
 	/* replace the ":" with a null, effectively strip the proto off the end */
 	*p = '\0';
