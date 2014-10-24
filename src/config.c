@@ -60,19 +60,22 @@ static int is_non_empty_string(const char *s)
 
 /* Accepts only ASCII paths: one or more 'words',
  * separated by single dots. */
-static int is_valid_graphite_path(const char *path)
+static int is_valid_graphite_target(const char *path)
 {
     if (!is_non_empty_string(path))
 	return 0;
     const char *p;
     /* XXX maybe stricter: can the words start with a digit? */
-    for (p = path; isalnum(*p) || *p == '_'; p++) {
+    for (p = path; *p && (isalnum(*p) || *p == '_'); p++) {
 	while (isalnum(*p) || *p == '_')
 	    p++;
-	if (*p == '.')
+	if (*p == 0)
+	    break;
+	if (*p == '.' && isalnum(p[1]))
 	    continue;
-	else if (*p)
+	else if (*p) {
 	    return 0;
+	}
     }
     return *p == 0;
 }
@@ -129,10 +132,10 @@ static int is_valid_buffer_size(uint32_t size)
 }
 
 #define CONFIG_VALID_STR(config, t, v, invalid)		\
-    do { if (!t(config->v)) { SAY("%s value %s invalid", #v, config->v); invalid++; } } while (0)
+    do { if (!t(config->v)) { SAY("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
 #define CONFIG_VALID_SOCKETIZE(config, p, d, r, v, invalid)		\
-    do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { SAY("%s value %s invalid", #v, config->v); invalid++; } } while (0)
+    do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { SAY("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
 #define CONFIG_VALID_NUM(config, t, v, invalid)		\
     do { if (!t(config->v)) { SAY("%s value %d invalid", #v, config->v); invalid++; } } while (0)
@@ -149,7 +152,7 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
 
     CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.addr, invalid);
-    CONFIG_VALID_STR(config, is_valid_graphite_path, graphite.target, invalid);
+    CONFIG_VALID_STR(config, is_valid_graphite_target, graphite.target, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.send_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.sleep_poll_interval_millisec, invalid);
 
@@ -266,8 +269,8 @@ static config_t *config_from_file(char *file)
     if ( config->name != new_config->name ) {               \
         SAY("changed '" #name "' from '%d' to '%d'",        \
                 config->name, new_config->name);            \
-        config->name= new_config->name;                     \
-        requires_restart= 1;                                \
+        config->name = new_config->name;                    \
+        requires_restart = 1;                               \
     } \
   } while(0)
 
@@ -277,8 +280,8 @@ static config_t *config_from_file(char *file)
         SAY("changed '" #name "' from '%s' to '%s'",        \
                 config->name, new_config->name);            \
         free(config->name);                                 \
-        config->name= new_config->name;                     \
-        requires_restart= 1;                                \
+        config->name = new_config->name;                    \
+        requires_restart = 1;                               \
     } \
   } while(0)
 
@@ -302,9 +305,6 @@ int config_reload(config_t * config)
     }
     SAY("Merging new configuration with old");
 
-    if (new_config->argc < 2) {
-	DIE("No server specified?");
-    }
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
 	closelog();
 	openlog(OUR_NAME,

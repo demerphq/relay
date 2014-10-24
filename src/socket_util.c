@@ -90,7 +90,6 @@ static int socketize_validate(const char *arg, char *a, sock_t * s, int default_
 	    SAY("socket details: %s", s->to_string);
     } else if (connection_direction == RELAY_CONN_IS_OUTBOUND && (*a == '/' || *a == '.')) {
 	proto = SOCK_FAKE_FILE;
-	assert(proto != IPPROTO_TCP && proto != IPPROTO_UDP);
 	wrote = snprintf(s->to_string, PATH_MAX, "file@%s", a);
 	if (wrote >= PATH_MAX) {
 	    SAY("Path too long");
