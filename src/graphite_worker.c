@@ -53,9 +53,9 @@ char *graphite_worker_setup_root(config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite_root) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite_target) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_die(root_len);
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_root, hostname, s_listen->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite_target, hostname, s_listen->arg_clean);
 
     if (wrote >= root_len)
 	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
@@ -71,7 +71,7 @@ graphite_worker_t *graphite_worker_create(config_t * config)
 
     gw->config = config;
     gw->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
-    gw->arg = strdup(config->graphite_arg);
+    gw->arg = strdup(config->graphite_addr);
     gw->root = graphite_worker_setup_root(config);
 
     socketize(gw->arg, &gw->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite sender");

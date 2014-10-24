@@ -27,9 +27,12 @@ struct config {
      * and "spilled" data */
     char *spillway_root;
 
-    /* host:port for sending data to graphite */
-    char *graphite_arg;
-    char *graphite_root;
+    /* host:port for sending data to graphite,
+     * or a filename. */
+    char *graphite_addr;
+    /* foo.bar.val - "graphite_path" would
+     * be a bit ambiguous */
+    char *graphite_target;
     uint32_t graphite_send_interval_millisec;
     uint32_t graphite_sleep_poll_interval_millisec;
 
@@ -65,12 +68,12 @@ typedef struct config config_t;
 #define DEFAULT_SPILLWAY_ROOT "/tmp"
 #endif
 
-#ifndef DEFAULT_GRAPHITE_ARG
-#define DEFAULT_GRAPHITE_ARG "/tmp/event_relay.graphite"
+#ifndef DEFAULT_GRAPHITE_ADDR
+#define DEFAULT_GRAPHITE_ADDR "/tmp/event_relay.graphite"
 #endif
 
-#ifndef DEFAULT_GRAPHITE_ROOT
-#define DEFAULT_GRAPHITE_ROOT "general.event_relay"
+#ifndef DEFAULT_GRAPHITE_TARGET
+#define DEFAULT_GRAPHITE_TARGET "general.event_relay"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC
