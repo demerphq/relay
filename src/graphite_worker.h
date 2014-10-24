@@ -14,7 +14,7 @@ struct graphite_worker {
 
     sock_t s_output;
 
-    config_t* config;
+    config_t *config;
     char *arg;
     char *root;
     char *buffer;

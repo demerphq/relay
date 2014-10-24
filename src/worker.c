@@ -5,8 +5,6 @@
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
 
-extern config_t CONFIG;
-
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(worker_t * worker, struct blob *b)
 {
@@ -54,7 +52,7 @@ void *worker_thread(void *arg)
 		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(CONFIG.sleep_after_disaster_millisec);
+		worker_wait_millisec(self->config->sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -68,7 +66,7 @@ void *worker_thread(void *arg)
 	     */
 	    if (!queue_hijack(main_queue, &private_queue, &POOL.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
-		worker_wait_millisec(CONFIG.polling_interval_millisec);
+		worker_wait_millisec(self->config->polling_interval_millisec);
 		continue;
 	    }
 	}
@@ -92,11 +90,11 @@ void *worker_thread(void *arg)
 	    /* Peel off all the blobs which have been in the queue
 	     * for longer than the spill limit, move them to the
 	     * spill queue, and enqueue them for spilling. */
-	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= CONFIG.spill_usec) {
+	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->config->spill_usec) {
 		spill_queue.head = cur_blob;
 		spill_queue.count = 1;
 		while (BLOB_NEXT(cur_blob)
-		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= CONFIG.spill_usec) {
+		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->config->spill_usec) {
 		    cur_blob = BLOB_NEXT(cur_blob);
 		    spill_queue.count++;
 		}
@@ -205,11 +203,13 @@ void *worker_thread(void *arg)
 
 
 /* initialize a worker safely */
-worker_t *worker_init(char *arg)
+worker_t *worker_init(char *arg, config_t * config)
 {
     worker_t *worker = calloc_or_die(sizeof(*worker));
     disk_writer_t *disk_writer = calloc_or_die(sizeof(disk_writer_t));
     int create_err;
+
+    worker->config = config;
 
     worker->exists = 1;
     worker->arg = strdup(arg);
@@ -218,11 +218,12 @@ worker_t *worker_init(char *arg)
 
     worker->disk_writer = disk_writer;
 
+    disk_writer->config = config;
     disk_writer->pcounters = &worker->counters;
     disk_writer->ptotals = &worker->totals;
 
     /* setup spillway_path */
-    if (snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", CONFIG.spillway_root,
+    if (snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
 		 worker->s_output.arg_clean) >= PATH_MAX)
 	DIE_RC(EXIT_FAILURE, "spillway_path too big, had to be truncated: %s", disk_writer->spillway_path);
 

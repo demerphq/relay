@@ -5,7 +5,6 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern config_t CONFIG;
 
 /* create a directory with the right permissions or throw an exception
  * (not sure the exception makes sense)
@@ -100,7 +99,7 @@ void *disk_writer_thread(void *arg)
 		/* nothing to do and we have been asked to exit, so break from the loop */
 		break;
 	    } else {
-		worker_wait_millisec(CONFIG.polling_interval_millisec);
+		worker_wait_millisec(self->config->polling_interval_millisec);
 	    }
 	} else {
 	    do {

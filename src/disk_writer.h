@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include "blob.h"
+#include "config.h"
 #include "relay_common.h"
 #include "stats.h"
 
@@ -15,6 +16,8 @@ struct disk_writer {
     pthread_t tid;
 
     volatile uint32_t exit;
+
+    config_t *config;
 
     stats_basic_counters_t *pcounters;
     stats_basic_counters_t *ptotals;

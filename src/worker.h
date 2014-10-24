@@ -26,6 +26,8 @@ struct worker {
     stats_basic_counters_t counters;
     stats_basic_counters_t totals;
 
+    config_t *config;
+
     sock_t s_output;
     char *arg;
     volatile uint32_t exists;
@@ -36,7 +38,7 @@ struct worker {
 typedef struct worker worker_t;
 
 /* worker.c */
-worker_t *worker_init(char *arg);
+worker_t *worker_init(char *arg, config_t * config);
 void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 

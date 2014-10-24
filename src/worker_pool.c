@@ -88,7 +88,7 @@ void worker_pool_init_static(config_t * config)
     for (i = 1; i < config->argc; i++) {
 	if (is_stopped())
 	    break;
-	new_worker = worker_init(config->argv[i]);
+	new_worker = worker_init(config->argv[i], config);
 	TAILQ_INSERT_HEAD(&POOL.workers, new_worker, entries);
 	POOL.n_workers++;
     }
@@ -125,7 +125,7 @@ void worker_pool_reload_static(config_t * config)
 	    }
 	}
 	if (must_add) {
-	    w = worker_init(config->argv[i]);	/* w will have w->exists == 1 */
+	    w = worker_init(config->argv[i], config);	/* w will have w->exists == 1 */
 	    TAILQ_INSERT_TAIL(&POOL.workers, w, entries);
 	}
     }
