@@ -3,6 +3,7 @@
 #include "config.h"
 #include "control.h"
 #include "setproctitle.h"
+#include "string_util.h"
 #include "timer.h"
 #include "worker.h"
 #include "worker_pool.h"
@@ -364,15 +365,25 @@ static int serve(config_t * config)
 	if (control & RELAY_STOP) {
 	    break;
 	} else if (control & RELAY_RELOAD) {
+	    char *old_graphite_addr = strdup(config->graphite.addr);
+	    char *old_graphite_target = strdup(config->graphite.target);
+	    uint32_t old_graphite_sndim = config->graphite.send_interval_millisec;
+	    uint32_t old_graphite_slpim = config->graphite.sleep_poll_interval_millisec;
 	    if (config_reload(config)) {
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
 		worker_pool_reload_static(config);
-		/* XXX: check me */
-		/* check and see if we need to stop the old graphite processor and replace it */
-		graphite_worker_destroy(graphite_worker);
-		pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+		if (STRNE(old_graphite_addr, config->graphite.addr) ||
+		    STRNE(old_graphite_target, config->graphite.target) ||
+		    old_graphite_sndim != config->graphite.send_interval_millisec ||
+		    old_graphite_slpim != config->graphite.sleep_poll_interval_millisec) {
+		    /* The graphite config changed, need to restart the graphite worker. */
+		    graphite_worker_destroy(graphite_worker);
+		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+		}
 	    }
+	    free(old_graphite_addr);
+	    free(old_graphite_target);
 	    unset_control_bits(RELAY_RELOAD);
 	}
 
