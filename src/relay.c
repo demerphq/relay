@@ -377,9 +377,11 @@ static int serve(config_t * config)
 		    STRNE(old_graphite_target, config->graphite.target) ||
 		    old_graphite_sndim != config->graphite.send_interval_millisec ||
 		    old_graphite_slpim != config->graphite.sleep_poll_interval_millisec) {
-		    /* The graphite config changed, need to restart the graphite worker. */
+		    SAY("Graphite config changed, reloading the worker");
 		    graphite_worker_destroy(graphite_worker);
 		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+		} else {
+		    SAY("Graphite config unchanged, not reloading the worker");
 		}
 	    }
 	    free(old_graphite_addr);
