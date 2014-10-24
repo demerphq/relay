@@ -23,7 +23,6 @@ void config_destroy(void)
 
 void config_set_defaults(config_t * config)
 {
-
     config->graphite_arg = strdup(DEFAULT_GRAPHITE_ARG);
     config->graphite_root = strdup(DEFAULT_GRAPHITE_ROOT);
     config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
@@ -50,6 +49,115 @@ void config_dump(config_t * config)
     SAY("config->graphite_send_interval_millisec = %d", config->graphite_send_interval_millisec);
     SAY("config->graphite_sleep_poll_interval_millisec = %d", config->graphite_sleep_poll_interval_millisec);
     SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
+}
+
+static int is_non_empty_string(const char *s)
+{
+    return s && *s ? 1 : 0;
+}
+
+/* Accepts only ASCII paths: one or more 'words',
+ * separated by single dots. */
+static int is_valid_graphite_path(const char *path)
+{
+    if (!is_non_empty_string(path))
+	return 0;
+    const char *p;
+    /* XXX maybe stricter: can the words start with a digit? */
+    for (p = path; isalnum(*p) || *p == '_'; p++) {
+	while (isalnum(*p) || *p == '_')
+	    p++;
+	if (*p == '.')
+	    continue;
+	else if (*p)
+	    return 0;
+    }
+    return *p == 0;
+}
+
+static int is_valid_socketize(const char *arg)
+{
+    if (!is_non_empty_string(arg))
+	return 0;
+    /* TODO real parsing logic - refactor from socket_util */
+    return 1;
+}
+
+static int is_valid_directory(const char *path)
+{
+    if (!is_non_empty_string(path))
+	return 0;
+    struct stat st;
+    /* Yes, there's a race condition here. */
+    return (stat(path, &st) == 0 || S_ISDIR(st.st_mode)) ? 1 : 0;
+}
+
+static int is_valid_millisec(uint32_t millisec)
+{
+    /* The upper limit is because of use of usleep():
+     * 1000000 (1 sec) is promised by standards, but no more. */
+    return millisec > 0 && millisec <= 1000000;
+}
+
+static int is_valid_microsec(uint32_t microsec)
+{
+    /* The upper limit is because of use of usleep():
+     * 1000000 (1 sec) is promised by standards, but no more. */
+    return microsec > 0 && microsec <= 1000000;
+}
+
+static int is_valid_sec(uint32_t sec)
+{
+    /* The upper limit is pretty arbitrary, but the basic idea is to
+     * protect against too high values which indicate either mixing
+     * with milliseconds, or overflows/wraparounds. */
+    return sec > 0 && sec <= 60;
+}
+
+static int is_valid_buffer_size(uint32_t size)
+{
+    /* Pretty arbitrary choices but let's require alignment by 4096,
+     * and at least one megabyte. */
+    return ((size & 4095) == 0) && (size >= 1 << 20);
+}
+
+#define CONFIG_VALID_STR(config, t, v, invalid)		\
+    do { if (!t(config->v)) { SAY("%s value %s invalid", #v, config->v); invalid++; } } while (0)
+
+#define CONFIG_VALID_NUM(config, t, v, invalid)		\
+    do { if (!t(config->v)) { SAY("%s value %d invalid", #v, config->v); invalid++; } } while (0)
+
+static int config_valid(config_t * config)
+{
+    int invalid = 0;
+
+    CONFIG_VALID_STR(config, is_valid_socketize, graphite_arg, invalid);
+    CONFIG_VALID_STR(config, is_valid_graphite_path, graphite_root, invalid);
+    CONFIG_VALID_STR(config, is_valid_directory, spillway_root, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, polling_interval_millisec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_sec, tcp_send_timeout_sec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, graphite_send_interval_millisec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, graphite_sleep_poll_interval_millisec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_microsec, spill_usec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
+
+    if (config->argc < 1) {
+	SAY("Missing listen argument");
+	invalid++;
+    } else {
+	CONFIG_VALID_STR(config, is_valid_socketize, argv[0], invalid);
+    }
+    if (config->argc < 2) {
+	SAY("Missing send arguments");
+	invalid++;
+    } else {
+	for (int i = 1; i < config->argc; i++) {
+	    CONFIG_VALID_STR(config, is_valid_socketize, argv[i], invalid);
+	}
+    }
+
+    return invalid == 0;
 }
 
 #define TRY_OPT_BEGIN do
@@ -83,7 +191,7 @@ config_t *config_from_file(char *file)
 
     config_set_defaults(config);
 
-    SAY("loading config file %s", file);
+    SAY("Loading config file %s", file);
     f = fopen(file, "r");
     if (f == NULL)
 	DIE("fopen: %s", file);
@@ -132,10 +240,12 @@ config_t *config_from_file(char *file)
     fclose(f);
     if (line)
 	free(line);
-    SAY("loaded config file %s", file);
+    SAY("Loaded config file %s", file);
 
     config_dump(config);
-    /* TODO: check for sanity */
+
+    if (!config_valid(config))
+	DIE("Invalid configuration");
 
     return config;
 }
@@ -165,7 +275,21 @@ int config_reload(config_t * config)
 {
     int i = 0;
     int requires_restart = 0;
-    config_t *new_config = config_from_file(config->file);
+    config_t *new_config;
+
+    SAY("Reloading config file %s", config->file);
+
+    new_config = config_from_file(config->file);
+
+    SAY("Reloaded config file %s", config->file);
+
+    SAY("New unmerged configuration");
+    config_dump(new_config);
+    if (!config_valid(new_config)) {
+	SAY("Invalid new configuration, ignoring it");
+	return 0;
+    }
+    SAY("Merging new configuration with old");
 
     if (new_config->argc < 2) {
 	DIE("No server specified?");
@@ -213,8 +337,13 @@ int config_reload(config_t * config)
     config->argv = new_config->argv;
     free(new_config);
 
+    SAY("Merged new configuration");
     config_dump(config);
-    /* TODO: check for sanity */
+
+    if (requires_restart)
+	SAY("Configuration changed: requires restart");
+    else
+	SAY("Configuration unchanged: does not require restart");
 
     return requires_restart;
 }

@@ -17,7 +17,7 @@ struct config {
     /* various meta data used for sending, etc */
     int polling_interval_millisec;
     int sleep_after_disaster_millisec;
-    int max_pps;
+    int max_pps;		/* XXX unused */
     int tcp_send_timeout_sec;
     int server_socket_rcvbuf_bytes;
     uint32_t spill_usec;
@@ -66,7 +66,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ARG
-#define DEFAULT_GRAPHITE_ARG "/tmp/relay.graphite"
+#define DEFAULT_GRAPHITE_ARG "/tmp/event_relay.graphite"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ROOT
