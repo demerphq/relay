@@ -27,8 +27,10 @@ DBG_FLAGS=-g
 # -Wcast-align is useless with gcc on x86: it never warns.  Use it with clang.
 WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align
 
+SOURCE_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE
+
 # Flags common to all compilers.
-CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) -pthread -std=c99 -D_BSD_SOURCE -D_POSIX_SOURCE -D_GNU_SOURCE -fno-omit-frame-pointer
+CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(SOURCE_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
 
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
