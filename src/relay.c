@@ -341,6 +341,37 @@ pthread_t setup_listener(config_t * config)
     return server_tid;
 }
 
+static struct graphite_config *graphite_config_clone(const struct graphite_config *old_config)
+{
+    struct graphite_config *new_config = (struct graphite_config *) malloc(sizeof(*new_config));
+    memset(new_config, 0, sizeof(*new_config));
+    new_config->addr = strdup(old_config->addr);
+    new_config->target = strdup(old_config->target);
+    new_config->send_interval_millisec = old_config->send_interval_millisec;
+    new_config->sleep_poll_interval_millisec = old_config->sleep_poll_interval_millisec;
+    return new_config;
+}
+
+static int graphite_config_changed(const struct graphite_config *old_config, const struct graphite_config *new_config)
+{
+    return
+	STRNE(old_config->addr, new_config->addr) ||
+	STRNE(old_config->target, new_config->target) ||
+	old_config->send_interval_millisec != new_config->send_interval_millisec ||
+	old_config->sleep_poll_interval_millisec != new_config->sleep_poll_interval_millisec;
+}
+
+static void graphite_config_destroy(struct graphite_config *config)
+{
+    assert(config->addr);
+    assert(config->target);
+    free(config->addr);
+    free(config->target);
+    /* Reset the config to trap use-after-free. */
+    memset(config, 0, sizeof(*config));
+    free(config);
+}
+
 static int serve(config_t * config)
 {
     pthread_t server_tid = 0;
@@ -366,18 +397,12 @@ static int serve(config_t * config)
 	if (control & RELAY_STOP) {
 	    break;
 	} else if (control & RELAY_RELOAD) {
-	    char *old_graphite_addr = strdup(config->graphite.addr);
-	    char *old_graphite_target = strdup(config->graphite.target);
-	    uint32_t old_graphite_sndim = config->graphite.send_interval_millisec;
-	    uint32_t old_graphite_slpim = config->graphite.sleep_poll_interval_millisec;
+	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
 	    if (config_reload(config)) {
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
 		worker_pool_reload_static(config);
-		if (STRNE(old_graphite_addr, config->graphite.addr) ||
-		    STRNE(old_graphite_target, config->graphite.target) ||
-		    old_graphite_sndim != config->graphite.send_interval_millisec ||
-		    old_graphite_slpim != config->graphite.sleep_poll_interval_millisec) {
+		if (graphite_config_changed(old_graphite_config, &config->graphite)) {
 		    SAY("Graphite config changed, reloading the worker");
 		    graphite_worker_destroy(graphite_worker);
 		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
@@ -385,8 +410,7 @@ static int serve(config_t * config)
 		    SAY("Graphite config unchanged, not reloading the worker");
 		}
 	    }
-	    free(old_graphite_addr);
-	    free(old_graphite_target);
+	    graphite_config_destroy(old_graphite_config);
 	    unset_control_bits(RELAY_RELOAD);
 	}
 

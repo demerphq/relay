@@ -314,14 +314,13 @@ int config_reload(config_t * config)
     if (config->generation == 0) {
 	SAY("Loading config file %s", config->file);
 	requires_restart = 1;
-    }
-    else
+    } else
 	SAY("Reloading config file %s", config->file);
 
-    config_t* new_config = config_from_file(config->file);
+    config_t *new_config = config_from_file(config->file);
 
     if (new_config == NULL) {
-	if (config->generation)  {
+	if (config->generation) {
 	    SAY("Failed to reload config, not restarting");
 	    return 0;
 	} else
@@ -330,10 +329,10 @@ int config_reload(config_t * config)
 
     if (config->generation == 0) {
 	SAY("Loaded config file %s", config->file);
-        SAY("New configuration");
+	SAY("New configuration");
     } else {
 	SAY("Reloaded config file %s", config->file);
-        SAY("New unmerged configuration");
+	SAY("New unmerged configuration");
     }
 
     config_dump(new_config);
@@ -350,7 +349,8 @@ int config_reload(config_t * config)
 	if (config->generation == 0)
 	    SAY("Setting 'syslog_to_stderr' to '%d'", new_config->syslog_to_stderr);
 	else
-	    SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr, new_config->syslog_to_stderr);
+	    SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr,
+		new_config->syslog_to_stderr);
 	config->syslog_to_stderr = new_config->syslog_to_stderr;
 	requires_restart = 1;
     }
@@ -371,8 +371,7 @@ int config_reload(config_t * config)
 	if (i < new_config->argc) {
 	    if (STRNE(config->argv[i], new_config->argv[i])) {
 		if (config->generation == 0) {
-		    SAY("Setting %s socket config to '%s'",
-			i == 0 ? "listen" : "forward", new_config->argv[i]);
+		    SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
 		} else {
 		    SAY("Changing %s socket config from '%s' to '%s'",
 			i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
