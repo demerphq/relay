@@ -197,12 +197,12 @@ static int config_valid(config_t * config)
 
 #define TRY_NUM_OPT(name,line,p)                                            \
     if ( STREQ(#name, line) ) {                                             \
-        int tmp = atoi(p);                                                  \
-        if (tmp > 0) {                                                      \
-            config->name = tmp;                                             \
-        } else {                                                            \
-            SAY("Ignoring " #name " setting of %d which is too low", tmp);  \
-        }                                                                   \
+        char* endp;                                                         \
+        long tmp = strtol(p, &endp, 10);		                    \
+        if (*endp == 0)                                                     \
+             config->name = tmp;                                            \
+        else     							    \
+	    WARN("Ignoring strange config value %s=%s", #name, p);	    \
         break;                                                              \
     }
 
