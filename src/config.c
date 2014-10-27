@@ -406,15 +406,15 @@ static int config_save(const config_t * config, time_t now)
 	return 0;
     }
 
-    if (close(fd) == EOF) {
-	WARN("Failed to fd save config as %s: %s", temp, strerror(errno));
+    if (close(fd) == -1) {
+	WARN("Failed to close save config as %s: %s", temp, strerror(errno));
 	return 0;
     }
 
     char save[PATH_MAX];
     wrote = snprintf(save, PATH_MAX, "%s.save.%ld", config->file, now);
     if (wrote < 0 || wrote >= PATH_MAX) {
-	WARN("Failed to save %s as %s.save (wrote %d bytes)", save, save, wrote);
+	WARN("Failed to write %s as %s.save (wrote %d bytes)", save, save, wrote);
 	return 0;
     }
 
