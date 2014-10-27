@@ -556,14 +556,13 @@ int config_reload(config_t * config)
     if (config_changed) {
 	config->generation++;
 	config->epoch_changed = now;
+	if (!config_save(config, now)) {
+	    WARN("Config save failed");
+	}
     }
     config->epoch_success = now;
 
     SAY("Config reload: success");
-
-    if (!config_save(config, now)) {
-	SAY("Warning: config save failed");
-    }
 
   out:
 
