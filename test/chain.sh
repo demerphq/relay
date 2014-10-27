@@ -13,8 +13,8 @@ export LAST_PORT=$(expr $FIRST_PORT + $RELAY_COUNT - 1)
 export LISTENER_PORT=${LISTENER_PORT:-9003}
 export LISTENER_FLAGS
 
-export RELAY=${RELAY:-../bin/relay}
-#export RELAY=${RELAY:-../bin/relay.clang}
+export RELAY=${RELAY:-../bin/event-relay}
+#export RELAY=${RELAY:-../bin/event-relay.clang}
 
 if test ! -f $RELAY; then
     echo "$0: No relay $RELAY, aborting."

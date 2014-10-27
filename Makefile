@@ -37,7 +37,7 @@ SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/soc
 	src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
 
 # The executable names.
-RELAY=relay
+RELAY=event-relay
 RELAY_CLANG=$(RELAY).clang
 
 all:	gcc clang
@@ -78,7 +78,7 @@ indent:
 	indent -kr --line-length 120 src/*.[hc]
 
 clean:
-	rm -f bin/relay* test/sock/*
+	rm -f bin/$(basename $(RELAY))* test/sock/*
 
 run:
 	cd test && ./setup.sh
