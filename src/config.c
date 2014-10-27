@@ -1,6 +1,8 @@
 #include "config.h"
 
 #include <errno.h>
+#include <libgen.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "log.h"
@@ -286,6 +288,138 @@ static config_t *config_from_file(char *file)
     return config;
 }
 
+/* TODO: this could be useful in graphite output */
+struct bufferf {
+    char buf[4096];
+    int offset;
+};
+
+int append_to_bufferf(struct bufferf *buf, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    int room = sizeof(buf->buf) - buf->offset;
+    int wrote = vsnprintf(buf->buf + buf->offset, room, fmt, ap);
+    if (wrote < 0 || wrote >= room)
+	return 0;
+    buf->offset += wrote;
+    return wrote;
+}
+
+static int config_to_bufferf(const config_t * config, struct bufferf *buf)
+{
+    if (!append_to_bufferf(buf, "syslog_to_stderr = %d\n", config->syslog_to_stderr))
+	return 0;
+    if (!append_to_bufferf(buf, "tcp_send_timeout_sec = %d\n", config->tcp_send_timeout_sec))
+	return 0;
+    if (!append_to_bufferf(buf, "spillway_root = %s\n", config->spillway_root))
+	return 0;
+    if (!append_to_bufferf(buf, "spill_usec = %d\n", config->spill_usec))
+	return 0;
+    if (!append_to_bufferf(buf, "polling_interval_millisec = %d\n", config->polling_interval_millisec))
+	return 0;
+    if (!append_to_bufferf(buf, "sleep_after_disaster_millisec = %d\n", config->sleep_after_disaster_millisec))
+	return 0;
+    if (!append_to_bufferf(buf, "server_socket_rcvbuf_bytes = %d\n", config->server_socket_rcvbuf_bytes))
+	return 0;
+    if (!append_to_bufferf(buf, "graphite.addr = %s\n", config->graphite.addr))
+	return 0;
+    if (!append_to_bufferf(buf, "graphite.target = %s\n", config->graphite.target))
+	return 0;
+    if (!append_to_bufferf(buf, "graphite.send_interval_millisec = %d\n", config->graphite.send_interval_millisec))
+	return 0;
+    if (!append_to_bufferf
+	(buf, "graphite.sleep_poll_interval_millisec = %d\n", config->graphite.sleep_poll_interval_millisec))
+	return 0;
+    for (int i = 0; i < config->argc; i++) {
+	if (!append_to_bufferf(buf, "%s\n", config->argv[i]))
+	    return 0;
+    }
+    return 1;
+}
+
+static int config_to_file(const config_t * config, int fd)
+{
+    struct bufferf buf;
+
+    memset(&buf, 0, sizeof(buf));
+    if (config_to_bufferf(config, &buf)) {
+	int wrote;
+	if ((wrote = write(fd, buf.buf, buf.offset)) == buf.offset) {
+	    return 1;
+	} else {
+	    WARN("write() failed, tried writing %d but wrote %d: %s", buf.offset, wrote, strerror(errno));
+	}
+    }
+    WARN("Failed to write config to file");
+    return 0;
+}
+
+static int config_save(const config_t * config, time_t now)
+{
+    if (config->file == NULL) {
+	WARN("Failed to save config with NULL name");
+	return 0;
+    }
+
+    /* We will do mkstemp() + rename(), but first we need a temp file
+     * name template, and we need it in in the same directory as the
+     * configuration file. */
+    char temp[PATH_MAX];
+    char *p = config->file;
+    char *q = temp;
+    char *qe = temp + sizeof(temp);
+    /* Safer than strcpy or strncpy */
+    while (*p && q < qe)
+	*q++ = *p++;
+    if (q < qe) {
+	*q = 0;
+    } else {
+	WARN("Failed to copy config filename %s", config->file);
+	return 0;
+    }
+
+    char *dir = dirname(temp);	/* NOTE: MODIFIES temp! */
+    int len = strlen(dir);
+
+    int wrote = snprintf(temp + len, sizeof(temp) - len, "/event-relay.conf.XXXXXX");
+    if (wrote < 0 || wrote >= PATH_MAX) {
+	WARN("Failed making filename %s: %s", temp, strerror(errno));
+	return 0;
+    }
+
+    int fd = mkstemp(temp);
+    if (fd == -1) {
+	WARN("Failed to mkstemp %s: %s", temp, strerror(errno));
+	return 0;
+    }
+
+    if (!config_to_file(config, fd)) {
+	WARN("Failed to save config to %s: %s", temp, strerror(errno));
+	return 0;
+    }
+
+    if (close(fd) == EOF) {
+	WARN("Failed to fd save config as %s: %s", temp, strerror(errno));
+	return 0;
+    }
+
+    char save[PATH_MAX];
+    wrote = snprintf(save, PATH_MAX, "%s.save.%ld", config->file, now);
+    if (wrote < 0 || wrote >= PATH_MAX) {
+	WARN("Failed to save %s as %s.save (wrote %d bytes)", save, save, wrote);
+	return 0;
+    }
+
+    if (rename(temp, save) != 0) {
+	WARN("Failed to rename %s as %s (%s)", temp, save, strerror(errno));
+	return 0;
+    }
+
+    SAY("Saved config as %s", save);
+    return 1;
+}
+
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
   do { \
     if ( config->name != new_config->name ) {               \
@@ -418,7 +552,11 @@ int config_reload(config_t * config)
 
     SAY("Config reload: success");
 
-out:
+    if (!config_save(config, now)) {
+	SAY("Warning: config save failed");
+    }
+
+  out:
 
     SAY("Config reload: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
 	config->generation, config->epoch_attempt, config->epoch_changed, config->epoch_success, now);
