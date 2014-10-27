@@ -241,8 +241,10 @@ static config_t *config_from_file(char *file)
 
 	if (*line) {
 	    if ((p = strchr(line, '='))) {
-		if (strlen(p) == 1)
-		    DIE("config file %s:%d: %s", file, line_num, line);
+		if (strlen(p) == 1) {
+		    SAY("Error in config file %s:%d: %s", file, line_num, line);
+		    return NULL;
+		}
 		*p = '\0';
 		p++;
 		TRY_OPT_BEGIN {
@@ -258,7 +260,8 @@ static config_t *config_from_file(char *file)
 		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
 		    TRY_NUM_OPT(spill_usec, line, p);
 
-		    DIE("config file %s:%d: bad config option: %s", file, line_num, line);
+		    SAY("Error in config file %s:%d: bad config option: %s", file, line_num, line);
+		    return NULL;
 		}
 		TRY_OPT_END;
 
@@ -276,7 +279,8 @@ static config_t *config_from_file(char *file)
 
     if (!config_valid(config)) {
 	config_dump(config);
-	DIE("Invalid configuration");
+	SAY("Invalid configuration");
+	return NULL;
     }
 
     return config;
