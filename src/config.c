@@ -509,7 +509,6 @@ int config_reload(config_t * config)
 	config_changed = 1;
     }
 
-    IF_NUM_OPT_CHANGED(syslog_to_stderr, config, new_config);
     IF_NUM_OPT_CHANGED(tcp_send_timeout_sec, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_millisec, config, new_config);
