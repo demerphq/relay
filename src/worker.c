@@ -163,7 +163,7 @@ void *worker_thread(void *arg)
 
 	get_time(&send_end_time);
 	if (spilled) {
-	    WARN("Wrote %lu items which were over spill threshold", spilled);
+	    WARN("Wrote %lu items which were over spill threshold", (unsigned long) spilled);
 	    spilled = 0;
 	}
 
@@ -175,7 +175,8 @@ void *worker_thread(void *arg)
 
 	/*
 	   SAY("worker[%s] count: %lu sent usec: %lu",
-	   sck->to_string, sent_count, sent_count ? usec/sent_count : 0);
+	   sck->to_string, (unsigned long)sent_count,
+	   sent_count ? (unsigned long)usec/sent_count : 0);
 	 */
     }
 
@@ -185,7 +186,7 @@ void *worker_thread(void *arg)
     accumulate_and_clear_stats(&self->counters, &self->totals);
 
     SAY("worker[%s] processed %lu packets in its lifetime",
-	(sck ? sck->to_string : self->arg), RELAY_ATOMIC_READ(self->totals.received_count));
+	(sck ? sck->to_string : self->arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR(self->disk_writer->exit, EXIT_FLAG);

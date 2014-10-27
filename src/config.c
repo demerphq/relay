@@ -386,10 +386,23 @@ static int config_save(const config_t * config, time_t now)
 	return 0;
     }
 
-    char *dir = dirname(temp);	/* NOTE: MODIFIES temp! */
-    int len = strlen(dir);
+    /* dirname() is rather unportable in its behavior,
+     * unfortunately. */
+    char *slash = NULL;
+    for (q = temp; *q; q++)
+	if (*q == '/')
+	    slash = q;
 
-    int wrote = snprintf(temp + len, sizeof(temp) - len, "/event-relay.conf.XXXXXX");
+    const char base[] = "event-relay.conf.XXXXXX";
+
+    int wrote;
+    if (slash) {
+	*slash = 0;
+	int len = slash - temp;
+	wrote = snprintf(temp + len, sizeof(temp) - len - 1, "/%s", base);
+    } else {
+	wrote = snprintf(temp, sizeof(temp) - 2, "./%s", base);
+    }
     if (wrote < 0 || wrote >= PATH_MAX) {
 	WARN("Failed making filename %s: %s", temp, strerror(errno));
 	return 0;
@@ -456,7 +469,8 @@ int config_reload(config_t * config)
     config->epoch_attempt = now;
 
     SAY("Config reload start: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
-	config->generation, config->epoch_attempt, config->epoch_changed, config->epoch_success, now);
+	(long) config->generation,
+	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
     if (config->generation == 0) {
 	SAY("Loading config file %s", config->file);
@@ -568,7 +582,8 @@ int config_reload(config_t * config)
   out:
 
     SAY("Config reload: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
-	config->generation, config->epoch_attempt, config->epoch_changed, config->epoch_success, now);
+	(long) config->generation,
+	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
     if (config_changed)
 	SAY("Config changed: requires restart");

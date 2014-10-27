@@ -115,7 +115,7 @@ void *disk_writer_thread(void *arg)
 
     accumulate_and_clear_stats(self->pcounters, self->ptotals);
 
-    SAY("disk_writer saved %lu packets in its lifetime", self->ptotals->disk_count);
+    SAY("disk_writer saved %lu packets in its lifetime", (unsigned long) self->ptotals->disk_count);
 
     return NULL;
 }

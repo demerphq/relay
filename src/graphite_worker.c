@@ -1,6 +1,8 @@
 #include "graphite_worker.h"
 
+#ifdef HAVE_MALLINFO
 #include <malloc.h>
+#endif
 
 #include "string_util.h"
 #include "worker_pool.h"
@@ -35,21 +37,24 @@ char *graphite_worker_setup_root(const config_t * config)
     int root_len;
     int wrote;
 
-    char hostname[1024];
-    hostname[1023] = '\0';
-    gethostname(hostname, 1023);
-
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;	/*either IPV4 or IPV6 */
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
 
-    if ((gai_result = getaddrinfo(hostname, "http", &hints, &info)) != 0) {
+    if ((gai_result = getaddrinfo("localhost", "http", &hints, &info)) != 0) {
 	DIE("Failed getaddrinfo(localhost): %s\n", gai_strerror(gai_result));
     }
 
     if (!info)
 	DIE("No info from getaddrinfo(localhost)");
+
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 64
+#endif
+    char hostname[HOST_NAME_MAX];
+    hostname[HOST_NAME_MAX - 1] = 0;
+    gethostname(hostname, sizeof(hostname) - 1);
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
@@ -87,14 +92,18 @@ void *graphite_worker_thread(void *arg)
     ssize_t sent_bytes;
     time_t this_epoch;
     char stats_format[256];
+#ifdef HAVE_MALLINFO
     char meminfo_format[256];
+#endif
 
     while (!RELAY_ATOMIC_READ(self->exit)) {
 	char *str = self->buffer;	/* current position in buffer */
 	ssize_t len = GRAPHITE_BUFFER_MAX;	/* amount remaining to use */
 	uint32_t wait_remains_millisec;
 	worker_t *w;
+#ifdef HAVE_MALLINFO
 	struct mallinfo meminfo;
+#endif
 	int wrote_len;
 
 	if (!sck) {
@@ -175,6 +184,7 @@ void *graphite_worker_thread(void *arg)
 	}
 	UNLOCK(&POOL.lock);
 
+#ifdef HAVE_MALLINFO
 	/* get memory details */
 	meminfo = mallinfo();
 
@@ -246,6 +256,7 @@ void *graphite_worker_thread(void *arg)
 		len -= wrote_len;
 	    }
 	}
+#endif
 
 	/* convert len from "amount remaining" to "amount used" */
 	len = GRAPHITE_BUFFER_MAX - len;

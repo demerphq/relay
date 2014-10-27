@@ -27,10 +27,14 @@ DBG_FLAGS=-g
 # -Wcast-align is useless with gcc on x86: it never warns.  Use it with clang.
 WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align
 
-SOURCE_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE
+# Linux:
+OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO
+
+# OS X
+# OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE
 
 # Flags common to all compilers.
-CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(SOURCE_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
+CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
 
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
@@ -80,7 +84,7 @@ indent:
 	indent -kr --line-length 120 src/*.[hc]
 
 clean:
+	rm -rf bin/$(basename $(RELAY))*.dSYM
 	rm -f bin/$(basename $(RELAY))* test/sock/*
-
 run:
 	cd test && ./setup.sh

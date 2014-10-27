@@ -200,6 +200,10 @@ int open_socket(sock_t * s, int flags, int snd, int rcv)
 	    < 0)
 	    ERROR("setsockopt[%s]", s->to_string);
     }
+    if (ok)
+	SAY("Connected %s", s->to_string);
+    else
+	ERROR("Failed to connect %s", s->to_string);
     return ok;
 #undef ERROR
 }
