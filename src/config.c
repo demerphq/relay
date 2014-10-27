@@ -119,26 +119,24 @@ static int is_valid_directory(const char *path)
     return (stat(path, &st) == 0 || S_ISDIR(st.st_mode)) ? 1 : 0;
 }
 
+/* The upper limit is pretty arbitrary, but the basic idea is to
+ * protect against too high values which indicate either mixup
+ * of milli/micro, or overflows/wraparounds. */
+#define MAX_SEC 60
+
 static int is_valid_millisec(uint32_t millisec)
 {
-    /* The upper limit is because of use of usleep():
-     * 1000000 (1 sec) is promised by standards, but no more. */
-    return millisec > 0 && millisec <= 1000000;
+    return millisec > 0 && millisec <= MAX_SEC * 1000;
 }
 
 static int is_valid_microsec(uint32_t microsec)
 {
-    /* The upper limit is because of use of usleep():
-     * 1000000 (1 sec) is promised by standards, but no more. */
-    return microsec > 0 && microsec <= 1000000;
+    return microsec > 0 && microsec <= MAX_SEC * 1000000;
 }
 
 static int is_valid_sec(uint32_t sec)
 {
-    /* The upper limit is pretty arbitrary, but the basic idea is to
-     * protect against too high values which indicate either mixing
-     * with milliseconds, or overflows/wraparounds. */
-    return sec > 0 && sec <= 60;
+    return sec > 0 && sec <= MAX_SEC;
 }
 
 static int is_valid_buffer_size(uint32_t size)
