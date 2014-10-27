@@ -62,9 +62,11 @@ static INLINE void cork(struct sock *s, int flag)
 #ifdef TCP_CORK
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag, sizeof(int)) < 0)
 	WARN_ERRNO("setsockopt TCP_CORK: %s", strerror(errno));
-#elif defined(TCP_NODELAY)
-    if (setsockopt(s->socket, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int)) < 0)
-	WARN_ERRNO("setsockopt TCP_NODELAY: %s", strerror(errno));
+#elif defined(TCP_NOPUSH)
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_NOPUSH, (char *) &flag, sizeof(int)) < 0)
+	WARN_ERRNO("setsockopt TCP_NOPUSH: %s", strerror(errno));
+#else
+#error No TCP_CORK or TCP_NOPUSH
 #endif
 }
 
