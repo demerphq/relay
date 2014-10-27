@@ -1,8 +1,6 @@
 #ifndef RELAY_CONFIG_H
 #define RELAY_CONFIG_H
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
