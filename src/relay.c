@@ -81,7 +81,6 @@ void *udp_server(void *arg)
 	}
 	buf_to_blob_enqueue(buf, received);
     }
-    set_stopped();
     pthread_exit(NULL);
 }
 
@@ -314,7 +313,6 @@ void *tcp_server(void *arg)
 
   out:
     tcp_context_close(&ctxt);
-    set_stopped();
     pthread_exit(NULL);
 }
 
@@ -399,15 +397,18 @@ static int serve(config_t * config)
 	} else if (control & RELAY_RELOAD) {
 	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
 	    if (config_reload(config)) {
+		SAY("Reloading the listener and worker pool");
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
 		worker_pool_reload_static(config);
+		SAY("Reloaded the listener and worker pool");
 		if (graphite_config_changed(old_graphite_config, &config->graphite)) {
-		    SAY("Graphite config changed, reloading the worker");
+		    SAY("Graphite config changed, reloading the graphite worker");
 		    graphite_worker_destroy(graphite_worker);
 		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+		    SAY("Reloaded the graphite worker");
 		} else {
-		    SAY("Graphite config unchanged, not reloading the worker");
+		    SAY("Graphite config unchanged, not reloading the graphite worker");
 		}
 	    }
 	    graphite_config_destroy(old_graphite_config);
