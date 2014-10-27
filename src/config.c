@@ -492,7 +492,9 @@ int config_reload(config_t * config)
 	config_changed = 0;
 	goto out;
     }
-    SAY("Merging new configuration with old");
+
+    if (config->generation)
+	SAY("Merging new configuration with old");
 
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
 	closelog();
