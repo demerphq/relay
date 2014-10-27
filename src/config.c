@@ -31,36 +31,39 @@ void config_set_defaults(config_t * config)
     if (config == NULL)
 	return;
 
-    config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
-
+    config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
+    config->tcp_send_timeout_sec = DEFAULT_TCP_SEND_TIMEOUT_SEC;
     config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
-    config->tcp_send_timeout_sec = DEFAULT_TCP_SEND_TIMEOUT_SEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
+
     config->spill_usec = DEFAULT_SPILL_USEC;
+    config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
 
     config->graphite.addr = strdup(DEFAULT_GRAPHITE_ADDR);
     config->graphite.target = strdup(DEFAULT_GRAPHITE_TARGET);
     config->graphite.send_interval_millisec = DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC;
     config->graphite.sleep_poll_interval_millisec = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC;
-
-    config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
 }
 
 void config_dump(config_t * config)
 {
     if (config == NULL)
 	return;
-    SAY("config->spillway_root = %s", config->spillway_root);
+    SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
+    SAY("config->tcp_send_timeout_sec = %d", config->tcp_send_timeout_sec);
     SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
     SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
-    SAY("config->tcp_send_timeout_sec = %d", config->tcp_send_timeout_sec);
     SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
+
+
+    SAY("config->spillway_root = %s", config->spillway_root);
+    SAY("config->spill_usec = %d", config->spill_usec);
+
     SAY("config->graphite.addr = %s", config->graphite.addr);
     SAY("config->graphite.target = %s", config->graphite.target);
     SAY("config->graphite.send_interval_millisec = %d", config->graphite.send_interval_millisec);
     SAY("config->graphite.sleep_poll_interval_millisec = %d", config->graphite.sleep_poll_interval_millisec);
-    SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
     if (config->argc > 0)
 	SAY("listener address = %s", config->argv[0]);
     for (int i = 1; i < config->argc; i++)
@@ -158,12 +161,13 @@ static int config_valid(config_t * config)
 {
     int invalid = 0;
 
-    CONFIG_VALID_STR(config, is_valid_directory, spillway_root, invalid);
+    CONFIG_VALID_NUM(config, is_valid_sec, tcp_send_timeout_sec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, polling_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
-    CONFIG_VALID_NUM(config, is_valid_sec, tcp_send_timeout_sec, invalid);
-    CONFIG_VALID_NUM(config, is_valid_microsec, spill_usec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
+
+    CONFIG_VALID_STR(config, is_valid_directory, spillway_root, invalid);
+    CONFIG_VALID_NUM(config, is_valid_microsec, spill_usec, invalid);
 
     CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.addr, invalid);
     CONFIG_VALID_STR(config, is_valid_graphite_target, graphite.target, invalid);
@@ -250,17 +254,20 @@ static config_t *config_from_file(char *file)
 		*p = '\0';
 		p++;
 		TRY_OPT_BEGIN {
-		    TRY_STR_OPT(spillway_root, line, p);
-		    TRY_STR_OPT(graphite.addr, line, p);
-		    TRY_STR_OPT(graphite.target, line, p);
 		    TRY_NUM_OPT(syslog_to_stderr, line, p);
-		    TRY_NUM_OPT(graphite.send_interval_millisec, line, p);
-		    TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, line, p);
+
+		    TRY_NUM_OPT(tcp_send_timeout_sec, line, p);
 		    TRY_NUM_OPT(polling_interval_millisec, line, p);
 		    TRY_NUM_OPT(sleep_after_disaster_millisec, line, p);
-		    TRY_NUM_OPT(tcp_send_timeout_sec, line, p);
 		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
+
+		    TRY_STR_OPT(spillway_root, line, p);
 		    TRY_NUM_OPT(spill_usec, line, p);
+
+		    TRY_STR_OPT(graphite.addr, line, p);
+		    TRY_STR_OPT(graphite.target, line, p);
+		    TRY_NUM_OPT(graphite.send_interval_millisec, line, p);
+		    TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, line, p);
 
 		    SAY("Error in config file %s:%d: bad config option: %s", file, line_num, line);
 		    return NULL;
@@ -500,17 +507,19 @@ int config_reload(config_t * config)
 	config_changed = 1;
     }
 
-    IF_STR_OPT_CHANGED(spillway_root, config, new_config);
-    IF_STR_OPT_CHANGED(graphite.addr, config, new_config);
-    IF_STR_OPT_CHANGED(graphite.target, config, new_config);
     IF_NUM_OPT_CHANGED(syslog_to_stderr, config, new_config);
-    IF_NUM_OPT_CHANGED(graphite.send_interval_millisec, config, new_config);
-    IF_NUM_OPT_CHANGED(graphite.sleep_poll_interval_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(tcp_send_timeout_sec, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_millisec, config, new_config);
-    IF_NUM_OPT_CHANGED(tcp_send_timeout_sec, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
+
+    IF_STR_OPT_CHANGED(spillway_root, config, new_config);
     IF_NUM_OPT_CHANGED(spill_usec, config, new_config);
+
+    IF_STR_OPT_CHANGED(graphite.addr, config, new_config);
+    IF_STR_OPT_CHANGED(graphite.target, config, new_config);
+    IF_NUM_OPT_CHANGED(graphite.send_interval_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(graphite.sleep_poll_interval_millisec, config, new_config);
 
     for (int i = 0; i < config->argc; i++) {
 	if (i < new_config->argc) {
