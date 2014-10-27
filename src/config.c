@@ -288,7 +288,7 @@ static config_t *config_from_file(char *file)
         SAY("Changed '" #name "' from '%d' to '%d'",        \
                 config->name, new_config->name);            \
         config->name = new_config->name;                    \
-        requires_restart = 1;                               \
+        config_changed = 1;                                 \
     } \
   } while(0)
 
@@ -299,21 +299,23 @@ static config_t *config_from_file(char *file)
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name = new_config->name;                    \
-        requires_restart = 1;                               \
+        config_changed = 1;                                 \
     } \
   } while(0)
 
 int config_reload(config_t * config)
 {
-    int requires_restart = 0;
+    time_t now = time(NULL);
+    int config_changed = 0;
 
-    time_t now = time(0);
+    config->epoch_attempt = now;
 
-    SAY("Config generation %ld last config epoch %ld now %ld", config->generation, config->epoch, now);
+    SAY("Config reload start: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
+	config->generation, config->epoch_attempt, config->epoch_changed, config->epoch_success, now);
 
     if (config->generation == 0) {
 	SAY("Loading config file %s", config->file);
-	requires_restart = 1;
+	config_changed = 1;
     } else
 	SAY("Reloading config file %s", config->file);
 
@@ -322,23 +324,28 @@ int config_reload(config_t * config)
     if (new_config == NULL) {
 	if (config->generation) {
 	    SAY("Failed to reload config, not restarting");
-	    return 0;
-	} else
+	    config_changed = 0;
+	    goto out;
+	} else {
+	    /* This is the initial startup: if there's no config,
+	     * we should just die. */
 	    DIE_RC(EXIT_FAILURE, "Failed to load config, not starting");
+	}
     }
 
     if (config->generation == 0) {
 	SAY("Loaded config file %s", config->file);
-	SAY("New configuration");
+	SAY("New config");
     } else {
 	SAY("Reloaded config file %s", config->file);
-	SAY("New unmerged configuration");
+	SAY("New unmerged config");
     }
 
     config_dump(new_config);
     if (!config_valid(new_config)) {
 	SAY("Invalid new configuration, ignoring it");
-	return 0;
+	config_changed = 0;
+	goto out;
     }
     SAY("Merging new configuration with old");
 
@@ -352,7 +359,7 @@ int config_reload(config_t * config)
 	    SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr,
 		new_config->syslog_to_stderr);
 	config->syslog_to_stderr = new_config->syslog_to_stderr;
-	requires_restart = 1;
+	config_changed = 1;
     }
 
     IF_STR_OPT_CHANGED(spillway_root, config, new_config);
@@ -376,38 +383,48 @@ int config_reload(config_t * config)
 		    SAY("Changing %s socket config from '%s' to '%s'",
 			i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
 		}
-		requires_restart = 1;
+		config_changed = 1;
 	    }
 	} else {
 	    SAY("Stopping forward socket to '%s'", config->argv[i]);
-	    requires_restart = 1;
+	    config_changed = 1;
 	}
 	free(config->argv[i]);
     }
     free(config->argv);
     for (int i = config->argc; i < new_config->argc; i++) {
 	SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
-	requires_restart = 1;
+	config_changed = 1;
     }
     config->argc = new_config->argc;
     config->argv = new_config->argv;
 
-    if (config->generation && requires_restart) {
-	SAY("Merged new configuration");
+    if (config->generation && config_changed) {
+	SAY("Merged new config");
 	config_dump(config);
     }
 
     free(new_config);
 
-    if (requires_restart)
-	SAY("Configuration changed: requires restart");
+    if (config_changed) {
+	config->generation++;
+	config->epoch_changed = now;
+    }
+    config->epoch_success = now;
+
+    SAY("Config reload: success");
+
+out:
+
+    SAY("Config reload: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
+	config->generation, config->epoch_attempt, config->epoch_changed, config->epoch_success, now);
+
+    if (config_changed)
+	SAY("Config changed: requires restart");
     else
-	SAY("Configuration unchanged: does not require restart");
+	SAY("Config unchanged: does not require restart");
 
-    config->generation++;
-    config->epoch = now;
-
-    return requires_restart;
+    return config_changed;
 }
 
 

@@ -22,7 +22,9 @@ struct config {
     char **argv;
 
     uint64_t generation;
-    time_t epoch;
+    time_t epoch_attempt;
+    time_t epoch_changed;
+    time_t epoch_success;
 
     /* config filename itself */
     char *file;
