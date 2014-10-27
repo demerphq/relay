@@ -407,6 +407,7 @@ static int serve(config_t * config)
 		if (graphite_config_changed(old_graphite_config, &config->graphite)) {
 		    SAY("Graphite config changed, reloading the graphite worker");
 		    graphite_worker_destroy(graphite_worker);
+		    graphite_worker = graphite_worker_create(config);
 		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 		    SAY("Reloaded the graphite worker");
 		} else {
