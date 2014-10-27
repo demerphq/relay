@@ -393,8 +393,10 @@ static int serve(config_t * config)
 
 	control = get_control_val();
 	if (control & RELAY_STOP) {
+	    WARN("Stopping");
 	    break;
 	} else if (control & RELAY_RELOAD) {
+	    WARN("Reloading");
 	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
 	    if (config_reload(config)) {
 		SAY("Reloading the listener and worker pool");
@@ -436,7 +438,7 @@ static void sig_handler(int signum)
 	set_stopped();
 	break;
     default:
-	WARN("IGNORE: unexpected signal %d", signum);
+	WARN("IGNORE: Received unexpected signal %d", signum);
     }
 }
 
