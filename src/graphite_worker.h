@@ -5,21 +5,17 @@
 
 #include "socket_util.h"
 #include "string_util.h"
+#include "worker_base.h"
 
 #define GRAPHITE_BUFFER_MAX 16384
 
 struct graphite_worker {
-    pthread_t tid;
-
-    const config_t *config;
-
-    /* If non-zero, this worker is already exiting. */
-    volatile uint32_t exiting;
+    struct worker_base base;
 
     relay_socket_t s_output;
 
-    char *arg;
     char *root;
+
     fixed_buffer_t *buffer;
 };
 

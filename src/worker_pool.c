@@ -115,7 +115,7 @@ void worker_pool_reload_static(config_t * config)
     for (int i = 1; i < config->argc; i++) {
 	must_add = 1;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
-	    if (!w->exists && STREQ(config->argv[i], w->arg)) {
+	    if (!w->exists && STREQ(config->argv[i], w->base.arg)) {
 		w->exists = 1;
 		must_add = 0;
 		break;

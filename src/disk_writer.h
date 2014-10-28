@@ -7,16 +7,13 @@
 #include "config.h"
 #include "relay_common.h"
 #include "stats.h"
+#include "worker_base.h"
 
 /* disk worker thread */
 struct disk_writer {
+    struct worker_base base;
+
     queue_t queue;
-    pthread_t tid;
-
-    const config_t *config;
-
-    /* If non-zero, this worker is already exiting. */
-    volatile uint32_t exiting;
 
     stats_basic_counters_t *pcounters;
     stats_basic_counters_t *ptotals;

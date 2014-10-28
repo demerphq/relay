@@ -97,11 +97,11 @@ void *disk_writer_thread(void *arg)
 	    }
 
 	    setup_for_epoch(self, 0);
-	    if (RELAY_ATOMIC_READ(self->exiting)) {
+	    if (RELAY_ATOMIC_READ(self->base.exiting)) {
 		/* nothing to do and we have been asked to exit, so break from the loop */
 		break;
 	    } else {
-		worker_wait_millisec(self->config->polling_interval_millisec);
+		worker_wait_millisec(self->base.config->polling_interval_millisec);
 	    }
 	} else {
 	    do {

@@ -15,22 +15,19 @@
 #include "socket_util.h"
 #include "stats.h"
 #include "timer.h"
+#include "worker_base.h"
 
 /* a socket worker */
 struct worker {
+    struct worker_base base;
+
     queue_t queue;
-    pthread_t tid;
-
-    const config_t *config;
-
-    /* If non-zero, this worker is already exiting. */
-    volatile uint32_t exiting;
 
     stats_basic_counters_t counters;
     stats_basic_counters_t totals;
 
     relay_socket_t s_output;
-    char *arg;
+
     volatile uint32_t exists;
     disk_writer_t *disk_writer;
 

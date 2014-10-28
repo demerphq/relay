@@ -386,7 +386,7 @@ static int serve(config_t * config)
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
     graphite_worker = graphite_worker_create(config);
-    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+    pthread_create(&graphite_worker->base.tid, NULL, graphite_worker_thread, graphite_worker);
 
     control_set_bits(RELAY_RUNNING);
 
@@ -408,7 +408,7 @@ static int serve(config_t * config)
 		    SAY("Graphite config changed, reloading the graphite worker");
 		    graphite_worker_destroy(graphite_worker);
 		    graphite_worker = graphite_worker_create(config);
-		    pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
+		    pthread_create(&graphite_worker->base.tid, NULL, graphite_worker_thread, graphite_worker);
 		    SAY("Reloaded the graphite worker");
 		} else {
 		    SAY("Graphite config unchanged, not reloading the graphite worker");

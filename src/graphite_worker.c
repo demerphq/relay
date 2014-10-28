@@ -13,15 +13,15 @@ extern relay_socket_t *listener;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exiting, WORKER_EXITING);
+    uint32_t old_exit = RELAY_ATOMIC_OR(worker->base.exiting, WORKER_EXITING);
 
     /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
     if (old_exit & WORKER_EXITING)
 	return;
 
-    pthread_join(worker->tid, NULL);
+    pthread_join(worker->base.tid, NULL);
 
-    free(worker->arg);
+    free(worker->base.arg);
     free(worker->root);
     fixed_buffer_destroy(worker->buffer);
     free(worker);
@@ -74,12 +74,13 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
 {
     graphite_worker_t *worker = calloc_or_die(sizeof(graphite_worker_t));
 
-    worker->config = config;
+    worker->base.config = config;
+    worker->base.arg = strdup(config->graphite.addr);
+
     worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
-    worker->arg = strdup(config->graphite.addr);
     worker->root = graphite_worker_setup_root(config);
 
-    if (!socketize(worker->arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
+    if (!socketize(worker->base.arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
 	DIE_RC(EXIT_FAILURE, "Failed to socketize graphite worker");
 
     return worker;
@@ -95,8 +96,11 @@ void *graphite_worker_thread(void *arg)
     char meminfo_format[256];
 #endif
 
+    const config_t *config = self->base.config;
+    const struct graphite_config *graphite = &config->graphite;
     fixed_buffer_t *buffer = self->buffer;
-    while (!RELAY_ATOMIC_READ(self->exiting)) {
+
+    while (!RELAY_ATOMIC_READ(self->base.exiting)) {
 	uint32_t wait_remains_millisec;
 	worker_t *w;
 #ifdef HAVE_MALLINFO
@@ -111,7 +115,7 @@ void *graphite_worker_thread(void *arg)
 		sck = &self->s_output;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(self->config->sleep_after_disaster_millisec);
+		worker_wait_millisec(config->sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -200,14 +204,14 @@ void *graphite_worker_thread(void *arg)
 	    sck = NULL;
 	}
 
-	wait_remains_millisec = self->config->graphite.send_interval_millisec;
-	while (!RELAY_ATOMIC_READ(self->exiting) && (wait_remains_millisec > 0)) {
-	    if (wait_remains_millisec < self->config->graphite.sleep_poll_interval_millisec) {
+	wait_remains_millisec = graphite->send_interval_millisec;
+	while (!RELAY_ATOMIC_READ(self->base.exiting) && (wait_remains_millisec > 0)) {
+	    if (wait_remains_millisec < graphite->sleep_poll_interval_millisec) {
 		worker_wait_millisec(wait_remains_millisec);
 		wait_remains_millisec = 0;
 	    } else {
-		worker_wait_millisec(self->config->graphite.sleep_poll_interval_millisec);
-		wait_remains_millisec -= self->config->graphite.sleep_poll_interval_millisec;
+		worker_wait_millisec(graphite->sleep_poll_interval_millisec);
+		wait_remains_millisec -= graphite->sleep_poll_interval_millisec;
 	    }
 	}
     }

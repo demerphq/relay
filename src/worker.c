@@ -36,7 +36,7 @@ void *worker_thread(void *arg)
     memset(&private_queue, 0, sizeof(private_queue));
     memset(&spill_queue, 0, sizeof(spill_queue));
 
-    while (!RELAY_ATOMIC_READ(self->exiting)) {
+    while (!RELAY_ATOMIC_READ(self->base.exiting)) {
 	struct timeval send_start_time;
 	struct timeval send_end_time;
 	struct timeval now;
@@ -52,7 +52,7 @@ void *worker_thread(void *arg)
 		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(self->config->sleep_after_disaster_millisec);
+		worker_wait_millisec(self->base.config->sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
@@ -66,7 +66,7 @@ void *worker_thread(void *arg)
 	     */
 	    if (!queue_hijack(main_queue, &private_queue, &POOL.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
-		worker_wait_millisec(self->config->polling_interval_millisec);
+		worker_wait_millisec(self->base.config->polling_interval_millisec);
 		continue;
 	    }
 	}
@@ -90,11 +90,11 @@ void *worker_thread(void *arg)
 	    /* Peel off all the blobs which have been in the queue
 	     * for longer than the spill limit, move them to the
 	     * spill queue, and enqueue them for spilling. */
-	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->config->spill_usec) {
+	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->base.config->spill_usec) {
 		spill_queue.head = cur_blob;
 		spill_queue.count = 1;
 		while (BLOB_NEXT(cur_blob)
-		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->config->spill_usec) {
+		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->base.config->spill_usec) {
 		    cur_blob = BLOB_NEXT(cur_blob);
 		    spill_queue.count++;
 		}
@@ -186,13 +186,13 @@ void *worker_thread(void *arg)
     accumulate_and_clear_stats(&self->counters, &self->totals);
 
     SAY("worker[%s] processed %lu packets in its lifetime",
-	(sck ? sck->to_string : self->arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
+	(sck ? sck->to_string : self->base.arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
-    RELAY_ATOMIC_OR(self->disk_writer->exiting, WORKER_EXITING);
+    RELAY_ATOMIC_OR(self->disk_writer->base.exiting, WORKER_EXITING);
 
     /* XXX handle failure of the disk_write shutdown */
-    join_err = pthread_join(self->disk_writer->tid, NULL);
+    join_err = pthread_join(self->disk_writer->base.tid, NULL);
 
     if (join_err)
 	WARN("shutting down disk_writer thread error: %d", join_err);
@@ -210,17 +210,17 @@ worker_t *worker_init(const char *arg, const config_t * config)
     disk_writer_t *disk_writer = calloc_or_die(sizeof(disk_writer_t));
     int create_err;
 
-    worker->config = config;
+    worker->base.config = config;
+    worker->base.arg = strdup(arg);
 
     worker->exists = 1;
-    worker->arg = strdup(arg);
 
     if (!socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker"))
 	DIE_RC(EXIT_FAILURE, "Failed to socketize worker");
 
     worker->disk_writer = disk_writer;
 
-    disk_writer->config = config;
+    disk_writer->base.config = config;
     disk_writer->pcounters = &worker->counters;
     disk_writer->ptotals = &worker->totals;
 
@@ -238,20 +238,20 @@ worker_t *worker_init(const char *arg, const config_t * config)
      * we might have something to assign to the disk worker but no
      * disk worker to assign it to.
      */
-    create_err = pthread_create(&disk_writer->tid, NULL, disk_writer_thread, disk_writer);
+    create_err = pthread_create(&disk_writer->base.tid, NULL, disk_writer_thread, disk_writer);
     if (create_err)
 	DIE_RC(EXIT_FAILURE, "failed to create disk worker errno: %d", create_err);
 
     /* and finally create the thread */
-    create_err = pthread_create(&worker->tid, NULL, worker_thread, worker);
+    create_err = pthread_create(&worker->base.tid, NULL, worker_thread, worker);
     if (create_err) {
 	int join_err;
 
 	/* we died, so shut down our "pet" disk worker, and then exit with a message */
-	RELAY_ATOMIC_OR(disk_writer->exiting, WORKER_EXITING);
+	RELAY_ATOMIC_OR(disk_writer->base.exiting, WORKER_EXITING);
 
 	/* have to handle failure of the shutdown too */
-	join_err = pthread_join(disk_writer->tid, NULL);
+	join_err = pthread_join(disk_writer->base.tid, NULL);
 
 	if (join_err) {
 	    DIE_RC(EXIT_FAILURE,
@@ -270,14 +270,14 @@ worker_t *worker_init(const char *arg, const config_t * config)
 /* destroy a worker */
 void worker_destroy(worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exiting, WORKER_EXITING);
+    uint32_t old_exit = RELAY_ATOMIC_OR(worker->base.exiting, WORKER_EXITING);
 
     /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
     if (old_exit & WORKER_EXITING)
 	return;
 
-    pthread_join(worker->tid, NULL);
+    pthread_join(worker->base.tid, NULL);
 
-    free(worker->arg);
+    free(worker->base.arg);
     free(worker);
 }
