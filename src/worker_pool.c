@@ -86,7 +86,7 @@ void worker_pool_init_static(config_t * config)
     LOCK(&POOL.lock);
     POOL.n_workers = 0;
     for (i = 1; i < config->argc; i++) {
-	if (is_stopped())
+	if (control_is(RELAY_STOPPING))
 	    break;
 	new_worker = worker_init(config->argv[i], config);
 	TAILQ_INSERT_HEAD(&POOL.workers, new_worker, entries);

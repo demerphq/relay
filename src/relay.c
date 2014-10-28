@@ -65,7 +65,7 @@ void *udp_server(void *arg)
     uint32_t epoch, prev_epoch = 0;
 #endif
     unsigned char buf[MAX_CHUNK_SIZE];
-    while (not_stopped()) {
+    while (control_is_not(RELAY_STOPPING)) {
 	ssize_t received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
 	if ((epoch = time(0)) != prev_epoch) {
@@ -388,14 +388,14 @@ static int serve(config_t * config)
     graphite_worker = graphite_worker_create(config);
     pthread_create(&graphite_worker->tid, NULL, graphite_worker_thread, graphite_worker);
 
-    for (;;) {
-	uint32_t control;
+    control_set_bits(RELAY_RUNNING);
 
-	control = get_control_val();
-	if (control & RELAY_STOP) {
+    for (;;) {
+	uint32_t control = control_get_bits();
+	if (control & RELAY_STOPPING) {
 	    WARN("Stopping");
 	    break;
-	} else if (control & RELAY_RELOAD) {
+	} else if (control & RELAY_RELOADING) {
 	    WARN("Reloading");
 	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
 	    if (config_reload(config)) {
@@ -415,7 +415,7 @@ static int serve(config_t * config)
 		}
 	    }
 	    graphite_config_destroy(old_graphite_config);
-	    unset_control_bits(RELAY_RELOAD);
+	    control_unset_bits(RELAY_RELOADING);
 	}
 
 	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
@@ -432,11 +432,11 @@ static void sig_handler(int signum)
 {
     switch (signum) {
     case SIGHUP:
-	set_control_bits(RELAY_RELOAD);
+	control_set_bits(RELAY_RELOADING);
 	break;
     case SIGTERM:
     case SIGINT:
-	set_stopped();
+	control_set_bits(RELAY_STOPPING);
 	break;
     default:
 	WARN("IGNORE: Received unexpected signal %d", signum);
@@ -468,6 +468,7 @@ static void final_shutdown(pthread_t server_tid)
 
 int main(int argc, char **argv)
 {
+    control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
     return serve(&CONFIG);

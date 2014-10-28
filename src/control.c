@@ -4,35 +4,30 @@
 
 static volatile uint32_t __control = 0;
 
-void set_control_bits(uint32_t v)
+void control_set_bits(uint32_t c)
 {
-    RELAY_ATOMIC_OR(__control, v);
+    RELAY_ATOMIC_OR(__control, c);
 }
 
-void unset_control_bits(uint32_t v)
+void control_unset_bits(uint32_t c)
 {
-    v = ~v;
-    RELAY_ATOMIC_AND(__control, v);
+    c = ~c;
+    RELAY_ATOMIC_AND(__control, c);
 }
 
-void set_stopped(void)
-{
-    set_control_bits(RELAY_STOP);
-}
-
-uint32_t get_control_val(void)
+uint32_t control_get_bits(void)
 {
     return RELAY_ATOMIC_READ(__control);
 }
 
-uint32_t not_stopped(void)
+uint32_t control_is_not(uint32_t c)
 {
     uint32_t v = RELAY_ATOMIC_READ(__control);
-    return (v & RELAY_STOP) == 0;
+    return (v & c) == 0;
 }
 
-uint32_t is_stopped(void)
+uint32_t control_is(uint32_t c)
 {
     uint32_t v = RELAY_ATOMIC_READ(__control);
-    return (v & RELAY_STOP) == RELAY_STOP;
+    return (v & c) == c;
 }
