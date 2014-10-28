@@ -24,7 +24,7 @@ my %Opt =
      forever => 0,
     );
 
-die "usage: $0 --port=$Opt{port}  --host=$Opt{host} --file=$Opt{file} [--count=N|--MB=N|--sec=N|--forever] --waitns=$Opt{waitns} --period=N"
+die "usage: $0 --host=$Opt{host} --port=$Opt{port} [--proto=[udp|tcp] [--prefix=...] [--file=$Opt{file}] [--count=N|--MB=N|--sec=N|--forever] [--waitns=$Opt{waitns}] [--period=N]"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "proto=s"     => \$Opt{proto},
