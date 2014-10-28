@@ -394,14 +394,17 @@ static int config_save(const config_t * config, time_t now)
     const char base[] = "event-relay.conf.XXXXXX";
 
     int wrote;
+    int room;
     if (slash) {
 	*slash = 0;
 	int len = slash - temp;
-	wrote = snprintf(temp + len, sizeof(temp) - len - 1, "/%s", base);
+	room = sizeof(temp) - len - 1;
+	wrote = snprintf(temp + len, room, "/%s", base);
     } else {
-	wrote = snprintf(temp, sizeof(temp) - 2, "./%s", base);
+	room = sizeof(temp) - 2;
+	wrote = snprintf(temp, room, "./%s", base);
     }
-    if (wrote < 0 || wrote >= PATH_MAX) {
+    if (wrote < 0 || wrote >= room) {
 	WARN("Failed making filename %s: %s", temp, strerror(errno));
 	return 0;
     }
