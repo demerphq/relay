@@ -272,7 +272,13 @@ void worker_destroy(worker_t * worker)
 {
     uint32_t old_exit = RELAY_ATOMIC_OR(worker->base.exiting, WORKER_EXITING);
 
-    /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
+    /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static().
+     *
+     * TODO: Another possible solution for this race could be a destructor thread
+     * that waits on a semaphore and then destroys all.  Possible flaw: what is
+     * a thread doesn't decrement the semaphore?
+     *
+     * Note that similar solution is used also by the graphite worker. */
     if (old_exit & WORKER_EXITING)
 	return;
 
