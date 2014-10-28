@@ -13,10 +13,10 @@ extern sock_t *s_listen;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exit, EXIT_FLAG);
+    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exiting, WORKER_EXITING);
 
-    /* why is this needed */
-    if (old_exit & EXIT_FLAG)
+    /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
+    if (old_exit & WORKER_EXITING)
 	return;
 
     pthread_join(worker->tid, NULL);
@@ -96,7 +96,7 @@ void *graphite_worker_thread(void *arg)
 #endif
 
     fixed_buffer_t *buffer = self->buffer;
-    while (!RELAY_ATOMIC_READ(self->exit)) {
+    while (!RELAY_ATOMIC_READ(self->exiting)) {
 	uint32_t wait_remains_millisec;
 	worker_t *w;
 #ifdef HAVE_MALLINFO
@@ -201,7 +201,7 @@ void *graphite_worker_thread(void *arg)
 	}
 
 	wait_remains_millisec = self->config->graphite.send_interval_millisec;
-	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains_millisec > 0)) {
+	while (!RELAY_ATOMIC_READ(self->exiting) && (wait_remains_millisec > 0)) {
 	    if (wait_remains_millisec < self->config->graphite.sleep_poll_interval_millisec) {
 		worker_wait_millisec(wait_remains_millisec);
 		wait_remains_millisec = 0;

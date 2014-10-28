@@ -13,7 +13,8 @@ struct graphite_worker {
 
     const config_t *config;
 
-    volatile uint32_t exit;
+    /* If non-zero, this worker is already exiting. */
+    volatile uint32_t exiting;
 
     sock_t s_output;
 

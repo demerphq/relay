@@ -1,8 +1,6 @@
 #ifndef RELAY_DISK_WRITER_H
 #define RELAY_DISK_WRITER_H
 
-#define EXIT_FLAG 1
-
 #include <pthread.h>
 
 #include "blob.h"
@@ -17,7 +15,8 @@ struct disk_writer {
 
     const config_t *config;
 
-    volatile uint32_t exit;
+    /* If non-zero, this worker is already exiting. */
+    volatile uint32_t exiting;
 
     stats_basic_counters_t *pcounters;
     stats_basic_counters_t *ptotals;

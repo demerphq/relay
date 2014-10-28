@@ -23,7 +23,8 @@ struct worker {
 
     const config_t *config;
 
-    volatile uint32_t exit;
+    /* If non-zero, this worker is already exiting. */
+    volatile uint32_t exiting;
 
     stats_basic_counters_t counters;
     stats_basic_counters_t totals;

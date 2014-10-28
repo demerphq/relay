@@ -36,7 +36,7 @@ void *worker_thread(void *arg)
     memset(&private_queue, 0, sizeof(private_queue));
     memset(&spill_queue, 0, sizeof(spill_queue));
 
-    while (!RELAY_ATOMIC_READ(self->exit)) {
+    while (!RELAY_ATOMIC_READ(self->exiting)) {
 	struct timeval send_start_time;
 	struct timeval send_end_time;
 	struct timeval now;
@@ -189,7 +189,7 @@ void *worker_thread(void *arg)
 	(sck ? sck->to_string : self->arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
-    RELAY_ATOMIC_OR(self->disk_writer->exit, EXIT_FLAG);
+    RELAY_ATOMIC_OR(self->disk_writer->exiting, WORKER_EXITING);
 
     /* XXX handle failure of the disk_write shutdown */
     join_err = pthread_join(self->disk_writer->tid, NULL);
@@ -248,7 +248,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 	int join_err;
 
 	/* we died, so shut down our "pet" disk worker, and then exit with a message */
-	RELAY_ATOMIC_OR(disk_writer->exit, EXIT_FLAG);
+	RELAY_ATOMIC_OR(disk_writer->exiting, WORKER_EXITING);
 
 	/* have to handle failure of the shutdown too */
 	join_err = pthread_join(disk_writer->tid, NULL);
@@ -270,10 +270,10 @@ worker_t *worker_init(const char *arg, const config_t * config)
 /* destroy a worker */
 void worker_destroy(worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exit, EXIT_FLAG);
+    uint32_t old_exit = RELAY_ATOMIC_OR(worker->exiting, WORKER_EXITING);
 
-    /* why is this needed */
-    if (old_exit & EXIT_FLAG)
+    /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
+    if (old_exit & WORKER_EXITING)
 	return;
 
     pthread_join(worker->tid, NULL);

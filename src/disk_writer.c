@@ -97,7 +97,7 @@ void *disk_writer_thread(void *arg)
 	    }
 
 	    setup_for_epoch(self, 0);
-	    if (RELAY_ATOMIC_READ(self->exit)) {
+	    if (RELAY_ATOMIC_READ(self->exiting)) {
 		/* nothing to do and we have been asked to exit, so break from the loop */
 		break;
 	    } else {
