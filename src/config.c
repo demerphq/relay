@@ -228,7 +228,7 @@ static config_t *config_from_file(char *file)
     SAY("Loading config file %s", file);
     f = fopen(file, "r");
     if (f == NULL) {
-	SAY("Failed to open: %s (%s)", file, strerror(errno));
+	WARN_ERRNO("Failed to open: %s", file);
 	return NULL;
     }
 
@@ -336,7 +336,7 @@ static int config_to_file(const config_t * config, int fd)
 	    if ((wrote = write(fd, buf->data, buf->used)) == buf->used) {
 		success = 1;
 	    } else {
-		WARN("write() failed, tried writing %ld but wrote %ld: %s", buf->size, wrote, strerror(errno));
+		WARN_ERRNO("write() failed, tried writing %ld but wrote %ld", buf->size, wrote);
 	    }
 	}
 	fixed_buffer_destroy(buf);
@@ -392,23 +392,23 @@ static int config_save(const config_t * config, time_t now)
 	wrote = snprintf(temp, room, "./%s", base);
     }
     if (wrote < 0 || wrote >= room) {
-	WARN("Failed making filename %s: %s", temp, strerror(errno));
+	WARN_ERRNO("Failed making filename %s", temp);
 	return 0;
     }
 
     int fd = mkstemp(temp);
     if (fd == -1) {
-	WARN("Failed to mkstemp %s: %s", temp, strerror(errno));
+	WARN_ERRNO("Failed to mkstemp %s", temp);
 	return 0;
     }
 
     if (!config_to_file(config, fd)) {
-	WARN("Failed to save config to %s: %s", temp, strerror(errno));
+	WARN_ERRNO("Failed to save config to %s", temp);
 	return 0;
     }
 
     if (close(fd) == -1) {
-	WARN("Failed to close save config as %s: %s", temp, strerror(errno));
+	WARN_ERRNO("Failed to close save config as %s", temp);
 	return 0;
     }
 
@@ -420,7 +420,7 @@ static int config_save(const config_t * config, time_t now)
     }
 
     if (rename(temp, save) != 0) {
-	WARN("Failed to rename %s as %s (%s)", temp, save, strerror(errno));
+	WARN_ERRNO("Failed to rename %s as %s", temp, save);
 	return 0;
     }
 
