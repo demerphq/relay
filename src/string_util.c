@@ -1,6 +1,9 @@
 #include "string_util.h"
 
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 void scrub_nonalnum(char *str, size_t size)
@@ -39,4 +42,34 @@ void trim_space(char *s)
 	*p = 0;
     } else
 	*q = 0;
+}
+
+fixed_buffer_t *fixed_buffer_create(size_t size)
+{
+    fixed_buffer_t *b = (fixed_buffer_t *) malloc(sizeof(fixed_buffer_t) + size);
+    b->size = size;
+    b->used = 0;
+    return b;
+}
+
+int fixed_buffer_vcatf(fixed_buffer_t * buf, const char *fmt, ...)
+{
+    ssize_t len = buf->size - buf->used;
+    if (len < 1)
+	return 0;
+    va_list ap;
+    va_start(ap, fmt);
+    int wrote = vsnprintf(buf->data + buf->used, len, fmt, ap);
+    va_end(ap);
+    if (wrote < 0 || wrote >= len)
+	return 0;
+    buf->used += wrote;
+    return wrote;
+}
+
+void fixed_buffer_destroy(fixed_buffer_t * buf)
+{
+    buf->used = 0;
+    buf->size = 0;
+    free(buf);
 }

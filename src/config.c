@@ -293,51 +293,33 @@ static config_t *config_from_file(char *file)
     return config;
 }
 
-/* TODO: this could be useful in graphite output */
-struct bufferf {
-    char buf[4096];
-    int offset;
-};
-
-int append_to_bufferf(struct bufferf *buf, const char *fmt, ...)
+static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
 {
-    va_list ap;
-    va_start(ap, fmt);
-    int room = sizeof(buf->buf) - buf->offset;
-    int wrote = vsnprintf(buf->buf + buf->offset, room, fmt, ap);
-    if (wrote < 0 || wrote >= room)
+    if (!fixed_buffer_vcatf(buf, "syslog_to_stderr = %d\n", config->syslog_to_stderr))
 	return 0;
-    buf->offset += wrote;
-    return wrote;
-}
-
-static int config_to_bufferf(const config_t * config, struct bufferf *buf)
-{
-    if (!append_to_bufferf(buf, "syslog_to_stderr = %d\n", config->syslog_to_stderr))
+    if (!fixed_buffer_vcatf(buf, "tcp_send_timeout_sec = %d\n", config->tcp_send_timeout_sec))
 	return 0;
-    if (!append_to_bufferf(buf, "tcp_send_timeout_sec = %d\n", config->tcp_send_timeout_sec))
+    if (!fixed_buffer_vcatf(buf, "spillway_root = %s\n", config->spillway_root))
 	return 0;
-    if (!append_to_bufferf(buf, "spillway_root = %s\n", config->spillway_root))
+    if (!fixed_buffer_vcatf(buf, "spill_usec = %d\n", config->spill_usec))
 	return 0;
-    if (!append_to_bufferf(buf, "spill_usec = %d\n", config->spill_usec))
+    if (!fixed_buffer_vcatf(buf, "polling_interval_millisec = %d\n", config->polling_interval_millisec))
 	return 0;
-    if (!append_to_bufferf(buf, "polling_interval_millisec = %d\n", config->polling_interval_millisec))
+    if (!fixed_buffer_vcatf(buf, "sleep_after_disaster_millisec = %d\n", config->sleep_after_disaster_millisec))
 	return 0;
-    if (!append_to_bufferf(buf, "sleep_after_disaster_millisec = %d\n", config->sleep_after_disaster_millisec))
+    if (!fixed_buffer_vcatf(buf, "server_socket_rcvbuf_bytes = %d\n", config->server_socket_rcvbuf_bytes))
 	return 0;
-    if (!append_to_bufferf(buf, "server_socket_rcvbuf_bytes = %d\n", config->server_socket_rcvbuf_bytes))
+    if (!fixed_buffer_vcatf(buf, "graphite.addr = %s\n", config->graphite.addr))
 	return 0;
-    if (!append_to_bufferf(buf, "graphite.addr = %s\n", config->graphite.addr))
+    if (!fixed_buffer_vcatf(buf, "graphite.target = %s\n", config->graphite.target))
 	return 0;
-    if (!append_to_bufferf(buf, "graphite.target = %s\n", config->graphite.target))
+    if (!fixed_buffer_vcatf(buf, "graphite.send_interval_millisec = %d\n", config->graphite.send_interval_millisec))
 	return 0;
-    if (!append_to_bufferf(buf, "graphite.send_interval_millisec = %d\n", config->graphite.send_interval_millisec))
-	return 0;
-    if (!append_to_bufferf
+    if (!fixed_buffer_vcatf
 	(buf, "graphite.sleep_poll_interval_millisec = %d\n", config->graphite.sleep_poll_interval_millisec))
 	return 0;
     for (int i = 0; i < config->argc; i++) {
-	if (!append_to_bufferf(buf, "%s\n", config->argv[i]))
+	if (!fixed_buffer_vcatf(buf, "%s\n", config->argv[i]))
 	    return 0;
     }
     return 1;
@@ -345,19 +327,24 @@ static int config_to_bufferf(const config_t * config, struct bufferf *buf)
 
 static int config_to_file(const config_t * config, int fd)
 {
-    struct bufferf buf;
+    fixed_buffer_t *buf = fixed_buffer_create(4096);
+    int success = 0;
 
-    memset(&buf, 0, sizeof(buf));
-    if (config_to_bufferf(config, &buf)) {
-	int wrote;
-	if ((wrote = write(fd, buf.buf, buf.offset)) == buf.offset) {
-	    return 1;
-	} else {
-	    WARN("write() failed, tried writing %d but wrote %d: %s", buf.offset, wrote, strerror(errno));
+    if (buf) {
+	if (config_to_buffer(config, buf)) {
+	    ssize_t wrote;
+	    if ((wrote = write(fd, buf->data, buf->used)) == buf->used) {
+		success = 1;
+	    } else {
+		WARN("write() failed, tried writing %ld but wrote %ld: %s", buf->size, wrote, strerror(errno));
+	    }
 	}
+	fixed_buffer_destroy(buf);
     }
-    WARN("Failed to write config to file");
-    return 0;
+
+    if (!success)
+	WARN("Failed to write config to file");
+    return success;
 }
 
 static int config_save(const config_t * config, time_t now)
