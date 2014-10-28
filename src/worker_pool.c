@@ -76,16 +76,14 @@ int enqueue_blob_for_transmission(blob_t * b)
  */
 void worker_pool_init_static(config_t * config)
 {
-    int i;
     worker_t *new_worker;
 
     TAILQ_INIT(&POOL.workers);
     LOCK_INIT(&POOL.lock);
 
-
     LOCK(&POOL.lock);
     POOL.n_workers = 0;
-    for (i = 1; i < config->argc; i++) {
+    for (int i = 1; i < config->argc; i++) {
 	if (control_is(RELAY_STOPPING))
 	    break;
 	new_worker = worker_init(config->argv[i], config);
@@ -99,8 +97,7 @@ void worker_pool_init_static(config_t * config)
  */
 void worker_pool_reload_static(config_t * config)
 {
-    int i;
-    int must_add;
+    int must_add = 0;
     worker_t *w;
     worker_t *wtmp;
     int n_workers = 0;
@@ -115,7 +112,7 @@ void worker_pool_reload_static(config_t * config)
 
     /* scan through each argument, and see if we need
      * to add a new worker for it, or if we already have it */
-    for (i = 1; i < config->argc; i++) {
+    for (int i = 1; i < config->argc; i++) {
 	must_add = 1;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    if (!w->exists && STREQ(config->argv[i], w->arg)) {
