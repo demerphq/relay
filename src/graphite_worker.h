@@ -16,7 +16,7 @@ struct graphite_worker {
     /* If non-zero, this worker is already exiting. */
     volatile uint32_t exiting;
 
-    sock_t s_output;
+    relay_socket_t s_output;
 
     char *arg;
     char *root;

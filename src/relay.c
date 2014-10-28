@@ -14,7 +14,7 @@ static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
 
-sock_t *s_listen;
+relay_socket_t *s_listen;
 graphite_worker_t *graphite_worker;
 
 extern config_t CONFIG;
@@ -59,7 +59,7 @@ static inline blob_t *buf_to_blob_enqueue(unsigned char *buf, size_t size)
 
 void *udp_server(void *arg)
 {
-    sock_t *s = (sock_t *) arg;
+    relay_socket_t *s = (relay_socket_t *) arg;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
     uint32_t epoch, prev_epoch = 0;
@@ -280,7 +280,7 @@ static void tcp_context_close(tcp_server_context_t * ctxt)
 
 void *tcp_server(void *arg)
 {
-    sock_t *s = (sock_t *) arg;
+    relay_socket_t *s = (relay_socket_t *) arg;
     tcp_server_context_t ctxt;
 
     tcp_context_init(&ctxt);

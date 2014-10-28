@@ -29,7 +29,7 @@ struct worker {
     stats_basic_counters_t counters;
     stats_basic_counters_t totals;
 
-    sock_t s_output;
+    relay_socket_t s_output;
     char *arg;
     volatile uint32_t exists;
     disk_writer_t *disk_writer;

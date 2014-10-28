@@ -9,7 +9,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern sock_t *s_listen;
+extern relay_socket_t *s_listen;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
 {

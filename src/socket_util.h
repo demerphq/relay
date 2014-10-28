@@ -45,12 +45,12 @@ struct sock {
     socklen_t addrlen;
     int polling_interval_millisec;
 };
-typedef struct sock sock_t;
+typedef struct sock relay_socket_t;
 
 /* util.c */
-int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char *role);
+int socketize(const char *arg, relay_socket_t * s, int default_proto, int connection_direction, const char *role);
 
-int open_socket(sock_t * s, int flags, int snd, int rcv);
+int open_socket(relay_socket_t * s, int flags, int snd, int rcv);
 int setnonblocking(int fd);
 
 /* try to get the OS to send our packets more efficiently when sending

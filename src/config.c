@@ -104,7 +104,7 @@ static int is_valid_socketize(const char *arg, int default_proto, int connection
     /* NOTE: the result socketization is "lost" (beyond the success/failure)
      * and redone later when the listener and workers are started.  This may
      * be considered wasteful, but would get tricky on e.g. config reloads. */
-    sock_t s;
+    relay_socket_t s;
     if (!socketize(arg, &s, default_proto, connection_direction, role))
 	return 0;
     return 1;

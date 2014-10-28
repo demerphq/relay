@@ -9,7 +9,7 @@ extern config_t CONFIG;
 
 #define DEBUG_SOCKETIZE 0
 
-static int socketize_validate(const char *arg, char *a, sock_t * s, int default_proto, int connection_direction)
+static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int default_proto, int connection_direction)
 {
     char *p;
     int proto = SOCK_FAKE_ERROR;
@@ -118,7 +118,7 @@ static int socketize_validate(const char *arg, char *a, sock_t * s, int default_
     return 1;
 }
 
-int socketize(const char *arg, sock_t * s, int default_proto, int connection_direction, const char *role)
+int socketize(const char *arg, relay_socket_t * s, int default_proto, int connection_direction, const char *role)
 {
     char *a = strdup(arg);
 
@@ -146,7 +146,7 @@ STMT_START {                        \
     return 0;                       \
 } STMT_END
 
-int open_socket(sock_t * s, int flags, int snd, int rcv)
+int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
 {
     int ok = 1;
 
