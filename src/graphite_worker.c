@@ -80,7 +80,7 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
     worker->root = graphite_worker_setup_root(config);
 
-    if (!socketize(worker->base.arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
+    if (!socketize(worker->base.arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
 	DIE_RC(EXIT_FAILURE, "Failed to socketize graphite worker");
 
     return worker;
@@ -110,9 +110,9 @@ void *graphite_worker_thread(void *arg)
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->output_socket, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
-		sck = &self->s_output;
+		sck = &self->output_socket;
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
 		worker_wait_millisec(config->sleep_after_disaster_millisec);
@@ -141,8 +141,8 @@ void *graphite_worker_thread(void *arg)
 	    accumulate_and_clear_stats(&w->totals, &totals);
 
 	    wrote =
-		snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean,
-			 this_epoch);
+		snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root,
+			 w->output_socket.arg_clean, this_epoch);
 	    if (wrote < 0 || wrote >= (int) sizeof(stats_format)) {
 		WARN("Failed to initialize stats format: %s", stats_format);
 		break;

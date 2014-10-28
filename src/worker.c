@@ -46,9 +46,9 @@ void *worker_thread(void *arg)
 	/* check if we have a usable socket */
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket(&self->s_output, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->output_socket, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
-		sck = &self->s_output;
+		sck = &self->output_socket;
 		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
@@ -215,7 +215,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 
     worker->exists = 1;
 
-    if (!socketize(arg, &worker->s_output, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker"))
+    if (!socketize(arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker"))
 	DIE_RC(EXIT_FAILURE, "Failed to socketize worker");
 
     worker->disk_writer = disk_writer;
@@ -226,7 +226,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 
     /* setup spillway_path */
     int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
-			 worker->s_output.arg_clean);
+			 worker->output_socket.arg_clean);
     if (wrote < 0 || wrote >= PATH_MAX)
 	DIE_RC(EXIT_FAILURE, "Failed to create spillway_path %s", disk_writer->spillway_path);
 

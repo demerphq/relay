@@ -12,7 +12,7 @@
 struct graphite_worker {
     struct worker_base base;
 
-    relay_socket_t s_output;
+    relay_socket_t output_socket;
 
     char *root;
 
