@@ -14,7 +14,7 @@ static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
 
-relay_socket_t *s_listen;
+relay_socket_t *listener;
 graphite_worker_t *graphite_worker;
 
 extern config_t CONFIG;
@@ -320,21 +320,21 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    if (!socketize(config->argv[0], s_listen, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener"))
+    if (!socketize(config->argv[0], listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener"))
 	DIE_RC(EXIT_FAILURE, "Failed to socketize listener");
 
-    s_listen->polling_interval_millisec = config->polling_interval_millisec;
+    listener->polling_interval_millisec = config->polling_interval_millisec;
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(s_listen, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
+    open_socket(listener, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
 
-    if (s_listen->proto == IPPROTO_UDP)
-	spawn(&server_tid, udp_server, s_listen, PTHREAD_CREATE_JOINABLE);
+    if (listener->proto == IPPROTO_UDP)
+	spawn(&server_tid, udp_server, listener, PTHREAD_CREATE_JOINABLE);
     else
-	spawn(&server_tid, tcp_server, s_listen, PTHREAD_CREATE_JOINABLE);
+	spawn(&server_tid, tcp_server, listener, PTHREAD_CREATE_JOINABLE);
 
     return server_tid;
 }
@@ -381,7 +381,7 @@ static int serve(config_t * config)
 
     setproctitle("starting");
 
-    s_listen = calloc_or_die(sizeof(*s_listen));
+    listener = calloc_or_die(sizeof(*listener));
 
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
@@ -445,13 +445,13 @@ static void sig_handler(int signum)
 
 static void stop_listener(pthread_t server_tid)
 {
-    shutdown(s_listen->socket, SHUT_RDWR);
+    shutdown(listener->socket, SHUT_RDWR);
     /* TODO: if the relay is interrupted rudely (^C), final_shutdown()
      * is called, which will call stop_listener(), and this close()
      * triggers the ire of the clang threadsanitizer, since the socket
      * was opened by a worker thread with a recv() in udp_server, but
      * the shutdown happens in the main thread. */
-    close(s_listen->socket);
+    close(listener->socket);
     pthread_join(server_tid, NULL);
 }
 
@@ -460,7 +460,7 @@ static void final_shutdown(pthread_t server_tid)
     graphite_worker_destroy(graphite_worker);
     stop_listener(server_tid);
     worker_pool_destroy_static();
-    free(s_listen);
+    free(listener);
     sleep(1);			/* give a chance to the detachable tcp worker threads to pthread_exit() */
     config_destroy();
     destroy_proctitle();

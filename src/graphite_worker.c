@@ -9,7 +9,7 @@
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
-extern relay_socket_t *s_listen;
+extern relay_socket_t *listener;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
 {
@@ -58,9 +58,9 @@ char *graphite_worker_setup_root(const config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(s_listen->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(listener->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_die(root_len);
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, s_listen->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, listener->arg_clean);
 
     if (wrote < 0 || wrote >= root_len)
 	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
