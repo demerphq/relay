@@ -25,8 +25,7 @@ void update_process_status(stats_count_t received, stats_count_t active)
 		break;
 	    wrote =
 		snprintf(buf, len,
-			 " %d: sent %lu spilled "
-			 "%lu disk %lu disk_error %lu",
+			 " [%d] sent %lu spilled %lu disk %lu disk_error %lu",
 			 ++worker_id,
 			 (unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
 			 (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
