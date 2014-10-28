@@ -482,17 +482,22 @@ int config_reload(config_t * config)
 
     if (config->generation == 0) {
 	SAY("Loaded config file %s", config->file);
-	SAY("New config");
+	SAY("Initial config");
     } else {
 	SAY("Reloaded config file %s", config->file);
 	SAY("New unmerged config");
     }
 
     config_dump(new_config);
+
     if (!config_valid(new_config)) {
-	SAY("Invalid new configuration, ignoring it");
-	config_changed = 0;
-	goto out;
+	if (config->generation == 0)
+	    DIE_RC(EXIT_FAILURE, "Invalid initial configuration");
+	else {
+	    WARN("Invalid new configuration, ignoring it");
+	    config_changed = 0;
+	    goto out;
+	}
     }
 
     if (config->generation)
