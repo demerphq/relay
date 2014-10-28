@@ -13,17 +13,17 @@ void update_process_status(stats_count_t received, stats_count_t active)
     int len = PROCESS_STATUS_BUF_LEN;
     worker_t *w;
     int worker_id = 0;
-    int wrote_len = 0;
+    int wrote = 0;
 
     LOCK(&POOL.lock);
-    wrote_len = snprintf(buf, len, "received %lu active %lu", (unsigned long) received, (unsigned long) active);
-    if (wrote_len > 0 && wrote_len < len) {
-	buf += wrote_len;
-	len -= wrote_len;
+    wrote = snprintf(buf, len, "received %lu active %lu", (unsigned long) received, (unsigned long) active);
+    if (wrote > 0 && wrote < len) {
+	buf += wrote;
+	len -= wrote;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    if (len <= 0)
 		break;
-	    wrote_len =
+	    wrote =
 		snprintf(buf, len,
 			 " %d: sent %lu spilled "
 			 "%lu disk %lu disk_error %lu",
@@ -32,10 +32,10 @@ void update_process_status(stats_count_t received, stats_count_t active)
 			 (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
 			 (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
 			 (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count));
-	    if (wrote_len <= 0 || wrote_len >= len)
+	    if (wrote <= 0 || wrote >= len)
 		break;
-	    buf += wrote_len;
-	    len -= wrote_len;
+	    buf += wrote;
+	    len -= wrote;
 	}
     }
     UNLOCK(&POOL.lock);

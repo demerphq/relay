@@ -82,8 +82,8 @@ static int socketize_validate(const char *arg, char *a, sock_t * s, int default_
 	wrote =
 	    snprintf(s->to_string, PATH_MAX, "%s@%s:%d",
 		     (proto == IPPROTO_TCP ? "tcp" : "udp"), inet_ntoa(s->sa.in.sin_addr), ntohs(s->sa.in.sin_port));
-	if (wrote >= PATH_MAX) {
-	    SAY("Failed to stringify target descriptor");
+	if (wrote < 0 || wrote >= PATH_MAX) {
+	    WARN("Failed to stringify target descriptor");
 	    return 0;
 	}
 	if (DEBUG_SOCKETIZE)
@@ -91,7 +91,7 @@ static int socketize_validate(const char *arg, char *a, sock_t * s, int default_
     } else if (connection_direction == RELAY_CONN_IS_OUTBOUND && (*a == '/' || *a == '.')) {
 	proto = SOCK_FAKE_FILE;
 	wrote = snprintf(s->to_string, PATH_MAX, "file@%s", a);
-	if (wrote >= PATH_MAX) {
+	if (wrote < 0 || wrote >= PATH_MAX) {
 	    SAY("Path too long");
 	    return 0;
 	}

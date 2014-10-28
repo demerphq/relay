@@ -225,10 +225,10 @@ worker_t *worker_init(const char *arg, const config_t * config)
     disk_writer->ptotals = &worker->totals;
 
     /* setup spillway_path */
-    if (snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
-		 worker->s_output.arg_clean) >= PATH_MAX)
-	DIE_RC(EXIT_FAILURE, "spillway_path too big, had to be truncated: %s", disk_writer->spillway_path);
-
+    int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
+			 worker->s_output.arg_clean);
+    if (wrote < 0 || wrote >= PATH_MAX)
+	DIE_RC(EXIT_FAILURE, "Failed to create spillway_path %s", disk_writer->spillway_path);
 
     /* Create the disk_writer before we create the main worker.
      * We do this because the disk_writer only consumes things

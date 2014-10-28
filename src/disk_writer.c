@@ -28,8 +28,10 @@ static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	}
     }
     if (blob_epoch) {
-	if (snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spillway_path, blob_epoch) >= PATH_MAX) {
-	    /* XXX: should this really die? */
+	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spillway_path, blob_epoch);
+	if (wrote < 0 || wrote >= PATH_MAX) {
+	    /* XXX: should this really die?
+	     * Retry in /tmp? */
 	    DIE_RC(EXIT_FAILURE, "filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
 	}
 	recreate_spillway_path(self->spillway_path);

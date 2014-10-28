@@ -62,7 +62,7 @@ char *graphite_worker_setup_root(const config_t * config)
     root = calloc_or_die(root_len);
     wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, s_listen->arg_clean);
 
-    if (wrote >= root_len)
+    if (wrote < 0 || wrote >= root_len)
 	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
     SAY("Using '%s' as root namespace for graphite", root);
     freeaddrinfo(info);
@@ -104,7 +104,7 @@ void *graphite_worker_thread(void *arg)
 #ifdef HAVE_MALLINFO
 	struct mallinfo meminfo;
 #endif
-	int wrote_len;
+	int wrote;
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -134,8 +134,13 @@ void *graphite_worker_thread(void *arg)
 
 	    accumulate_and_clear_stats(&w->totals, &totals);
 
-	    snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean,
-		     this_epoch);
+	    wrote =
+		snprintf(stats_format, sizeof(stats_format), "%s.%s.%%s %%d %lu\n", self->root, w->s_output.arg_clean,
+			 this_epoch);
+	    if (wrote < 0 || wrote >= (int) sizeof(stats_format)) {
+		WARN("Failed to initialize stats format: %s", stats_format);
+		break;
+	    }
 
 	    {
 		int i;
@@ -170,15 +175,15 @@ void *graphite_worker_thread(void *arg)
 		    }
 		    if (label == NULL)
 			break;
-		    wrote_len = snprintf(str, len, stats_format, label, value);
-		    if (wrote_len < 0 || wrote_len >= len) {
-			/* should we warn? */
+		    wrote = snprintf(str, len, stats_format, label, value);
+		    if (wrote < 0 || wrote >= len) {
+			WARN("Failed to append to stats");
 			break;
 		    }
 		    if (len > GRAPHITE_BUFFER_MAX)
 			break;
-		    str += wrote_len;
-		    len -= wrote_len;
+		    str += wrote;
+		    len -= wrote;
 		}
 	    }
 	}
@@ -189,7 +194,11 @@ void *graphite_worker_thread(void *arg)
 	meminfo = mallinfo();
 
 	/* No need to keep reformatting root, "mallinfo", and epoch. */
-	snprintf(meminfo_format, sizeof(meminfo_format), "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
+	wrote = snprintf(meminfo_format, sizeof(meminfo_format), "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
+	if (wrote < 0 || wrote >= (int) sizeof(stats_format)) {
+	    WARN("Failed to initialize meminfo format: %s", stats_format);
+	    break;
+	}
 
 	{
 	    int i;
@@ -245,15 +254,15 @@ void *graphite_worker_thread(void *arg)
 		}
 		if (label == NULL)
 		    break;
-		wrote_len = snprintf(str, len, meminfo_format, label, value);
-		if (wrote_len < 0 || wrote_len >= len) {
-		    /* should we warn? */
+		wrote = snprintf(str, len, meminfo_format, label, value);
+		if (wrote < 0 || wrote >= len) {
+		    WARN("Failed to append to meminfo");
 		    break;
 		}
 		if (len > GRAPHITE_BUFFER_MAX)
 		    break;
-		str += wrote_len;
-		len -= wrote_len;
+		str += wrote;
+		len -= wrote;
 	    }
 	}
 #endif
