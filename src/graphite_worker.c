@@ -89,7 +89,6 @@ void *graphite_worker_thread(void *arg)
 {
     struct sock *sck = NULL;
     graphite_worker_t *self = (graphite_worker_t *) arg;
-    ssize_t sent_bytes;
     time_t this_epoch;
     char stats_format[256];
 #ifdef HAVE_MALLINFO
@@ -103,7 +102,7 @@ void *graphite_worker_thread(void *arg)
 #ifdef HAVE_MALLINFO
 	struct mallinfo meminfo;
 #endif
-	int wrote;
+	ssize_t wrote;
 
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -193,9 +192,10 @@ void *graphite_worker_thread(void *arg)
 #endif
 
 	/* send it */
-	/* sent_bytes= sendto(sck->socket, buffer->data, buffer->used, 0, NULL, 0); */
-	sent_bytes = write(sck->socket, buffer->data, buffer->used);
-	if (sent_bytes != buffer->used) {
+	/* wrote = sendto(sck->socket, buffer->data, buffer->used, 0, NULL, 0); */
+	wrote = write(sck->socket, buffer->data, buffer->used);
+	if (wrote != buffer->used) {
+	    WARN("Failed graphite send: tried %ld, wrote %ld", buffer->used, wrote);
 	    close(sck->socket);
 	    sck = NULL;
 	}
