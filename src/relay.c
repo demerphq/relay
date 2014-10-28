@@ -28,7 +28,7 @@ stats_basic_counters_t RECEIVED_STATS = {
     .disk_count = 0,		/* number of items we have written to disk */
 
     .send_elapsed_usec = 0,	/* elapsed time in microseconds that we spent sending data */
-    .active_connections = 0,	/* current number of active inbound tcp connections */
+    .tcp_connections = 0,	/* current number of active inbound tcp connections */
 };
 
 static void spawn(pthread_t * tid, void *(*func) (void *), void *arg, int type)
@@ -144,7 +144,7 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 	WARN_ERRNO("accept");
 	return TCP_FAILURE;
     }
-    RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.active_connections, 1);
+    RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.tcp_connections, 1);
 
     tcp_context_realloc(ctxt, ctxt->nfds + 1);
 
@@ -262,7 +262,7 @@ static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 
     ctxt->nfds--;
     tcp_context_realloc(ctxt, ctxt->nfds);
-    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.active_connections, 1);
+    RELAY_ATOMIC_DECREMENT(RECEIVED_STATS.tcp_connections, 1);
 }
 
 static void tcp_context_close(tcp_server_context_t * ctxt)
@@ -287,7 +287,7 @@ void *tcp_server(void *arg)
 
     tcp_add_fd(&ctxt, s->socket);
 
-    RELAY_ATOMIC_AND(RECEIVED_STATS.active_connections, 0);
+    RELAY_ATOMIC_AND(RECEIVED_STATS.tcp_connections, 0);
 
     for (;;) {
 	int rc = poll(ctxt.pfds, ctxt.nfds, s->polling_interval_millisec);
@@ -419,7 +419,7 @@ static int serve(config_t * config)
 	}
 
 	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
-			      RELAY_ATOMIC_READ(RECEIVED_STATS.active_connections));
+			      RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
 	sleep(1);
     }
     final_shutdown(server_tid);

@@ -7,7 +7,7 @@ worker_pool_t POOL;
 #define PROCESS_STATUS_BUF_LEN 128
 
 /* update the process status line with the status of the workers */
-void update_process_status(stats_count_t received, stats_count_t active)
+void update_process_status(stats_count_t received, stats_count_t tcp)
 {
     char str[PROCESS_STATUS_BUF_LEN + 1], *buf = str;
     int len = PROCESS_STATUS_BUF_LEN;
@@ -16,7 +16,7 @@ void update_process_status(stats_count_t received, stats_count_t active)
     int wrote = 0;
 
     LOCK(&POOL.lock);
-    wrote = snprintf(buf, len, "received %lu active %lu", (unsigned long) received, (unsigned long) active);
+    wrote = snprintf(buf, len, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp);
     if (wrote > 0 && wrote < len) {
 	buf += wrote;
 	len -= wrote;
