@@ -23,7 +23,7 @@ void graphite_worker_destroy(graphite_worker_t * worker)
 
     free(worker->arg);
     free(worker->root);
-    free(worker->buffer);
+    fixed_buffer_destroy(worker->buffer);
     free(worker);
 }
 
@@ -75,7 +75,7 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     graphite_worker_t *worker = calloc_or_die(sizeof(graphite_worker_t));
 
     worker->config = config;
-    worker->buffer = calloc_or_die(GRAPHITE_BUFFER_MAX);
+    worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
     worker->arg = strdup(config->graphite.addr);
     worker->root = graphite_worker_setup_root(config);
 
@@ -96,9 +96,8 @@ void *graphite_worker_thread(void *arg)
     char meminfo_format[256];
 #endif
 
+    fixed_buffer_t *buffer = self->buffer;
     while (!RELAY_ATOMIC_READ(self->exit)) {
-	char *str = self->buffer;	/* current position in buffer */
-	ssize_t len = GRAPHITE_BUFFER_MAX;	/* amount remaining to use */
 	uint32_t wait_remains_millisec;
 	worker_t *w;
 #ifdef HAVE_MALLINFO
@@ -126,6 +125,10 @@ void *graphite_worker_thread(void *arg)
 	 */
 
 	LOCK(&POOL.lock);
+
+	/* reset the buffer to the beginning */
+	buffer->used = 0;
+
 	this_epoch = time(NULL);
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    stats_basic_counters_t totals;
@@ -142,50 +145,19 @@ void *graphite_worker_thread(void *arg)
 		break;
 	    }
 
-	    {
-		int i;
-		for (i = 0;; i++) {
-		    const char *label = NULL;
-		    uint64_t value = 0;
-		    switch (i) {
-#define STATS_LABEL(name) label = #name; value = totals.name##_count
-		    case 0:
-			STATS_LABEL(received);
-			break;
-		    case 1:
-			STATS_LABEL(sent);
-			break;
-		    case 2:
-			STATS_LABEL(partial);
-			break;
-		    case 3:
-			STATS_LABEL(spilled);
-			break;
-		    case 4:
-			STATS_LABEL(error);
-			break;
-		    case 5:
-			STATS_LABEL(disk);
-			break;
-		    case 6:
-			STATS_LABEL(disk_error);
-			break;
-		    default:
-			break;
-		    }
-		    if (label == NULL)
-			break;
-		    wrote = snprintf(str, len, stats_format, label, value);
-		    if (wrote < 0 || wrote >= len) {
-			WARN("Failed to append to stats");
-			break;
-		    }
-		    if (len > GRAPHITE_BUFFER_MAX)
-			break;
-		    str += wrote;
-		    len -= wrote;
-		}
-	    }
+	    do {
+#define STATS_VCATF(name) \
+		if (!fixed_buffer_vcatf(buffer, stats_format, #name, totals.name##_count)) break
+		STATS_VCATF(received);
+		STATS_VCATF(sent);
+		STATS_VCATF(partial);
+		STATS_VCATF(spilled);
+		STATS_VCATF(error);
+		STATS_VCATF(disk);
+		STATS_VCATF(disk_error);
+	    } while (0);
+	    if (buffer->used >= buffer->size)
+		break;
 	}
 	UNLOCK(&POOL.lock);
 
@@ -200,86 +172,34 @@ void *graphite_worker_thread(void *arg)
 	    break;
 	}
 
-	{
-	    int i;
-	    for (i = 0;; i++) {
-		const char *label = NULL;
-		int value = -1;
-		switch (i) {
-#define MEMINFO_LABEL(name) label = #name; value = meminfo.name
-		case 0:
-		    MEMINFO_LABEL(arena);
-		    break;
-		case 1:
-		    MEMINFO_LABEL(ordblks);
-		    break;
-		case 2:
-		    MEMINFO_LABEL(smblks);
-		    break;
-		case 3:
-		    MEMINFO_LABEL(hblks);
-		    break;
-		case 4:
-		    MEMINFO_LABEL(hblkhd);
-		    break;
-		case 5:
-		    MEMINFO_LABEL(usmblks);
-		    break;
-		case 6:
-		    MEMINFO_LABEL(fsmblks);
-		    break;
-		case 7:
-		    MEMINFO_LABEL(uordblks);
-		    break;
-		case 8:
-		    MEMINFO_LABEL(fordblks);
-		    break;
-		case 9:
-		    MEMINFO_LABEL(keepcost);
-		    break;
-		case 10:
-		    label = "total_from_system";
-		    value = meminfo.arena + meminfo.hblkhd;
-		    break;
-		case 11:
-		    label = "total_in_use";
-		    value = meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd;
-		    break;
-		case 12:
-		    label = "total_free_in_process";
-		    value = meminfo.fordblks + meminfo.fsmblks;
-		    break;
-		default:
-		    break;
-		}
-		if (label == NULL)
-		    break;
-		wrote = snprintf(str, len, meminfo_format, label, value);
-		if (wrote < 0 || wrote >= len) {
-		    WARN("Failed to append to meminfo");
-		    break;
-		}
-		if (len > GRAPHITE_BUFFER_MAX)
-		    break;
-		str += wrote;
-		len -= wrote;
-	    }
-	}
+	do {
+#define MEMINFO_VCATF_LABEL_VALUE(label, value) \
+	    if (!fixed_buffer_vcatf(buffer, meminfo_format, label, value)) break
+#define MEMINFO_VCATF(name) MEMINFO_VCATF_LABEL_VALUE(#name, meminfo.name)
+	    MEMINFO_VCATF(arena);
+	    MEMINFO_VCATF(ordblks);
+	    MEMINFO_VCATF(smblks);
+	    MEMINFO_VCATF(hblks);
+	    MEMINFO_VCATF(hblkhd);
+	    MEMINFO_VCATF(usmblks);
+	    MEMINFO_VCATF(fsmblks);
+	    MEMINFO_VCATF(uordblks);
+	    MEMINFO_VCATF(fordblks);
+	    MEMINFO_VCATF(keepcost);
+	    MEMINFO_VCATF_LABEL_VALUE("total_from_system", meminfo.arena + meminfo.hblkhd);
+	    MEMINFO_VCATF_LABEL_VALUE("total_in_use", meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd);
+	    MEMINFO_VCATF_LABEL_VALUE("total_free_in_process", meminfo.fordblks + meminfo.fsmblks);
+	} while (0);
 #endif
 
-	/* convert len from "amount remaining" to "amount used" */
-	len = GRAPHITE_BUFFER_MAX - len;
-
-	/* and reset the buffer pointer */
-	str = self->buffer;
-
 	/* send it */
-	/* sent_bytes= sendto(sck->socket, self->buffer, len, 0, NULL, 0); */
-	sent_bytes = write(sck->socket, self->buffer, len);
-	if (sent_bytes != len) {
+	/* sent_bytes= sendto(sck->socket, buffer->data, buffer->used, 0, NULL, 0); */
+	sent_bytes = write(sck->socket, buffer->data, buffer->used);
+	if (sent_bytes != buffer->used) {
 	    close(sck->socket);
 	    sck = NULL;
 	}
+
 	wait_remains_millisec = self->config->graphite.send_interval_millisec;
 	while (!RELAY_ATOMIC_READ(self->exit) && (wait_remains_millisec > 0)) {
 	    if (wait_remains_millisec < self->config->graphite.sleep_poll_interval_millisec) {

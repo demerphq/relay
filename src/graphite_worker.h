@@ -4,6 +4,7 @@
 #include <pthread.h>
 
 #include "socket_util.h"
+#include "string_util.h"
 
 #define GRAPHITE_BUFFER_MAX 16384
 
@@ -18,7 +19,7 @@ struct graphite_worker {
 
     char *arg;
     char *root;
-    char *buffer;
+    fixed_buffer_t *buffer;
 };
 
 typedef struct graphite_worker graphite_worker_t;
