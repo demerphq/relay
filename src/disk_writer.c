@@ -62,7 +62,7 @@ static void write_blob_to_disk(disk_writer_t * self, blob_t * b)
 	    RELAY_ATOMIC_INCREMENT(self->counters->disk_count, 1);
 	    return;
 	}
-	WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:", wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+	WARN_ERRNO("Wrote only %ld of %d bytes to '%s', error:", wrote, BLOB_BUF_SIZE(b), self->last_file_path);
 
     }
     RELAY_ATOMIC_INCREMENT(self->counters->disk_error_count, 1);
