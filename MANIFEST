@@ -14,7 +14,6 @@ src/setproctitle.c          - set ARGV safely so that stats can be seen in ps
 src/setproctitle.h          -   header for setproctitle.h
 src/stats.c                 - statistic gathering logic
 src/stats.h                 -   header for stats.c
-src/stress_test_client.c    - C client for stress testing
 src/util.c                  - utilities sub (home for things with no home)
 src/util.h                  -   headers for util.c
 src/worker.c                - worker process code, sending loops, etc
