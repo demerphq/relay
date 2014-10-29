@@ -140,7 +140,8 @@ void *worker_thread(void *arg)
 		    unsigned char c = ((unsigned char *) p)[i];
 		    printf("%c", isprint(c) ? c : '.');
 		}
-		printf("...\n");
+		if (peek_bytes < bytes_to_send)
+		    printf("...\n");
 		errno = saverrno;
 	    }
 
