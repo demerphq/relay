@@ -59,13 +59,13 @@ static void write_blob_to_disk(disk_writer_t * self, blob_t * b)
     if (self->fd >= 0) {
 	ssize_t wrote = write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b));
 	if (wrote == BLOB_BUF_SIZE(b)) {
-	    RELAY_ATOMIC_INCREMENT(self->pcounters->disk_count, 1);
+	    RELAY_ATOMIC_INCREMENT(self->counters->disk_count, 1);
 	    return;
 	}
 	WARN_ERRNO("Wrote only %ld of %i bytes to '%s', error:", wrote, BLOB_BUF_SIZE(b), self->last_file_path);
 
     }
-    RELAY_ATOMIC_INCREMENT(self->pcounters->disk_error_count, 1);
+    RELAY_ATOMIC_INCREMENT(self->counters->disk_error_count, 1);
 }
 
 
@@ -111,13 +111,13 @@ void *disk_writer_thread(void *arg)
 	    }
 	    while ((b = private_queue.head) != NULL);
 
-	    accumulate_and_clear_stats(self->pcounters, self->ptotals);
+	    accumulate_and_clear_stats(self->counters, self->totals);
 	}
     }
 
-    accumulate_and_clear_stats(self->pcounters, self->ptotals);
+    accumulate_and_clear_stats(self->counters, self->totals);
 
-    SAY("disk_writer saved %lu packets in its lifetime", (unsigned long) self->ptotals->disk_count);
+    SAY("disk_writer saved %lu packets in its lifetime", (unsigned long) self->totals->disk_count);
 
     return NULL;
 }

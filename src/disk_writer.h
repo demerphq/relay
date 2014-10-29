@@ -15,8 +15,8 @@ struct disk_writer {
 
     queue_t queue;
 
-    stats_basic_counters_t *pcounters;
-    stats_basic_counters_t *ptotals;
+    stats_basic_counters_t *counters;
+    stats_basic_counters_t *totals;
 
     char spillway_path[PATH_MAX];
     char last_file_path[PATH_MAX];

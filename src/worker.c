@@ -221,8 +221,8 @@ worker_t *worker_init(const char *arg, const config_t * config)
     worker->disk_writer = disk_writer;
 
     disk_writer->base.config = config;
-    disk_writer->pcounters = &worker->counters;
-    disk_writer->ptotals = &worker->totals;
+    disk_writer->counters = &worker->counters;
+    disk_writer->totals = &worker->totals;
 
     /* setup spillway_path */
     int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
