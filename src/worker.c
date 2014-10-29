@@ -146,14 +146,14 @@ void *worker_thread(void *arg)
 	    }
 
 	    if (bytes_sent == -1) {
-		WARN_ERRNO("Sending %zd bytes to %s failed", bytes_to_send, sck->to_string);
+		WARN_ERRNO("sendto() tried %zd bytes to %s but wrote none", bytes_to_send, sck->to_string);
 		enqueue_blob_for_disk_writing(self, cur_blob);
 		close(sck->socket);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
 		sck = NULL;
 		break;		/* stop sending from the hijacked queue */
 	    } else if (bytes_sent < bytes_to_send) {
-		WARN("We wrote only %zd of %zd bytes to the socket?", bytes_sent, bytes_to_send);
+		WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
 		RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    } else {
 		RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
