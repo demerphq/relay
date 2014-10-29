@@ -4,41 +4,28 @@
 
 worker_pool_t POOL;
 
-#define PROCESS_STATUS_BUF_LEN 128
-
 /* update the process status line with the status of the workers */
-void update_process_status(stats_count_t received, stats_count_t tcp)
+void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_count_t tcp)
 {
-    char str[PROCESS_STATUS_BUF_LEN + 1], *buf = str;
-    int len = PROCESS_STATUS_BUF_LEN;
-    worker_t *w;
-    int worker_id = 0;
-    int wrote = 0;
-
     LOCK(&POOL.lock);
-    wrote = snprintf(buf, len, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp);
-    if (wrote > 0 && wrote < len) {
-	buf += wrote;
-	len -= wrote;
+    buf->used = 0;		/* Reset the buffer. */
+    if (fixed_buffer_vcatf(buf, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
+	worker_t *w;
+	int worker_id = 0;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
-	    if (len <= 0)
+	    if (!fixed_buffer_vcatf(buf,
+				    " [%d] sent %lu spilled %lu disk %lu disk_error %lu",
+				    ++worker_id,
+				    (unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count)))
 		break;
-	    wrote =
-		snprintf(buf, len,
-			 " [%d] sent %lu spilled %lu disk %lu disk_error %lu",
-			 ++worker_id,
-			 (unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
-			 (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
-			 (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
-			 (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count));
-	    if (wrote <= 0 || wrote >= len)
-		break;
-	    buf += wrote;
-	    len -= wrote;
 	}
     }
     UNLOCK(&POOL.lock);
-    setproctitle(str);
+    buf->data[buf->used < buf->size ? buf->used : buf->size - 1] = 0;
+    setproctitle(buf->data);
 }
 
 /* add an item to all workers queues

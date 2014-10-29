@@ -8,7 +8,7 @@
 #include "worker.h"
 #include "worker_pool.h"
 
-#define MAX_BUF_LEN 128
+#define PROCESS_STATUS_BUF_LEN 256
 
 static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
@@ -388,6 +388,8 @@ static int serve(config_t * config)
     graphite_worker = graphite_worker_create(config);
     pthread_create(&graphite_worker->base.tid, NULL, graphite_worker_thread, graphite_worker);
 
+    fixed_buffer_t *process_status_buffer = fixed_buffer_create(PROCESS_STATUS_BUF_LEN);
+
     control_set_bits(RELAY_RUNNING);
 
     for (;;) {
@@ -418,7 +420,8 @@ static int serve(config_t * config)
 	    control_unset_bits(RELAY_RELOADING);
 	}
 
-	update_process_status(RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
+	update_process_status(process_status_buffer,
+			      RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
 			      RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
 	sleep(1);
     }
