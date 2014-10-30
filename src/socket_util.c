@@ -135,7 +135,7 @@ int socketize(const char *arg, relay_socket_t * s, int default_proto, int connec
     return valid;
 }
 
-#define ERROR(fmt, arg...)          \
+#define WARN_OR_DIE(s, flags, fmt, arg...)	\
 STMT_START {                        \
     if (flags & DO_NOT_EXIT) {      \
         WARN_ERRNO(fmt, ##arg);     \
@@ -162,50 +162,49 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
     }
 
     if ((s->socket = socket(s->sa.in.sin_family, s->type, s->proto)) < 0)
-	ERROR("socket[%s]", s->to_string);
+	WARN_OR_DIE(s, flags, "socket[%s]", s->to_string);
 
     if (flags & DO_BIND) {
 	if (flags & DO_REUSEADDR) {
 	    int optval = 1;
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
-		ERROR("setsockopt[REUSEADDR]");
+		WARN_OR_DIE(s, flags, "setsockopt[REUSEADDR]");
 	}
 	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
-	    ERROR("bind[%s]", s->to_string);
+	    WARN_OR_DIE(s, flags, "bind[%s]", s->to_string);
 	if (s->proto == IPPROTO_TCP) {
 	    if (listen(s->socket, SOMAXCONN))
-		ERROR("listen[%s]", s->to_string);
+		WARN_OR_DIE(s, flags, "listen[%s]", s->to_string);
 	}
     } else if (flags & DO_CONNECT) {
 	if (s->proto == IPPROTO_TCP) {
 	    if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
-		ERROR("connect[%s]", s->to_string);
+		WARN_OR_DIE(s, flags, "connect[%s]", s->to_string);
 	    if (CONFIG.tcp_send_timeout_sec > 0) {
 		struct timeval timeout;
 		timeout.tv_sec = CONFIG.tcp_send_timeout_sec;
 		timeout.tv_usec = 0;
 
 		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)
-		    ERROR("setsockopt[%s]", s->to_string);
+		    WARN_OR_DIE(s, flags, "setsockopt[%s]", s->to_string);
 	    }
 	}
     }
     if (snd > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd))
 	    < 0)
-	    ERROR("setsockopt[%s]", s->to_string);
+	    WARN_OR_DIE(s, flags, "setsockopt[%s]", s->to_string);
     }
     if (rcv > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv))
 	    < 0)
-	    ERROR("setsockopt[%s]", s->to_string);
+	    WARN_OR_DIE(s, flags, "setsockopt[%s]", s->to_string);
     }
     if (ok)
 	SAY("Connected %s", s->to_string);
     else
-	ERROR("Failed to connect %s", s->to_string);
+	WARN_OR_DIE(s, flags, "Failed to connect %s", s->to_string);
     return ok;
-#undef ERROR
 }
 
 int setnonblocking(int fd)
