@@ -15,10 +15,10 @@ extern relay_socket_t *listener;
 
 void graphite_worker_destroy(graphite_worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->base.exiting, WORKER_EXITING);
+    uint32_t was_stopping = RELAY_ATOMIC_OR(worker->base.stopping, WORKER_STOPPING);
 
     /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static(). */
-    if (old_exit & WORKER_EXITING)
+    if (was_stopping & WORKER_STOPPING)
 	return;
 
     pthread_join(worker->base.tid, NULL);
@@ -178,7 +178,7 @@ static int graphite_send(relay_socket_t * sck, fixed_buffer_t * buffer, ssize_t 
 static void graphite_wait(graphite_worker_t * self, const struct graphite_config *graphite)
 {
     uint32_t wait_remains_millisec = graphite->send_interval_millisec;
-    while (!RELAY_ATOMIC_READ(self->base.exiting) && (wait_remains_millisec > 0)) {
+    while (!RELAY_ATOMIC_READ(self->base.stopping) && (wait_remains_millisec > 0)) {
 	if (wait_remains_millisec < graphite->sleep_poll_interval_millisec) {
 	    worker_wait_millisec(wait_remains_millisec);
 	    wait_remains_millisec = 0;
@@ -206,7 +206,7 @@ void *graphite_worker_thread(void *arg)
     fixed_buffer_t *buffer = self->buffer;
     ssize_t wrote = 0;
 
-    while (!RELAY_ATOMIC_READ(self->base.exiting)) {
+    while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
 	    /* nope, so lets try to open one */
 	    if (open_socket(&self->output_socket, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {

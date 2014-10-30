@@ -53,6 +53,6 @@
 #endif
 #endif
 
-#define WORKER_EXITING 1
+#define WORKER_STOPPING 1
 
 #endif				/* #ifndef RELAY_RELAY_COMMON_H */

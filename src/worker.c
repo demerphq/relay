@@ -147,7 +147,7 @@ void *worker_thread(void *arg)
 
     int join_err;
 
-    while (!RELAY_ATOMIC_READ(self->base.exiting)) {
+    while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	/* check if we have a usable socket */
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -203,7 +203,7 @@ void *worker_thread(void *arg)
 	close(sck->socket);
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
-    RELAY_ATOMIC_OR(self->disk_writer->base.exiting, WORKER_EXITING);
+    RELAY_ATOMIC_OR(self->disk_writer->base.stopping, WORKER_STOPPING);
 
     /* XXX handle failure of the disk_write shutdown */
     join_err = pthread_join(self->disk_writer->base.tid, NULL);
@@ -263,7 +263,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 	int join_err;
 
 	/* we died, so shut down our "pet" disk worker, and then exit with a message */
-	RELAY_ATOMIC_OR(disk_writer->base.exiting, WORKER_EXITING);
+	RELAY_ATOMIC_OR(disk_writer->base.stopping, WORKER_STOPPING);
 
 	/* have to handle failure of the shutdown too */
 	join_err = pthread_join(disk_writer->base.tid, NULL);
@@ -285,7 +285,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 /* destroy a worker */
 void worker_destroy(worker_t * worker)
 {
-    uint32_t old_exit = RELAY_ATOMIC_OR(worker->base.exiting, WORKER_EXITING);
+    uint32_t was_stopping = RELAY_ATOMIC_OR(worker->base.stopping, WORKER_STOPPING);
 
     /* Avoid race between worker_pool_reload_static and worker_pool_destroy_static().
      *
@@ -294,7 +294,7 @@ void worker_destroy(worker_t * worker)
      * a thread doesn't decrement the semaphore?
      *
      * Note that similar solution is used also by the graphite worker. */
-    if (old_exit & WORKER_EXITING)
+    if (was_stopping & WORKER_STOPPING)
 	return;
 
     pthread_join(worker->base.tid, NULL);

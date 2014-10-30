@@ -11,8 +11,8 @@ struct worker_base {
 
     char *arg;
 
-    /* If non-zero, this worker is already exiting. */
-    volatile uint32_t exiting;
+    /* If non-zero, this worker is already stopping. */
+    volatile uint32_t stopping;
 };
 
 #endif				/* #ifndef RELAY_WORKER_BASE_H */
