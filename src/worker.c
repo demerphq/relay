@@ -18,31 +18,133 @@ static void enqueue_queue_for_disk_writing(worker_t * worker, queue_t * q)
     queue_append_tail(&worker->disk_writer->queue, q, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
 
+static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
+{
+    blob_t *cur_blob;
+    struct timeval now;
+    struct timeval send_start_time;
+    struct timeval send_end_time;
+    stats_count_t spilled = 0;
+
+    get_time(&send_start_time);
+
+    cork(sck, 1);
+
+    while (private_queue->head != NULL) {
+	ssize_t bytes_sent = -2;
+	ssize_t bytes_to_send = 0;
+
+	get_time(&now);
+
+	cur_blob = private_queue->head;
+
+	/* Peel off all the blobs which have been in the queue
+	 * for longer than the spill limit, move them to the
+	 * spill queue, and enqueue them for spilling. */
+	if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->base.config->spill_usec) {
+	    spill_queue->head = cur_blob;
+	    spill_queue->count = 1;
+	    while (BLOB_NEXT(cur_blob)
+		   && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->base.config->spill_usec) {
+		cur_blob = BLOB_NEXT(cur_blob);
+		spill_queue->count++;
+	    }
+	    spill_queue->tail = cur_blob;
+	    private_queue->head = BLOB_NEXT(cur_blob);
+	    private_queue->count -= spill_queue->count;
+	    BLOB_NEXT_set(cur_blob, NULL);
+
+	    spilled += spill_queue->count;
+
+	    RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
+
+	    enqueue_queue_for_disk_writing(self, spill_queue);
+	}
+
+	cur_blob = queue_shift_nolock(private_queue);
+	if (!cur_blob)
+	    break;
+
+	void *raw_bytes;
+	if (sck->type == SOCK_DGRAM) {
+	    bytes_to_send = BLOB_BUF_SIZE(cur_blob);
+	    raw_bytes = BLOB_BUF_addr(cur_blob);
+	    bytes_sent =
+		sendto(sck->socket, raw_bytes,
+		       bytes_to_send, MSG_NOSIGNAL, (struct sockaddr *) &sck->sa.in, sck->addrlen);
+	} else {		/* sck->type == SOCK_STREAM */
+	    bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
+	    raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
+	    bytes_sent = sendto(sck->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
+	}
+	if (0) {
+	    int saverrno = errno;
+	    WARN("%s: tried sending %zd bytes, sent %zd",
+		 (sck->type == SOCK_DGRAM) ? "udp" : "tcp", bytes_to_send, bytes_sent);
+	    void *p = raw_bytes;
+	    int peek_bytes = bytes_to_send > 16 ? 16 : bytes_to_send;
+	    for (int i = 0; i < peek_bytes; i++) {
+		printf("%02x ", ((unsigned char *) p)[i]);
+	    }
+	    printf("| ");
+	    for (int i = 0; i < peek_bytes; i++) {
+		unsigned char c = ((unsigned char *) p)[i];
+		printf("%c", isprint(c) ? c : '.');
+	    }
+	    if (peek_bytes < bytes_to_send)
+		printf("...\n");
+	    errno = saverrno;
+	}
+
+	if (bytes_sent == -1) {
+	    WARN_ERRNO("sendto() tried %zd bytes to %s but wrote none", bytes_to_send, sck->to_string);
+	    enqueue_blob_for_disk_writing(self, cur_blob);
+	    close(sck->socket);
+	    RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
+	    sck = NULL;
+	    break;		/* stop sending from the hijacked queue */
+	} else if (bytes_sent < bytes_to_send) {
+	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
+	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
+	} else {
+	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
+	}
+	blob_destroy(cur_blob);
+    }
+
+    cork(sck, 0);
+
+    get_time(&send_end_time);
+
+    if (spilled) {
+	WARN("Wrote %lu items which were over spill threshold", (unsigned long) spilled);
+    }
+
+    /* this assumes end_time >= start_time */
+    uint64_t usec = elapsed_usec(&send_start_time, &send_end_time);
+    RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
+
+    return 1;
+}
+
 /* create a normal relay worker thread
  * main loop for the worker process */
 void *worker_thread(void *arg)
 {
     worker_t *self = (worker_t *) arg;
 
-    queue_t private_queue;
-    queue_t spill_queue;
-
     queue_t *main_queue = &self->queue;
     struct sock *sck = NULL;
 
-    blob_t *cur_blob;
+    queue_t private_queue;
+    queue_t spill_queue;
+
+    memset(&private_queue, 0, sizeof(queue_t));
+    memset(&spill_queue, 0, sizeof(queue_t));
+
     int join_err;
 
-    memset(&private_queue, 0, sizeof(private_queue));
-    memset(&spill_queue, 0, sizeof(spill_queue));
-
     while (!RELAY_ATOMIC_READ(self->base.exiting)) {
-	struct timeval send_start_time;
-	struct timeval send_end_time;
-	struct timeval now;
-	uint64_t usec;
-	stats_count_t spilled = 0;
-
 	/* check if we have a usable socket */
 	if (!sck) {
 	    /* nope, so lets try to open one */
@@ -76,101 +178,7 @@ void *worker_thread(void *arg)
 	/* ok, so we have something in our queue to process */
 	assert(private_queue.head);
 
-	get_time(&send_start_time);
-
-	cork(sck, 1);
-	while (private_queue.head != NULL) {
-	    ssize_t bytes_sent = -2;
-	    ssize_t bytes_to_send = 0;
-
-	    get_time(&now);
-
-	    cur_blob = private_queue.head;
-
-	    /* Peel off all the blobs which have been in the queue
-	     * for longer than the spill limit, move them to the
-	     * spill queue, and enqueue them for spilling. */
-	    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->base.config->spill_usec) {
-		spill_queue.head = cur_blob;
-		spill_queue.count = 1;
-		while (BLOB_NEXT(cur_blob)
-		       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->base.config->spill_usec) {
-		    cur_blob = BLOB_NEXT(cur_blob);
-		    spill_queue.count++;
-		}
-		spill_queue.tail = cur_blob;
-		private_queue.head = BLOB_NEXT(cur_blob);
-		private_queue.count -= spill_queue.count;
-		BLOB_NEXT_set(cur_blob, NULL);
-
-		spilled += spill_queue.count;
-
-		RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue.count);
-
-		enqueue_queue_for_disk_writing(self, &spill_queue);
-	    }
-
-	    cur_blob = queue_shift_nolock(&private_queue);
-	    if (!cur_blob)
-		break;
-
-	    void *raw_bytes;
-	    if (sck->type == SOCK_DGRAM) {
-		bytes_to_send = BLOB_BUF_SIZE(cur_blob);
-		raw_bytes = BLOB_BUF_addr(cur_blob);
-		bytes_sent =
-		    sendto(sck->socket, raw_bytes,
-			   bytes_to_send, MSG_NOSIGNAL, (struct sockaddr *) &sck->sa.in, sck->addrlen);
-	    } else {		/* sck->type == SOCK_STREAM */
-		bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
-		raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
-		bytes_sent = sendto(sck->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
-	    }
-	    if (0) {
-		int saverrno = errno;
-		WARN("%s: tried sending %zd bytes, sent %zd",
-		     (sck->type == SOCK_DGRAM) ? "udp" : "tcp", bytes_to_send, bytes_sent);
-		void *p = raw_bytes;
-		int peek_bytes = bytes_to_send > 16 ? 16 : bytes_to_send;
-		for (int i = 0; i < peek_bytes; i++) {
-		    printf("%02x ", ((unsigned char *) p)[i]);
-		}
-		printf("| ");
-		for (int i = 0; i < peek_bytes; i++) {
-		    unsigned char c = ((unsigned char *) p)[i];
-		    printf("%c", isprint(c) ? c : '.');
-		}
-		if (peek_bytes < bytes_to_send)
-		    printf("...\n");
-		errno = saverrno;
-	    }
-
-	    if (bytes_sent == -1) {
-		WARN_ERRNO("sendto() tried %zd bytes to %s but wrote none", bytes_to_send, sck->to_string);
-		enqueue_blob_for_disk_writing(self, cur_blob);
-		close(sck->socket);
-		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
-		sck = NULL;
-		break;		/* stop sending from the hijacked queue */
-	    } else if (bytes_sent < bytes_to_send) {
-		WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
-		RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
-	    } else {
-		RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
-	    }
-	    blob_destroy(cur_blob);
-	}
-	cork(sck, 0);
-
-	get_time(&send_end_time);
-	if (spilled) {
-	    WARN("Wrote %lu items which were over spill threshold", (unsigned long) spilled);
-	    spilled = 0;
-	}
-
-	/* this assumes end_time >= start_time */
-	usec = elapsed_usec(&send_start_time, &send_end_time);
-	RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
+	process_queue(self, sck, &private_queue, &spill_queue);
 
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
 
@@ -181,13 +189,13 @@ void *worker_thread(void *arg)
 	 */
     }
 
-    if (sck)
-	close(sck->socket);
-
     accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
 
     SAY("worker[%s] processed %lu packets in its lifetime",
 	(sck ? sck->to_string : self->base.arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
+
+    if (sck)
+	close(sck->socket);
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR(self->disk_writer->base.exiting, WORKER_EXITING);
