@@ -15,7 +15,9 @@ struct disk_writer {
 
     queue_t queue;
 
+    /* These are pointing back to the socket worker's counters. */
     stats_basic_counters_t *counters;
+    stats_basic_counters_t *recents;
     stats_basic_counters_t *totals;
 
     char spillway_path[PATH_MAX];

@@ -14,11 +14,15 @@ void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_c
 	int worker_id = 0;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    if (!fixed_buffer_vcatf(buf,
-				    " [%d] sent %lu spilled %lu disk %lu disk_error %lu",
+				    " [%d] sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
 				    ++worker_id,
+				    (unsigned long) RELAY_ATOMIC_READ(w->recents.sent_count),
 				    (unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->recents.spilled_count),
 				    (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->recents.disk_count),
 				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
+				    (unsigned long) RELAY_ATOMIC_READ(w->recents.disk_error_count),
 				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count)))
 		break;
 	}

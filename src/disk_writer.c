@@ -111,11 +111,11 @@ void *disk_writer_thread(void *arg)
 	    }
 	    while ((b = private_queue.head) != NULL);
 
-	    accumulate_and_clear_stats(self->counters, self->totals);
+	    accumulate_and_clear_stats(self->counters, self->recents, self->totals);
 	}
     }
 
-    accumulate_and_clear_stats(self->counters, self->totals);
+    accumulate_and_clear_stats(self->counters, self->recents, self->totals);
 
     SAY("disk_writer saved %lu packets in its lifetime", (unsigned long) self->totals->disk_count);
 

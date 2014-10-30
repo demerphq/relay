@@ -172,7 +172,7 @@ void *worker_thread(void *arg)
 	usec = elapsed_usec(&send_start_time, &send_end_time);
 	RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
 
-	accumulate_and_clear_stats(&self->counters, &self->totals);
+	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
 
 	/*
 	   SAY("worker[%s] count: %lu sent usec: %lu",
@@ -184,7 +184,7 @@ void *worker_thread(void *arg)
     if (sck)
 	close(sck->socket);
 
-    accumulate_and_clear_stats(&self->counters, &self->totals);
+    accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
 
     SAY("worker[%s] processed %lu packets in its lifetime",
 	(sck ? sck->to_string : self->base.arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
@@ -223,6 +223,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 
     disk_writer->base.config = config;
     disk_writer->counters = &worker->counters;
+    disk_writer->recents = &worker->recents;
     disk_writer->totals = &worker->totals;
 
     /* setup spillway_path */

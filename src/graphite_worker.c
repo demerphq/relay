@@ -105,11 +105,11 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
     worker_t *w;
     TAILQ_FOREACH(w, &POOL.workers, entries) {
-	stats_basic_counters_t totals;
+	stats_basic_counters_t recents;
 
-	memset(&totals, 0, sizeof(stats_basic_counters_t));
+	memset(&recents, 0, sizeof(stats_basic_counters_t));
 
-	accumulate_and_clear_stats(&w->totals, &totals);
+	accumulate_and_clear_stats(&w->recents, &recents, NULL);
 
 	int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->root,
 			     w->output_socket.arg_clean, this_epoch);
@@ -120,7 +120,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
 	do {
 #define STATS_VCATF(name) \
-	    if (!fixed_buffer_vcatf(buffer, stats_format, #name, totals.name##_count)) return 0
+	    if (!fixed_buffer_vcatf(buffer, stats_format, #name, recents.name##_count)) return 0
 	    STATS_VCATF(received);
 	    STATS_VCATF(sent);
 	    STATS_VCATF(partial);

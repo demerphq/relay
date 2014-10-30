@@ -24,6 +24,7 @@ struct worker {
     queue_t queue;
 
     stats_basic_counters_t counters;
+    stats_basic_counters_t recents;
     stats_basic_counters_t totals;
 
     relay_socket_t output_socket;
