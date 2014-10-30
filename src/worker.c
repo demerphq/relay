@@ -25,6 +25,7 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
     struct timeval send_start_time;
     struct timeval send_end_time;
     stats_count_t spilled = 0;
+    ssize_t wrote = 0;
 
     get_time(&send_start_time);
 
@@ -106,8 +107,10 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
 	} else if (bytes_sent < bytes_to_send) {
 	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
+	    wrote += bytes_sent;
 	} else {
 	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
+	    wrote += bytes_sent;
 	}
 	blob_destroy(cur_blob);
     }
@@ -124,7 +127,7 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
     uint64_t usec = elapsed_usec(&send_start_time, &send_end_time);
     RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
 
-    return 1;
+    return wrote;
 }
 
 /* create a normal relay worker thread
@@ -181,15 +184,17 @@ void *worker_thread(void *arg)
 	process_queue(self, sck, &private_queue, &spill_queue);
 
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
-
-	/*
-	   SAY("worker[%s] count: %lu sent usec: %lu",
-	   sck->to_string, (unsigned long)sent_count,
-	   sent_count ? (unsigned long)usec/sent_count : 0);
-	 */
     }
 
-    accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
+    if (control_is(RELAY_STOPPING)) {
+	SAY("Stopping, trying worker flush");
+	stats_count_t old_sent = self->totals.sent_count;
+	ssize_t wrote = process_queue(self, sck, &private_queue, &spill_queue);
+	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
+	SAY("Worker flush wrote %zd bytes in %lu events", wrote, self->totals.sent_count - old_sent);
+    } else {
+	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
+    }
 
     SAY("worker[%s] processed %lu packets in its lifetime",
 	(sck ? sck->to_string : self->base.arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
