@@ -115,6 +115,25 @@ void *disk_writer_thread(void *arg)
 	}
     }
 
+    if (control_is(RELAY_STOPPING)) {
+	SAY("Stopping, trying disk flush");
+	queue_hijack(main_queue, &private_queue, &POOL.lock);
+	b = private_queue.head;
+	size_t wrote = 0;
+	if (b) {
+	    SAY("Disk flush starting");
+	    do {
+		write_blob_to_disk(self, b);
+		wrote += b->ref->data.size;
+		blob_destroy(queue_shift_nolock(&private_queue));
+	    }
+	    while ((b = private_queue.head) != NULL);
+	} else {
+	    SAY("Nothing to disk flush");
+	}
+	SAY("Disk flush wrote %zd bytes", wrote);
+    }
+
     accumulate_and_clear_stats(self->counters, self->recents, self->totals);
 
     SAY("disk_writer saved %lu packets in its lifetime", (unsigned long) self->totals->disk_count);
