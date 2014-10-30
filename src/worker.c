@@ -279,7 +279,7 @@ worker_t *worker_init(const char *arg, const config_t * config)
 	join_err = pthread_join(disk_writer->base.tid, NULL);
 
 	if (join_err) {
-	    FATAL("Failed to create socket worker, pthread error: %d, and also failed to join disk worker, errno: %d",
+	    FATAL("Failed to create socket worker, pthread error: %d, and also failed to join disk worker, pthread error: %d",
 		  create_err, join_err);
 	} else {
 	    FATAL("Failed to create socket worker, pthread error: %d, disk worker shut down ok", create_err);
