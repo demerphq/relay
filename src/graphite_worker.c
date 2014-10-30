@@ -204,6 +204,7 @@ void *graphite_worker_thread(void *arg)
     const config_t *config = self->base.config;
     const struct graphite_config *graphite = &config->graphite;
     fixed_buffer_t *buffer = self->buffer;
+    ssize_t wrote = 0;
 
     while (!RELAY_ATOMIC_READ(self->base.exiting)) {
 	if (!sck) {
@@ -223,15 +224,28 @@ void *graphite_worker_thread(void *arg)
 	    break;
 	}
 
-	ssize_t wrote;
 	if (!graphite_send(sck, buffer, &wrote)) {
-	    WARN("Failed graphite send: tried %zd, wrote %zd", buffer->used, wrote);
+	    WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
 	    close(sck->socket);
 	    sck = NULL;
 	    break;
 	}
 
 	graphite_wait(self, graphite);
+    }
+
+    if (control_is(RELAY_STOPPING)) {
+	/* Try to flush. */
+	SAY("Stopping, trying graphite flush");
+	if (graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
+	    if (graphite_send(sck, buffer, &wrote)) {
+		SAY("Graphite flush successful, wrote %zd bytes", wrote);
+	    } else {
+		WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
+	    }
+	} else {
+	    WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
+	}
     }
 
     if (sck)
