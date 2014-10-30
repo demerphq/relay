@@ -8,6 +8,8 @@
 #include <syslog.h>
 #include <time.h>
 
+#include "control.h"
+
 #define OUR_FACILITY LOG_LOCAL5
 
 #ifdef DEBUGGING
@@ -50,7 +52,7 @@ struct _ts {
     } else {                                                    \
         _LOG(NOTICE, fmt, ## arg);                              \
     }                                                           \
-    exit(rc);                                                   \
+    control_exit(rc);                                           \
 } STMT_END
 
 
