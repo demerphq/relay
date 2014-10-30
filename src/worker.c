@@ -151,7 +151,7 @@ void *worker_thread(void *arg)
 	/* check if we have a usable socket */
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket(&self->output_socket, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->output_socket, DO_CONNECT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->output_socket;
 		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
@@ -220,8 +220,12 @@ void *worker_thread(void *arg)
 /* initialize a worker safely */
 worker_t *worker_init(const char *arg, const config_t * config)
 {
-    worker_t *worker = calloc_or_die(sizeof(*worker));
-    disk_writer_t *disk_writer = calloc_or_die(sizeof(disk_writer_t));
+    worker_t *worker = calloc_or_fatal(sizeof(*worker));
+    disk_writer_t *disk_writer = calloc_or_fatal(sizeof(disk_writer_t));
+
+    if (worker == NULL || disk_writer == NULL)
+	return NULL;
+
     int create_err;
 
     worker->base.config = config;
@@ -229,8 +233,10 @@ worker_t *worker_init(const char *arg, const config_t * config)
 
     worker->exists = 1;
 
-    if (!socketize(arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker"))
-	DIE_RC(EXIT_FAILURE, "Failed to socketize worker");
+    if (!socketize(arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker")) {
+	FATAL("Failed to socketize worker");
+	return NULL;
+    }
 
     worker->disk_writer = disk_writer;
 
@@ -242,8 +248,10 @@ worker_t *worker_init(const char *arg, const config_t * config)
     /* setup spillway_path */
     int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
 			 worker->output_socket.arg_clean);
-    if (wrote < 0 || wrote >= PATH_MAX)
-	DIE_RC(EXIT_FAILURE, "Failed to create spillway_path %s", disk_writer->spillway_path);
+    if (wrote < 0 || wrote >= PATH_MAX) {
+	FATAL("Failed to construct spillway_path %s", disk_writer->spillway_path);
+	return NULL;
+    }
 
     /* Create the disk_writer before we create the main worker.
      * We do this because the disk_writer only consumes things
@@ -254,8 +262,10 @@ worker_t *worker_init(const char *arg, const config_t * config)
      * disk worker to assign it to.
      */
     create_err = pthread_create(&disk_writer->base.tid, NULL, disk_writer_thread, disk_writer);
-    if (create_err)
-	DIE_RC(EXIT_FAILURE, "failed to create disk worker errno: %d", create_err);
+    if (create_err) {
+	FATAL("Failed to create disk worker, pthread error: %d", create_err);
+	return NULL;
+    }
 
     /* and finally create the thread */
     create_err = pthread_create(&worker->base.tid, NULL, worker_thread, worker);
@@ -269,13 +279,12 @@ worker_t *worker_init(const char *arg, const config_t * config)
 	join_err = pthread_join(disk_writer->base.tid, NULL);
 
 	if (join_err) {
-	    DIE_RC(EXIT_FAILURE,
-		   "failed to create socket worker, errno: %d, and also failed to join disk worker, errno: %d",
-		   create_err, join_err);
+	    FATAL("Failed to create socket worker, pthread error: %d, and also failed to join disk worker, errno: %d",
+		  create_err, join_err);
 	} else {
-	    DIE_RC(EXIT_FAILURE, "failed to create socket worker, errno: %d, disk worker shut down ok", create_err);
-
+	    FATAL("Failed to create socket worker, pthread error: %d, disk worker shut down ok", create_err);
 	}
+	return NULL;
     }
 
     /* return the worker */

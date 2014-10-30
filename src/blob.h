@@ -88,9 +88,9 @@ typedef struct queue queue_t;
 #define BLOB_BUF_SIZE_set(B, v)     BLOB_DATA_MBR(B).size = (v)
 
 /* blob.c */
-void *realloc_or_die(void *p, size_t size);
-void *malloc_or_die(size_t size);
-void *calloc_or_die(size_t size);
+void *realloc_or_fatal(void *p, size_t size);
+void *malloc_or_fatal(size_t size);
+void *calloc_or_fatal(size_t size);
 blob_t *blob_new(size_t size);
 blob_t *blob_clone_no_refcnt_inc(blob_t * b);
 void blob_destroy(blob_t * b);

@@ -2,24 +2,24 @@
 
 /* reallocate a buffer or die - (wonder if we should be more graceful
  * when we shutdown? */
-void *realloc_or_die(void *p, size_t size)
+void *realloc_or_fatal(void *p, size_t size)
 {
     p = realloc(p, size);
     if (!p)
-	DIE_RC(EXIT_FAILURE, "unable to allocate %zu bytes", size);
+	FATAL("Unable to allocate %zu bytes", size);
     return p;
 }
 
-/* malloc a buffer or die - via realloc_or_die() */
-void *malloc_or_die(size_t size)
+/* malloc a buffer or die - via realloc_or_fatal() */
+void *malloc_or_fatal(size_t size)
 {
-    return realloc_or_die(NULL, size);
+    return realloc_or_fatal(NULL, size);
 }
 
-/* malloc a buffer or die - via realloc_or_die() */
-void *calloc_or_die(size_t size)
+/* malloc a buffer or die - via realloc_or_fatal() */
+void *calloc_or_fatal(size_t size)
 {
-    void *ptr = realloc_or_die(NULL, size);
+    void *ptr = realloc_or_fatal(NULL, size);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -29,9 +29,9 @@ INLINE blob_t *blob_new(size_t size)
 {
     blob_t *b;
 
-    b = malloc_or_die(sizeof(blob_t));
+    b = malloc_or_fatal(sizeof(blob_t));
     BLOB_NEXT_set(b, NULL);
-    BLOB_REF_PTR_set(b, malloc_or_die(sizeof(refcnt_blob_t) + size));
+    BLOB_REF_PTR_set(b, malloc_or_fatal(sizeof(refcnt_blob_t) + size));
     BLOB_REFCNT_set(b, 1);	/* overwritten in enqueue_blob_for_transmision */
     BLOB_BUF_SIZE_set(b, size);
     (void) get_time(&BLOB_RECEIVED_TIME(b));
@@ -44,7 +44,7 @@ INLINE blob_t *blob_new(size_t size)
  * incremented, that must be done externally. */
 INLINE blob_t *blob_clone_no_refcnt_inc(blob_t * b)
 {
-    blob_t *cloned = malloc_or_die(sizeof(blob_t));
+    blob_t *cloned = malloc_or_fatal(sizeof(blob_t));
     BLOB_NEXT_set(cloned, NULL);
 
     /* Note we assume that BLOB_REFCNT(b) is setup externally

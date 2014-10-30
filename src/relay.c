@@ -109,14 +109,19 @@ static void tcp_context_init(tcp_server_context_t * ctxt)
     ctxt->nfds = 0;
 
     /* Just the server socket. */
-    ctxt->pfds = calloc_or_die(sizeof(struct pollfd));
+    ctxt->pfds = calloc_or_fatal(sizeof(struct pollfd));
+    if (ctxt->pfds == NULL)
+	return;
 
     /* tcp_add_fd() will set this right soon. */
     ctxt->pfds[0].fd = -1;
 
     /* The clients[0] is unused but let's make it a "null client" so
      * that looping over the contexts can have less special cases. */
-    ctxt->clients = calloc_or_die(sizeof(struct tcp_client));
+    ctxt->clients = calloc_or_fatal(sizeof(struct tcp_client));
+    if (ctxt->clients == NULL)
+	return;
+
     ctxt->clients[0].buf = NULL;
     ctxt->clients[0].pos = 0;
 }
@@ -131,8 +136,8 @@ static void tcp_add_fd(tcp_server_context_t * ctxt, int fd)
 
 static void tcp_context_realloc(tcp_server_context_t * ctxt, nfds_t n)
 {
-    ctxt->pfds = realloc_or_die(ctxt->pfds, n * sizeof(struct pollfd));
-    ctxt->clients = realloc_or_die(ctxt->clients, n * sizeof(struct tcp_client));
+    ctxt->pfds = realloc_or_fatal(ctxt->pfds, n * sizeof(struct pollfd));
+    ctxt->clients = realloc_or_fatal(ctxt->clients, n * sizeof(struct tcp_client));
 }
 
 /* Returns TCP_FAILURE if failed, TCP_SUCCESS if successful.
@@ -149,7 +154,7 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
     tcp_context_realloc(ctxt, ctxt->nfds + 1);
 
     ctxt->clients[ctxt->nfds].pos = 0;
-    ctxt->clients[ctxt->nfds].buf = calloc_or_die(ASYNC_BUFFER_SIZE);
+    ctxt->clients[ctxt->nfds].buf = calloc_or_fatal(ASYNC_BUFFER_SIZE);
     ctxt->pfds[ctxt->nfds].revents = 0;
 
     tcp_add_fd(ctxt, fd);
@@ -320,8 +325,11 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    if (!socketize(config->argv[0], listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener"))
-	DIE_RC(EXIT_FAILURE, "Failed to socketize listener");
+    if (config == NULL || config->argv == NULL
+	|| !socketize(config->argv[0], listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
+	FATAL("Failed to socketize listener");
+	return 0;
+    }
 
     listener->polling_interval_millisec = config->polling_interval_millisec;
 
@@ -381,7 +389,9 @@ static int serve(config_t * config)
 
     setproctitle("starting");
 
-    listener = calloc_or_die(sizeof(*listener));
+    listener = calloc_or_fatal(sizeof(*listener));
+    if (listener == NULL)
+	return EXIT_FAILURE;
 
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
@@ -426,9 +436,10 @@ static int serve(config_t * config)
 	sleep(1);
     }
     final_shutdown(server_tid);
-    SAY("bye");
+    SAY("Bye");
     closelog();
-    return (0);
+
+    return EXIT_SUCCESS;
 }
 
 static void sig_handler(int signum)
@@ -448,14 +459,17 @@ static void sig_handler(int signum)
 
 static void stop_listener(pthread_t server_tid)
 {
-    shutdown(listener->socket, SHUT_RDWR);
-    /* TODO: if the relay is interrupted rudely (^C), final_shutdown()
-     * is called, which will call stop_listener(), and this close()
-     * triggers the ire of the clang threadsanitizer, since the socket
-     * was opened by a worker thread with a recv() in udp_server, but
-     * the shutdown happens in the main thread. */
-    close(listener->socket);
-    pthread_join(server_tid, NULL);
+    if (listener) {
+	shutdown(listener->socket, SHUT_RDWR);
+	/* TODO: if the relay is interrupted rudely (^C), final_shutdown()
+	 * is called, which will call stop_listener(), and this close()
+	 * triggers the ire of the clang threadsanitizer, since the socket
+	 * was opened by a worker thread with a recv() in udp_server, but
+	 * the shutdown happens in the main thread. */
+	close(listener->socket);
+    }
+    if (server_tid)
+	pthread_join(server_tid, NULL);
 }
 
 static void final_shutdown(pthread_t server_tid)
@@ -466,7 +480,7 @@ static void final_shutdown(pthread_t server_tid)
     free(listener);
     sleep(1);			/* give a chance to the detachable tcp worker threads to pthread_exit() */
     config_destroy();
-    destroy_proctitle();
+
 }
 
 int main(int argc, char **argv)
@@ -474,5 +488,6 @@ int main(int argc, char **argv)
     control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
-    return serve(&CONFIG);
+    int rc = serve(&CONFIG);
+    return rc;
 }

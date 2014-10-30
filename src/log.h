@@ -47,18 +47,15 @@ struct _ts {
 #define WARN(fmt, arg...) _LOG(WARNING, fmt, ## arg)
 #define SAY(fmt, arg...) _LOG(INFO, fmt, ## arg)
 
-#define DIE_RC(rc, fmt, arg...) STMT_START {                    \
-    if (rc == EXIT_FAILURE) {                                   \
-        _LOG(CRIT, fmt, ## arg);                                \
-    } else {                                                    \
-        _LOG(NOTICE, fmt, ## arg);                              \
-    }                                                           \
-    control_exit(rc);                                           \
+#define FATAL(fmt, arg...) STMT_START {	\
+    _LOG(CRIT, fmt, ## arg);	\
+    control_exit(EXIT_FAILURE);	\
 } STMT_END
 
-
-#define DIE(fmt, arg...) \
-    DIE_RC(EXIT_FAILURE, fmt " { %s }", ##arg, errno ? strerror(errno) : "undefined error");
+#define FATAL_ERRNO(fmt, arg...) STMT_START {	\
+    _LOG(CRIT, fmt " { %s }", ## arg, errno ? strerror(errno) : "undefined error");	\
+    control_exit(EXIT_FAILURE);	\
+} STMT_END
 
 #define WARN_ERRNO(fmt, arg...) \
     WARN(fmt " { %s }", ## arg, errno ? strerror(errno) : "undefined error");

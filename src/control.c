@@ -39,8 +39,10 @@ void control_exit(int rc)
     if (c & RELAY_RUNNING) {
 	WARN("Running: exit(%d), called, ignoring\n", rc);
     } else if (c & RELAY_STARTING) {
-	WARN("Starting: exit(%d) called, stopping\n", rc);
-	control_set_bits(RELAY_STOPPING);
+	if ((c & RELAY_STOPPING) == 0) {
+	    WARN("Starting: exit(%d) called, stopping\n", rc);
+	    control_set_bits(RELAY_STOPPING);
+	}
     } else {
 	WARN("control_exit: Unexpected state %d: exit(%d) called, ignoring\n", c, rc);
     }

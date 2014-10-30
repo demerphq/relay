@@ -33,7 +33,8 @@ void graphite_worker_destroy(graphite_worker_t * worker)
  * http://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info */
 char *graphite_worker_setup_root(const config_t * config)
 {
-    struct addrinfo hints, *info;
+    struct addrinfo hints;
+    struct addrinfo *info = NULL;
     int gai_result;
     char *root;
     int root_len;
@@ -45,12 +46,14 @@ char *graphite_worker_setup_root(const config_t * config)
     hints.ai_flags = AI_CANONNAME;
 
     if ((gai_result = getaddrinfo("localhost", "http", &hints, &info)) != 0) {
-	DIE("Failed getaddrinfo(localhost): %s\n", gai_strerror(gai_result));
+	FATAL("Failed getaddrinfo(localhost): %s\n", gai_strerror(gai_result));
+	return NULL;
     }
 
-    if (!info)
-	DIE("No info from getaddrinfo(localhost)");
-
+    if (!info) {
+	FATAL("No info from getaddrinfo(localhost)");
+	return NULL;
+    }
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 64
 #endif
@@ -61,20 +64,29 @@ char *graphite_worker_setup_root(const config_t * config)
     scrub_nonalnum(hostname, sizeof(hostname));
 
     root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(listener->arg_clean) + 3;	/* two dots plus null */
-    root = calloc_or_die(root_len);
+    root = calloc_or_fatal(root_len);
+    if (root == NULL)
+	return NULL;
+
     wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, listener->arg_clean);
 
     if (wrote < 0 || wrote >= root_len)
-	DIE("panic: failed to snprintf hostname in graphite_worker_setup_root()");
-    SAY("Using '%s' as root namespace for graphite", root);
+	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
+    else
+	SAY("Using '%s' as root namespace for graphite", root);
+
     freeaddrinfo(info);
+
     return root;
 }
 
 
 graphite_worker_t *graphite_worker_create(const config_t * config)
 {
-    graphite_worker_t *worker = calloc_or_die(sizeof(graphite_worker_t));
+    graphite_worker_t *worker = calloc_or_fatal(sizeof(graphite_worker_t));
+
+    if (worker == NULL)
+	return NULL;
 
     worker->base.config = config;
     worker->base.arg = strdup(config->graphite.addr);
@@ -82,8 +94,9 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
     worker->root = graphite_worker_setup_root(config);
 
-    if (!socketize(worker->base.arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
-	DIE_RC(EXIT_FAILURE, "Failed to socketize graphite worker");
+    if (worker->root == NULL ||
+	!socketize(worker->base.arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
+	FATAL("Failed to socketize graphite worker");
 
     return worker;
 }
@@ -209,7 +222,7 @@ void *graphite_worker_thread(void *arg)
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
 	    /* nope, so lets try to open one */
-	    if (open_socket(&self->output_socket, DO_CONNECT | DO_NOT_EXIT, 0, 0)) {
+	    if (open_socket(&self->output_socket, DO_CONNECT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->output_socket;
 	    } else {

@@ -217,7 +217,10 @@ static config_t *config_from_file(char *file)
     char *line = NULL;
     size_t len = 0;
     int line_num = 0;
-    config_t *config = calloc_or_die(sizeof(config_t));
+    config_t *config = calloc_or_fatal(sizeof(config_t));
+
+    if (config == NULL)
+	return NULL;
 
     config_set_defaults(config);
 
@@ -273,7 +276,10 @@ static config_t *config_from_file(char *file)
 		TRY_OPT_END;
 
 	    } else {
-		config->argv = realloc_or_die(config->argv, sizeof(line) * (config->argc + 1));
+		config->argv = realloc_or_fatal(config->argv, sizeof(line) * (config->argc + 1));
+		if (config->argv == NULL)
+		    return NULL;
+
 		config->argv[config->argc] = strdup(line);
 		config->argc++;
 	    }
@@ -467,13 +473,12 @@ int config_reload(config_t * config)
     if (new_config == NULL) {
 	if (config->generation) {
 	    SAY("Failed to reload config, not restarting");
-	    config_changed = 0;
-	    goto out;
 	} else {
 	    /* This is the initial startup: if there's no config,
 	     * we should just die. */
-	    DIE_RC(EXIT_FAILURE, "Failed to load config, not starting");
+	    FATAL("Failed to load config, not starting");
 	}
+	return 0;
     }
 
     if (config->generation == 0) {
@@ -488,12 +493,10 @@ int config_reload(config_t * config)
 
     if (!config_valid(new_config)) {
 	if (config->generation == 0)
-	    DIE_RC(EXIT_FAILURE, "Invalid initial configuration");
-	else {
+	    FATAL("Invalid initial configuration");
+	else
 	    WARN("Invalid new configuration, ignoring it");
-	    config_changed = 0;
-	    goto out;
-	}
+	return 0;
     }
 
     if (config->generation)
@@ -568,8 +571,6 @@ int config_reload(config_t * config)
 
     SAY("Config reload: success");
 
-  out:
-
     SAY("Config reload: generation %ld epoch_attempt %ld epoch_changed %ld epoch_success %ld now %ld",
 	(long) config->generation,
 	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
@@ -596,7 +597,7 @@ void config_init(int argc, char **argv)
 	CONFIG.file = strdup(argv[1]);
 	config_reload(&CONFIG);
     } else {
-	CONFIG.argv = realloc_or_die(CONFIG.argv, sizeof(char *) * (argc));
+	CONFIG.argv = realloc_or_fatal(CONFIG.argv, sizeof(char *) * (argc));
 	for (i = 0; i < argc - 1; i++) {
 	    CONFIG.argv[i] = strdup(argv[i + 1]);
 	}
@@ -608,10 +609,5 @@ void config_init(int argc, char **argv)
 void config_die_args(int argc, char **argv)
 {
     (void) argc;
-    /* XXX: fix me! */
-    /* XXX: how?!!! */
-    DIE_RC(EXIT_FAILURE,
-	   "%s local-host:local-port tcp@remote-host:remote-port ...\n"
-	   "or file with socket description like:\n"
-	   "\tlocal-host:local-port\n" "\ttcp@remote-host:remote-port ...\n", argv[0]);
+    FATAL("%s local-host:local-port tcp@remote-host:remote-port ...\n" "or config file\n", argv[0]);
 }

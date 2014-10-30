@@ -6,50 +6,58 @@
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern worker_pool_t POOL;
 
-/* create a directory with the right permissions or throw an exception
- * (not sure the exception makes sense)
+/* create a directory with the right permissions
  */
-static void recreate_spillway_path(char *dir)
+static int recreate_spillway_path(char *dir)
 {
-    if (mkdir(dir, 0750) == -1 && errno != EEXIST)
-	DIE_RC(EXIT_FAILURE, "mkdir of %s failed", dir);
+    if (mkdir(dir, 0750) == -1 && errno != EEXIST) {
+	FATAL("mkdir of %s failed", dir);
+	return 0;
+    }
+    return 1;
 }
 
-static void setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
+static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 {
     if (self->last_epoch == blob_epoch)
-	return;
+	return 1;
+
     if (self->last_epoch) {
 	if (fsync(self->fd)) {
-	    WARN_ERRNO("failed to fsync '%s', everything is lost!", self->last_file_path);
+	    FATAL_ERRNO("fsync '%s' failed", self->last_file_path);
+	    return 0;
 	}
 	if (close(self->fd)) {
-	    WARN_ERRNO("failed to close '%s', everything is lost!", self->last_file_path);
+	    FATAL_ERRNO("close '%s' failed", self->last_file_path);
+	    return 0;
 	}
     }
     if (blob_epoch) {
 	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spillway_path, blob_epoch);
 	if (wrote < 0 || wrote >= PATH_MAX) {
-	    /* XXX: should this really die?
-	     * Retry in /tmp? */
-	    DIE_RC(EXIT_FAILURE, "filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
+	    FATAL("Filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
+	    return 0;
 	}
-	recreate_spillway_path(self->spillway_path);
+	if (!recreate_spillway_path(self->spillway_path))
+	    return 0;
 	self->fd = open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (self->fd < 0) {
-	    WARN_ERRNO("failed to open '%s', everything is lost!", self->last_file_path);
-	    blob_epoch = 0;
+	    FATAL_ERRNO("open '%s' failed", self->last_file_path);
+	    return 0;
 	}
     }
     self->last_epoch = blob_epoch;
+
+    return 1;
 }
 
 /* write a blob to disk */
-static void write_blob_to_disk(disk_writer_t * self, blob_t * b)
+static int write_blob_to_disk(disk_writer_t * self, blob_t * b)
 {
     assert(BLOB_REF_PTR(b));
 
-    setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec);
+    if (!setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec))
+	return 0;
 
     /* TODO: there should be some sort of monitoring/alerting for low disk space:
      * I left this running for half an hour (with a load testing client) and it filled
@@ -60,12 +68,14 @@ static void write_blob_to_disk(disk_writer_t * self, blob_t * b)
 	ssize_t wrote = write(self->fd, BLOB_BUF(b), BLOB_BUF_SIZE(b));
 	if (wrote == BLOB_BUF_SIZE(b)) {
 	    RELAY_ATOMIC_INCREMENT(self->counters->disk_count, 1);
-	    return;
+	    return 1;
 	}
-	WARN_ERRNO("Wrote only %ld of %d bytes to '%s', error:", wrote, BLOB_BUF_SIZE(b), self->last_file_path);
+	FATAL_ERRNO("write '%s' failed: wrote %zd tried %d bytes:", self->last_file_path, wrote, BLOB_BUF_SIZE(b));
 
     }
     RELAY_ATOMIC_INCREMENT(self->counters->disk_error_count, 1);
+
+    return 0;
 }
 
 
@@ -106,7 +116,9 @@ void *disk_writer_thread(void *arg)
 	} else {
 	    do {
 		done_work++;
-		write_blob_to_disk(self, b);
+		if (!write_blob_to_disk(self, b)) {
+		    FATAL("Failed to write blob to disk");
+		}
 		blob_destroy(queue_shift_nolock(&private_queue));
 	    }
 	    while ((b = private_queue.head) != NULL);
