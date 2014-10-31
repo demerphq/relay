@@ -57,7 +57,8 @@ int enqueue_blob_for_transmission(blob_t * b)
     }
     UNLOCK(&POOL.lock);
     if (i == 0) {
-	WARN("no living workers, not sure what to do");	/*  dump the packet on disk? */
+	/* TODO dump the packet on disk? */
+	WARN("no living workers, not sure what to do");
 	blob_destroy(b);
     }
     return i;
