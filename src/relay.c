@@ -414,6 +414,10 @@ static int serve(config_t * config)
 
     fixed_buffer_t *process_status_buffer = fixed_buffer_create(PROCESS_STATUS_BUF_LEN);
 
+    /* Every ALIVE_PERIOD second show the process status line also with syslog(). */
+#define ALIVE_PERIOD 60
+    time_t last_alive = 0;
+
     control_set_bits(RELAY_RUNNING);
 
     for (;;) {
@@ -447,7 +451,14 @@ static int serve(config_t * config)
 	update_process_status(process_status_buffer,
 			      RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
 			      RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
+
 	sleep(1);
+
+	time_t now = time(NULL);
+	if (now - last_alive >= ALIVE_PERIOD) {
+	    SAY("%s", process_status_buffer->data);
+	    last_alive = now;
+	}
     }
     final_shutdown(server_tid);
     SAY("Bye");
