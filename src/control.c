@@ -42,7 +42,7 @@ void control_exit(int rc)
 	WARN("Starting: exit(%d) called, exiting\n", rc);
 	exit(rc);
     } else {
-	WARN("control_exit: Unexpected state %#x: exit(%d) called, stopping\n", c, rc);
+	WARN("Unexpected state %#x: exit(%d) called, stopping\n", c, rc);
     }
     if ((c & RELAY_STOPPING) == 0) {
 	control_set_bits(RELAY_STOPPING);

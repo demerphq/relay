@@ -171,7 +171,7 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("tcp_read: Unexpected fd %d", (int) i);
+	WARN("Unexpected fd %d", (int) i);
 	return TCP_FAILURE;
     }
 
@@ -181,7 +181,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     ssize_t try_to_read = ASYNC_BUFFER_SIZE - (int) client->pos;
 
     if (try_to_read <= 0) {
-	WARN("try_to_read: %zd, pos: %u", try_to_read, client->pos);
+	WARN("Invalid length: %zd, pos: %u", try_to_read, client->pos);
 	return TCP_FAILURE;
     }
 
@@ -239,7 +239,7 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("tcp_client_close: Unexpected fd %d", (int) i);
+	WARN("Unexpected fd %d", (int) i);
 	return;
     }
 
@@ -262,7 +262,7 @@ static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("tcp_client_remove: Unexpected fd %d", (int) i);
+	WARN("Unexpected fd %d", (int) i);
 	return;
     }
 
@@ -382,7 +382,7 @@ static int graphite_config_changed(const struct graphite_config *old_config, con
 static void graphite_config_destroy(struct graphite_config *config)
 {
     if (config == NULL || config->addr == NULL || config->target == NULL) {
-	WARN("graphite_config_destroy: Invalid config");
+	WARN("Invalid config");
 	return;
     }
     free(config->addr);
@@ -467,7 +467,7 @@ static void sig_handler(int signum)
 	control_set_bits(RELAY_STOPPING);
 	break;
     default:
-	WARN("IGNORE: Received unexpected signal %d", signum);
+	WARN("Received unexpected signal %d, ignoring", signum);
     }
 }
 
