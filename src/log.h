@@ -14,8 +14,8 @@
 #define OUR_FACILITY LOG_LOCAL5
 
 #ifdef DEBUGGING
-#define _DEBUG_ARGS ,pthread_self(), __func__, __FILE__, __LINE__
-#define DEBUG_FMT  " th:%lu %s():%s:%d"
+#define _DEBUG_ARGS ,pthread_self(),
+#define DEBUG_FMT  " th:%lu "
 #else
 #define _DEBUG_ARGS
 #define DEBUG_FMT
@@ -39,7 +39,7 @@ struct _ts {
     strftime(_ts->str, TS_LEN, "%Y-%m-%d %H:%M:%S", &_ts->tm);                      \
     syslog(                                                                         \
             (OUR_FACILITY | (LOG_ ## type)),                                        \
-            "[%4.4s %s" DEBUG_FMT "] " fmt " (%s:%d)\n", "" #type, _ts->str _DEBUG_ARGS, ## arg,__FILE__,__LINE__ \
+            "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, _ts->str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__ \
     );                                                                              \
     free(_ts);                                                                      \
 } STMT_END
