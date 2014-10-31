@@ -337,7 +337,7 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    if (config == NULL || config->argv == NULL
+    if (config == NULL || config->argv == NULL || listener == NULL
 	|| !socketize(config->argv[0], listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
 	FATAL("Failed to socketize listener");
 	return 0;
@@ -488,11 +488,19 @@ static void stop_listener(pthread_t server_tid)
 
 static void final_shutdown(pthread_t server_tid)
 {
-    graphite_worker_destroy(graphite_worker);
+    /* Stop accepting more traffic. */
     stop_listener(server_tid);
-    worker_pool_destroy_static();
     free(listener);
-    sleep(1);			/* give a chance to the detachable tcp worker threads to pthread_exit() */
+    listener = NULL;
+
+    /* Stop socket workers and their disk writers. */
+    worker_pool_destroy_static();
+    sleep(1);			/* TODO: should be O(#workers)+O(pending output) */
+
+    /* Stop graphite output. */
+    graphite_worker_destroy(graphite_worker);
+    sleep(1);
+
     config_destroy();
 
 }

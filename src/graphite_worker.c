@@ -33,6 +33,15 @@ void graphite_worker_destroy(graphite_worker_t * worker)
  * http://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info */
 char *graphite_worker_setup_root(const config_t * config)
 {
+    if (config == NULL) {
+	FATAL("NULL config");
+	return NULL;
+    }
+    if (listener == NULL) {
+	FATAL("NULL listener");
+	return NULL;
+    }
+
     struct addrinfo hints;
     struct addrinfo *info = NULL;
     int gai_result;
