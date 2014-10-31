@@ -453,7 +453,7 @@ static int serve(config_t * config)
     SAY("Bye");
     closelog();
 
-    return EXIT_SUCCESS;
+    return control_exit_code();
 }
 
 static void sig_handler(int signum)

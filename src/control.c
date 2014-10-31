@@ -3,6 +3,7 @@
 #include "relay_threads.h"
 
 static volatile uint32_t __control = 0;
+static volatile int __exit = 0;
 
 void control_set_bits(uint32_t c)
 {
@@ -37,14 +38,23 @@ void control_exit(int rc)
     uint32_t c = control_get_bits();
 
     if (c & RELAY_RUNNING) {
-	WARN("Running: exit(%d), called, stopping\n", rc);
+	WARN("Running: stopping\n");
     } else if (c & RELAY_STARTING) {
 	WARN("Starting: exit(%d) called, exiting\n", rc);
 	exit(rc);
+    } else if (c & RELAY_STOPPING) {
+	WARN("Already stopping");
     } else {
-	WARN("Unexpected state %#x: exit(%d) called, stopping\n", c, rc);
+	WARN("Unexpected state %#x: stopping\n", c);
     }
+    WARN("Stopping: exit(%d) called\n", rc);
+    __exit = rc;
     if ((c & RELAY_STOPPING) == 0) {
 	control_set_bits(RELAY_STOPPING);
     }
+}
+
+int control_exit_code(void)
+{
+    return __exit;
 }
