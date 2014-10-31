@@ -210,11 +210,10 @@ void *worker_thread(void *arg)
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR(self->disk_writer->base.stopping, WORKER_STOPPING);
 
-    /* XXX handle failure of the disk_write shutdown */
     join_err = pthread_join(self->disk_writer->base.tid, NULL);
 
     if (join_err)
-	WARN("shutting down disk_writer thread error: %d", join_err);
+	FATAL("shutting down disk_writer thread error: pthread error %d", join_err);
 
     free(self->disk_writer);
 
