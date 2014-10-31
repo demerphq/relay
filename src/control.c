@@ -37,13 +37,14 @@ void control_exit(int rc)
     uint32_t c = control_get_bits();
 
     if (c & RELAY_RUNNING) {
-	WARN("Running: exit(%d), called, ignoring\n", rc);
+	WARN("Running: exit(%d), called, stopping\n", rc);
     } else if (c & RELAY_STARTING) {
-	if ((c & RELAY_STOPPING) == 0) {
-	    WARN("Starting: exit(%d) called, stopping\n", rc);
-	    control_set_bits(RELAY_STOPPING);
-	}
+	WARN("Starting: exit(%d) called, exiting\n", rc);
+	exit(rc);
     } else {
-	WARN("control_exit: Unexpected state %d: exit(%d) called, ignoring\n", c, rc);
+	WARN("control_exit: Unexpected state %#x: exit(%d) called, stopping\n", c, rc);
+    }
+    if ((c & RELAY_STOPPING) == 0) {
+	control_set_bits(RELAY_STOPPING);
     }
 }
