@@ -54,7 +54,10 @@ static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 /* write a blob to disk */
 static int write_blob_to_disk(disk_writer_t * self, blob_t * b)
 {
-    assert(BLOB_REF_PTR(b));
+    if (BLOB_REF_PTR(b) == NULL) {
+	FATAL("write_blob_to_disk: NULL blob");
+	return 0;
+    }
 
     if (!setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec))
 	return 0;

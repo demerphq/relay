@@ -154,14 +154,16 @@ void *worker_thread(void *arg)
 	    if (open_socket(&self->output_socket, DO_CONNECT, 0, 0)) {
 		/* success, setup sck variable as a flag and save on some indirection */
 		sck = &self->output_socket;
-		assert(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM);
 	    } else {
 		/* no socket - wait a while, and then redo the loop */
 		worker_wait_millisec(self->base.config->sleep_after_disaster_millisec);
 		continue;
 	    }
 	}
-	assert(sck);
+	if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
+	    FATAL("Failed to get socket");
+	    return NULL;
+	}
 
 	/* if we dont have anything in our local queue we need to hijack the main one */
 	if (private_queue.head == NULL) {
@@ -178,8 +180,11 @@ void *worker_thread(void *arg)
 
 	RELAY_ATOMIC_INCREMENT(self->counters.received_count, private_queue.count);
 
-	/* ok, so we have something in our queue to process */
-	assert(private_queue.head);
+	/* ok, so we should have something in our queue to process */
+	if (private_queue.head == NULL) {
+	    WARN("Empty private queue");
+	    break;
+	}
 
 	process_queue(self, sck, &private_queue, &spill_queue);
 

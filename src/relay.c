@@ -170,7 +170,11 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
  * If not successful, this connection should probably be removed. */
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
-    assert(i < ctxt->nfds);
+    if (!(i < ctxt->nfds)) {
+	WARN("tcp_read: Unexpected fd %d", (int) i);
+	return TCP_FAILURE;
+    }
+
     struct tcp_client *client = &ctxt->clients[i];
 
     /* try to read as much as possible */
@@ -234,8 +238,12 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 /* Close the given client connection. */
 static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 {
+    if (!(i < ctxt->nfds)) {
+	WARN("tcp_client_close: Unexpected fd %d", (int) i);
+	return;
+    }
+
     /* We could pass in both client and i, but then there's danger of mismatch. */
-    assert(i < ctxt->nfds);
     struct tcp_client *client = &ctxt->clients[i];
 
     /* WARN("[%d] DESTROY %p %d %d fd: %d vs %d", i, client->buf, client->x, i, ctxt->pfds[i].fd, client->fd); */
@@ -253,7 +261,11 @@ static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 /* Remove the client connection (first closes it) */
 static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 {
-    assert(i < ctxt->nfds);
+    if (!(i < ctxt->nfds)) {
+	WARN("tcp_client_remove: Unexpected fd %d", (int) i);
+	return;
+    }
+
     tcp_client_close(ctxt, i);
 
     /* Remove the connection by shifting left
@@ -369,8 +381,10 @@ static int graphite_config_changed(const struct graphite_config *old_config, con
 
 static void graphite_config_destroy(struct graphite_config *config)
 {
-    assert(config->addr);
-    assert(config->target);
+    if (config == NULL || config->addr == NULL || config->target == NULL) {
+	WARN("graphite_config_destroy: Invalid config");
+	return;
+    }
     free(config->addr);
     free(config->target);
     /* Reset the config to trap use-after-free. */
