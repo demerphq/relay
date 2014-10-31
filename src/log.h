@@ -21,27 +21,22 @@
 #define DEBUG_FMT
 #endif
 
-#define TS_LEN 30
+#define TS_LEN 40
 
-struct _ts {
-    time_t t;
-    struct tm tm;
-    char str[TS_LEN];
-};
 
-#define _LOG(type, fmt, arg...) STMT_START {                                        \
-    struct _ts *_ts;\
-                                                                                    \
-    _ts= malloc(sizeof(struct _ts));                                                \
-    (void)time(&_ts->t);                                                            \
-    (void)localtime_r(&_ts->t, &_ts->tm);                                           \
-                                                                                    \
-    strftime(_ts->str, TS_LEN, "%Y-%m-%d %H:%M:%S", &_ts->tm);                      \
-    syslog(                                                                         \
-            (OUR_FACILITY | (LOG_ ## type)),                                        \
-            "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, _ts->str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__ \
-    );                                                                              \
-    free(_ts);                                                                      \
+#define _LOG(type, fmt, arg...) STMT_START {	\
+    struct {			\
+        time_t t;		\
+        struct tm tm;		\
+        char str[TS_LEN];	\
+     } ts;			\
+    (void)time(&ts.t);		\
+    (void)localtime_r(&ts.t, &ts.tm);	\
+    strftime(ts.str, TS_LEN, "%Y-%m-%d %H:%M:%S", &ts.tm);	\
+    syslog(	\
+            (OUR_FACILITY | (LOG_ ## type)),	\
+            "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, ts.str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__ \
+    );	\
 } STMT_END
 
 #define WARN(fmt, arg...) _LOG(WARNING, fmt, ## arg)
