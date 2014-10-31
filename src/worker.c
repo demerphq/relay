@@ -98,6 +98,7 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
 	}
 
 	if (bytes_sent == -1) {
+	    /* XXX should this be FATAL_ERRNO() ? */
 	    WARN_ERRNO("sendto() tried %zd bytes to %s but wrote none", bytes_to_send, sck->to_string);
 	    enqueue_blob_for_disk_writing(self, cur_blob);
 	    close(sck->socket);
@@ -105,6 +106,7 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
 	    sck = NULL;
 	    break;		/* stop sending from the hijacked queue */
 	} else if (bytes_sent < bytes_to_send) {
+	    /* XXX should this be FATAL_ERRNO() ? */
 	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    wrote += bytes_sent;
