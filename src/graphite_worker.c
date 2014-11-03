@@ -4,12 +4,9 @@
 #include <malloc.h>
 #endif
 
+#include "global.h"
 #include "socket_worker_pool.h"
 #include "string_util.h"
-
-/* this is our POOL lock and state object. aint globals lovely. :-) */
-extern socket_worker_pool_t POOL;
-extern relay_socket_t *listener;
 
 #define FORMAT_BUFFER_SIZE 256
 
@@ -37,7 +34,7 @@ char *graphite_worker_setup_root(const config_t * config)
 	FATAL("NULL config");
 	return NULL;
     }
-    if (listener == NULL) {
+    if (GLOBAL.listener == NULL) {
 	FATAL("NULL listener");
 	return NULL;
     }
@@ -72,12 +69,12 @@ char *graphite_worker_setup_root(const config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(listener->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(GLOBAL.listener->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_fatal(root_len);
     if (root == NULL)
 	return NULL;
 
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, listener->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, GLOBAL.listener->arg_clean);
 
     if (wrote < 0 || wrote >= root_len)
 	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
@@ -120,13 +117,13 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
      * don't want to hold the POOL lock for the duration of the sendto() call.
      */
 
-    LOCK(&POOL.lock);
+    LOCK(&GLOBAL.pool.lock);
 
     /* reset the buffer to the beginning */
     buffer->used = 0;
 
     socket_worker_t *w;
-    TAILQ_FOREACH(w, &POOL.workers, entries) {
+    TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
 	stats_basic_counters_t recents;
 
 	memset(&recents, 0, sizeof(stats_basic_counters_t));
@@ -154,7 +151,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 	if (buffer->used >= buffer->size)
 	    return 0;
     }
-    UNLOCK(&POOL.lock);
+    UNLOCK(&GLOBAL.pool.lock);
 
 #ifdef HAVE_MALLINFO
     /* get memory details */
@@ -213,7 +210,7 @@ static void graphite_wait(graphite_worker_t * self, const struct graphite_config
 
 void *graphite_worker_thread(void *arg)
 {
-    struct sock *sck = NULL;
+    relay_socket_t *sck = NULL;
     graphite_worker_t *self = (graphite_worker_t *) arg;
     char stats_format[256];
 #ifdef HAVE_MALLINFO

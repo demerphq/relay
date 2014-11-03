@@ -3,9 +3,8 @@
 #include <ctype.h>
 #include <libgen.h>
 
+#include "global.h"
 #include "string_util.h"
-
-extern config_t CONFIG;
 
 #define DEBUG_SOCKETIZE 0
 
@@ -176,9 +175,9 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
 	if (s->proto == IPPROTO_TCP) {
 	    if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
 		FATAL_CLOSE_FAIL(s, "connect[%s]", s->to_string);
-	    if (CONFIG.tcp_send_timeout_sec > 0) {
+	    if (GLOBAL.config.tcp_send_timeout_sec > 0) {
 		struct timeval timeout;
-		timeout.tv_sec = CONFIG.tcp_send_timeout_sec;
+		timeout.tv_sec = GLOBAL.config.tcp_send_timeout_sec;
 		timeout.tv_usec = 0;
 
 		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)

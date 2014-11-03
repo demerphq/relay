@@ -5,25 +5,23 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "global.h"
 #include "log.h"
 #include "socket_worker.h"
 #include "string_util.h"
 
 static const char *OUR_NAME = "event-relay";
 
-/* Global, boo, hiss. */
-config_t CONFIG;
-
 void config_destroy(void)
 {
     int i;
-    for (i = 0; i < CONFIG.argc; i++)
-	free(CONFIG.argv[i]);
-    free(CONFIG.argv);
-    free(CONFIG.graphite.addr);
-    free(CONFIG.graphite.target);
-    free(CONFIG.spillway_root);
-    free(CONFIG.file);
+    for (i = 0; i < GLOBAL.config.argc; i++)
+	free(GLOBAL.config.argv[i]);
+    free(GLOBAL.config.argv);
+    free(GLOBAL.config.graphite.addr);
+    free(GLOBAL.config.graphite.target);
+    free(GLOBAL.config.spillway_root);
+    free(GLOBAL.config.file);
 }
 
 void config_set_defaults(config_t * config)
@@ -587,21 +585,22 @@ int config_reload(config_t * config)
 void config_init(int argc, char **argv)
 {
     int i = 0;
-    memset(&CONFIG, 0, sizeof(CONFIG));
-    config_set_defaults(&CONFIG);
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (CONFIG.syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
+    memset(&GLOBAL.config, 0, sizeof(GLOBAL.config));
+    config_set_defaults(&GLOBAL.config);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config.syslog_to_stderr ? LOG_PERROR : 0),
+	    OUR_FACILITY);
 
     if (argc < 2) {
 	config_die_args(argc, argv);
     } else if (argc == 2) {
-	CONFIG.file = strdup(argv[1]);
-	config_reload(&CONFIG);
+	GLOBAL.config.file = strdup(argv[1]);
+	config_reload(&GLOBAL.config);
     } else {
-	CONFIG.argv = realloc_or_fatal(CONFIG.argv, sizeof(char *) * (argc));
+	GLOBAL.config.argv = realloc_or_fatal(GLOBAL.config.argv, sizeof(char *) * (argc));
 	for (i = 0; i < argc - 1; i++) {
-	    CONFIG.argv[i] = strdup(argv[i + 1]);
+	    GLOBAL.config.argv[i] = strdup(argv[i + 1]);
 	}
-	CONFIG.argc = i;
+	GLOBAL.config.argc = i;
     }
 }
 

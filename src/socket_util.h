@@ -30,7 +30,7 @@
 #define SOCK_FAKE_FILE  -1
 #define SOCK_FAKE_ERROR -2
 
-struct sock {
+struct relay_socket {
     union sa {
 	struct sockaddr_un un;
 	struct sockaddr_in in;
@@ -44,9 +44,8 @@ struct sock {
     socklen_t addrlen;
     int polling_interval_millisec;
 };
-typedef struct sock relay_socket_t;
+typedef struct relay_socket relay_socket_t;
 
-/* util.c */
 int socketize(const char *arg, relay_socket_t * s, int default_proto, int connection_direction, const char *role);
 
 int open_socket(relay_socket_t * s, int flags, int snd, int rcv);
@@ -54,7 +53,7 @@ int setnonblocking(int fd);
 
 /* try to get the OS to send our packets more efficiently when sending
  * via TCP. */
-static INLINE void cork(struct sock *s, int flag)
+static INLINE void cork(relay_socket_t * s, int flag)
 {
     if (!s || s->proto != IPPROTO_TCP)
 	return;

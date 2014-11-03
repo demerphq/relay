@@ -2,7 +2,7 @@
 
 #include "relay_threads.h"
 
-static volatile uint32_t __control = 0;
+static volatile uint32_t __control = 0;	/* This is really GLOBAL state. */
 static volatile int __exit = 0;
 
 void control_set_bits(uint32_t c)

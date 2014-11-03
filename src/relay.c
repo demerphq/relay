@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "control.h"
+#include "global.h"
 #include "setproctitle.h"
 #include "string_util.h"
 #include "timer.h"
@@ -13,11 +14,6 @@
 static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
-
-relay_socket_t *listener;
-graphite_worker_t *graphite_worker;
-
-extern config_t CONFIG;
 
 stats_basic_counters_t RECEIVED_STATS = {
     .received_count = 0,	/* number of items we have received */
@@ -337,24 +333,24 @@ pthread_t setup_listener(config_t * config)
 {
     pthread_t server_tid = 0;
 
-    if (config == NULL || config->argv == NULL || listener == NULL
-	|| !socketize(config->argv[0], listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
+    if (config == NULL || config->argv == NULL || GLOBAL.listener == NULL
+	|| !socketize(config->argv[0], GLOBAL.listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
 	FATAL("Failed to socketize listener");
 	return 0;
     }
 
-    listener->polling_interval_millisec = config->polling_interval_millisec;
+    GLOBAL.listener->polling_interval_millisec = config->polling_interval_millisec;
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(listener, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
+    open_socket(GLOBAL.listener, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
 
-    if (listener->proto == IPPROTO_UDP)
-	spawn(&server_tid, udp_server, listener, PTHREAD_CREATE_JOINABLE);
+    if (GLOBAL.listener->proto == IPPROTO_UDP)
+	spawn(&server_tid, udp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
     else
-	spawn(&server_tid, tcp_server, listener, PTHREAD_CREATE_JOINABLE);
+	spawn(&server_tid, tcp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
 
     return server_tid;
 }
@@ -403,14 +399,14 @@ static int serve(config_t * config)
 
     setproctitle("starting");
 
-    listener = calloc_or_fatal(sizeof(*listener));
-    if (listener == NULL)
+    GLOBAL.listener = calloc_or_fatal(sizeof(relay_socket_t));
+    if (GLOBAL.listener == NULL)
 	return EXIT_FAILURE;
 
     worker_pool_init_static(config);
     server_tid = setup_listener(config);
-    graphite_worker = graphite_worker_create(config);
-    pthread_create(&graphite_worker->base.tid, NULL, graphite_worker_thread, graphite_worker);
+    GLOBAL.graphite_worker = graphite_worker_create(config);
+    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread, GLOBAL.graphite_worker);
 
     fixed_buffer_t *process_status_buffer = fixed_buffer_create(PROCESS_STATUS_BUF_LEN);
 
@@ -436,9 +432,10 @@ static int serve(config_t * config)
 		SAY("Reloaded the listener and worker pool");
 		if (graphite_config_changed(old_graphite_config, &config->graphite)) {
 		    SAY("Graphite config changed, reloading the graphite worker");
-		    graphite_worker_destroy(graphite_worker);
-		    graphite_worker = graphite_worker_create(config);
-		    pthread_create(&graphite_worker->base.tid, NULL, graphite_worker_thread, graphite_worker);
+		    graphite_worker_destroy(GLOBAL.graphite_worker);
+		    GLOBAL.graphite_worker = graphite_worker_create(config);
+		    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread,
+				   GLOBAL.graphite_worker);
 		    SAY("Reloaded the graphite worker");
 		} else {
 		    SAY("Graphite config unchanged, not reloading the graphite worker");
@@ -484,14 +481,14 @@ static void sig_handler(int signum)
 
 static void stop_listener(pthread_t server_tid)
 {
-    if (listener) {
-	shutdown(listener->socket, SHUT_RDWR);
+    if (GLOBAL.listener) {
+	shutdown(GLOBAL.listener->socket, SHUT_RDWR);
 	/* TODO: if the relay is interrupted rudely (^C), final_shutdown()
 	 * is called, which will call stop_listener(), and this close()
 	 * triggers the ire of the clang threadsanitizer, since the socket
 	 * was opened by a worker thread with a recv() in udp_server, but
 	 * the shutdown happens in the main thread. */
-	close(listener->socket);
+	close(GLOBAL.listener->socket);
     }
     if (server_tid)
 	pthread_join(server_tid, NULL);
@@ -501,15 +498,15 @@ static void final_shutdown(pthread_t server_tid)
 {
     /* Stop accepting more traffic. */
     stop_listener(server_tid);
-    free(listener);
-    listener = NULL;
+    free(GLOBAL.listener);
+    GLOBAL.listener = NULL;
 
     /* Stop socket workers and their disk writers. */
     worker_pool_destroy_static();
     sleep(1);			/* TODO: should be O(#workers)+O(pending output) */
 
     /* Stop graphite output. */
-    graphite_worker_destroy(graphite_worker);
+    graphite_worker_destroy(GLOBAL.graphite_worker);
     sleep(1);
 
     config_destroy();
@@ -521,6 +518,6 @@ int main(int argc, char **argv)
     control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
-    int rc = serve(&CONFIG);
+    int rc = serve(&GLOBAL.config);
     return rc;
 }

@@ -1,10 +1,8 @@
 #include "disk_writer.h"
 
+#include "global.h"
 #include "config.h"
 #include "socket_worker_pool.h"
-
-/* this is our POOL lock and state object. aint globals lovely. :-) */
-extern socket_worker_pool_t POOL;
 
 /* create a directory with the right permissions
  */
@@ -100,7 +98,7 @@ void *disk_writer_thread(void *arg)
 
     while (1) {
 
-	queue_hijack(main_queue, &private_queue, &POOL.lock);
+	queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock);
 	b = private_queue.head;
 
 	if (b == NULL) {
@@ -132,7 +130,7 @@ void *disk_writer_thread(void *arg)
 
     if (control_is(RELAY_STOPPING)) {
 	SAY("Stopping, trying disk flush");
-	queue_hijack(main_queue, &private_queue, &POOL.lock);
+	queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock);
 	b = private_queue.head;
 	size_t wrote = 0;
 	if (b) {

@@ -1,21 +1,19 @@
 #include "socket_worker.h"
 
+#include "global.h"
 #include "socket_worker_pool.h"
-
-/* this is our POOL lock and state object. aint globals lovely. :-) */
-extern socket_worker_pool_t POOL;
 
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)
 {
-    queue_append(&worker->disk_writer->queue, b, &POOL.lock);	/* XXX: change this to a worker level lock */
+    queue_append(&worker->disk_writer->queue, b, &GLOBAL.pool.lock);	/* XXX: change this to a worker level lock */
 }
 
 /* if a worker failed to send we need to write the item to the disk */
 /* XXX */
 static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
 {
-    queue_append_tail(&worker->disk_writer->queue, q, &POOL.lock);	/* XXX: change this to a worker level lock */
+    queue_append_tail(&worker->disk_writer->queue, q, &GLOBAL.pool.lock);	/* XXX: change this to a worker level lock */
 }
 
 static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
@@ -138,7 +136,7 @@ void *socket_worker_thread(void *arg)
     socket_worker_t *self = (socket_worker_t *) arg;
 
     queue_t *main_queue = &self->queue;
-    struct sock *sck = NULL;
+    relay_socket_t *sck = NULL;
 
     queue_t private_queue;
     queue_t spill_queue;
@@ -172,7 +170,7 @@ void *socket_worker_thread(void *arg)
 	     * and then reset the queue state to empty. So the formerly
 	     * shared queue is now private. We only do this if necessary.
 	     */
-	    if (!queue_hijack(main_queue, &private_queue, &POOL.lock)) {
+	    if (!queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
 		worker_wait_millisec(self->base.config->polling_interval_millisec);
 		continue;
