@@ -22,6 +22,22 @@ static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q
     queue_append_tail(&worker->disk_writer->queue, q, &worker->lock);
 }
 
+/* try to get the OS to send our packets more efficiently when sending via TCP. */
+static void cork(relay_socket_t * s, int flag)
+{
+    if (!s || s->proto != IPPROTO_TCP)
+	return;
+#ifdef TCP_CORK /* Linux */
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag, sizeof(int)) < 0)
+	WARN_ERRNO("setsockopt TCP_CORK: %s", strerror(errno));
+#elif defined(TCP_NOPUSH) /* BSD */
+    if (setsockopt(s->socket, IPPROTO_TCP, TCP_NOPUSH, (char *) &flag, sizeof(int)) < 0)
+	WARN_ERRNO("setsockopt TCP_NOPUSH: %s", strerror(errno));
+#else
+#error No TCP_CORK or TCP_NOPUSH
+#endif
+}
+
 static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
 {
     blob_t *cur_blob;

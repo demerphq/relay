@@ -51,21 +51,4 @@ int socketize(const char *arg, relay_socket_t * s, int default_proto, int connec
 int open_socket(relay_socket_t * s, int flags, int snd, int rcv);
 int setnonblocking(int fd);
 
-/* try to get the OS to send our packets more efficiently when sending
- * via TCP. */
-static INLINE void cork(relay_socket_t * s, int flag)
-{
-    if (!s || s->proto != IPPROTO_TCP)
-	return;
-#ifdef TCP_CORK
-    if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag, sizeof(int)) < 0)
-	WARN_ERRNO("setsockopt TCP_CORK: %s", strerror(errno));
-#elif defined(TCP_NOPUSH)
-    if (setsockopt(s->socket, IPPROTO_TCP, TCP_NOPUSH, (char *) &flag, sizeof(int)) < 0)
-	WARN_ERRNO("setsockopt TCP_NOPUSH: %s", strerror(errno));
-#else
-#error No TCP_CORK or TCP_NOPUSH
-#endif
-}
-
 #endif				/* #ifndef RELAY_SOCKET_UTIL_H */
