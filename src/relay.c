@@ -466,6 +466,7 @@ static int serve(config_t * config)
 	}
     }
     final_shutdown(server_tid);
+    fixed_buffer_destroy(process_status_buffer);
     SAY("Bye");
     closelog();
 
