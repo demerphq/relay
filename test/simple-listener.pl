@@ -16,14 +16,16 @@ my %Opt =
      sec     => 0,
      forever => 1,
      period  => 60,
+     decode  => 1,
     );
 
-die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N"
+die "usage: $0 --port=$Opt{port} [--sec=N|--forever] --period=N --decode=1"
     unless (GetOptions(
 		"port=i"   => \$Opt{port},
 		"sec=i"    => \$Opt{sec},
 		"forever"  => \$Opt{forever},
 		"period=i" => \$Opt{period},
+		"decode=i" => \$Opt{decode},
 	    ));
 
 if ($Opt{sec} > 0) {
@@ -116,7 +118,7 @@ sub flush_totals {
 	       $done, $TOTAL_PACKETS, $now, $BUSY_COUNT, $IDLE_COUNT);
         for my $e (@DONE) {
 	    # Just die if not real sereal.
-	    sereal_decode_with_object($srl, $e);
+	    sereal_decode_with_object($srl, $e) if $Opt{decode};
         }
 	@DONE = ();
     } else {
