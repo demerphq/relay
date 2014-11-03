@@ -137,7 +137,7 @@ int socketize(const char *arg, relay_socket_t * s, int default_proto, int connec
 
 #define FATAL_CLOSE_FAIL(s, fmt, arg...)	\
 STMT_START {                        \
-    FATAL(fmt, ##arg);		    \
+    FATAL_ERRNO(fmt, ##arg);	    \
     close(s->socket);               \
     return 0;                       \
 } STMT_END
