@@ -340,6 +340,8 @@ void socket_worker_destroy(socket_worker_t * worker)
 
     pthread_join(worker->base.tid, NULL);
 
+    LOCK_DESTROY(&worker->lock);
+
     free(worker->base.arg);
     free(worker);
 }
