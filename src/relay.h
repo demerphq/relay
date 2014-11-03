@@ -11,13 +11,6 @@
 #include "relay_common.h"
 #include "socket_util.h"
 
-#if defined(__APPLE__) || defined(__MACH__)
-#include <sys/syslimits.h>
-# ifndef MSG_NOSIGNAL
-#   define MSG_NOSIGNAL SO_NOSIGPIPE
-# endif
-#endif
-
 #define EXPECTED_HEADER_SIZE sizeof(blob_size_t)
 #define ASYNC_BUFFER_SIZE (MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE)
 struct tcp_client {

@@ -3,6 +3,13 @@
 #include "global.h"
 #include "socket_worker_pool.h"
 
+#if defined(__APPLE__) || defined(__MACH__)
+#include <sys/syslimits.h>
+# ifndef MSG_NOSIGNAL
+#   define MSG_NOSIGNAL SO_NOSIGPIPE
+# endif
+#endif
+
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)
 {
