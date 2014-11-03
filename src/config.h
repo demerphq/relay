@@ -48,7 +48,7 @@ struct config {
 typedef struct config config_t;
 
 #ifndef DEFAULT_SYSLOG_TO_STDERR
-#define DEFAULT_SYSLOG_TO_STDERR 1
+#define DEFAULT_SYSLOG_TO_STDERR 0
 #endif
 
 #ifndef DEFAULT_POLLING_INTERVAL_MILLISEC
