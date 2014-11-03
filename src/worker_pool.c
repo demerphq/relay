@@ -2,7 +2,7 @@
 
 #include "string_util.h"
 
-worker_pool_t POOL;
+socket_worker_pool_t POOL;
 
 /* update the process status line with the status of the workers */
 void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_count_t tcp)

@@ -3,7 +3,7 @@
 #include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
-extern worker_pool_t POOL;
+extern socket_worker_pool_t POOL;
 
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)

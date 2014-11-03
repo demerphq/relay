@@ -6,14 +6,14 @@
 #include "worker.h"
 
 /* this is our GIANT lock and state object. aint globals lovely. :-)*/
-struct worker_pool {
+struct socket_worker_pool {
     /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, socket_worker) workers;
     LOCK_T lock;
     int n_workers;
 
 };
-typedef struct worker_pool worker_pool_t;
+typedef struct socket_worker_pool socket_worker_pool_t;
 
 void worker_pool_init_static(config_t * config);
 void worker_pool_reload_static(config_t * config);

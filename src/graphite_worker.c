@@ -8,7 +8,7 @@
 #include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
-extern worker_pool_t POOL;
+extern socket_worker_pool_t POOL;
 extern relay_socket_t *listener;
 
 #define FORMAT_BUFFER_SIZE 256

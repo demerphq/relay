@@ -4,7 +4,7 @@
 #include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
-extern worker_pool_t POOL;
+extern socket_worker_pool_t POOL;
 
 /* create a directory with the right permissions
  */
