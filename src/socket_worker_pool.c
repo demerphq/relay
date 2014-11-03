@@ -78,7 +78,7 @@ void worker_pool_init_static(config_t * config)
     for (int i = 1; i < config->argc; i++) {
 	if (control_is(RELAY_STOPPING))
 	    break;
-	new_worker = worker_create(config->argv[i], config);
+	new_worker = socket_worker_create(config->argv[i], config);
 	TAILQ_INSERT_HEAD(&POOL.workers, new_worker, entries);
 	POOL.n_workers++;
     }
@@ -114,7 +114,7 @@ void worker_pool_reload_static(config_t * config)
 	    }
 	}
 	if (must_add) {
-	    w = worker_create(config->argv[i], config);	/* w will have w->exists == 1 */
+	    w = socket_worker_create(config->argv[i], config);	/* w will have w->exists == 1 */
 	    TAILQ_INSERT_TAIL(&POOL.workers, w, entries);
 	}
     }
@@ -124,7 +124,7 @@ void worker_pool_reload_static(config_t * config)
 	    TAILQ_REMOVE(&POOL.workers, w, entries);
 	    UNLOCK(&POOL.lock);
 
-	    worker_destroy(w);	/*  might lock */
+	    socket_worker_destroy(w);	/*  might lock */
 
 	    LOCK(&POOL.lock);
 	} else {
@@ -144,7 +144,7 @@ void worker_pool_destroy_static(void)
 	TAILQ_REMOVE(&POOL.workers, w, entries);
 	UNLOCK(&POOL.lock);
 
-	worker_destroy(w);	/*  might lock */
+	socket_worker_destroy(w);	/*  might lock */
 
 	LOCK(&POOL.lock);
     }

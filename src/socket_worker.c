@@ -132,9 +132,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
     return wrote;
 }
 
-/* create a normal relay worker thread
- * main loop for the worker process */
-void *worker_thread(void *arg)
+/* the main loop for the socket worker process */
+void *socket_worker_thread(void *arg)
 {
     socket_worker_t *self = (socket_worker_t *) arg;
 
@@ -224,7 +223,7 @@ void *worker_thread(void *arg)
 
 
 /* initialize a worker safely */
-socket_worker_t *worker_create(const char *arg, const config_t * config)
+socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
 {
     socket_worker_t *worker = calloc_or_fatal(sizeof(*worker));
     disk_writer_t *disk_writer = calloc_or_fatal(sizeof(disk_writer_t));
@@ -274,7 +273,7 @@ socket_worker_t *worker_create(const char *arg, const config_t * config)
     }
 
     /* and finally create the thread */
-    create_err = pthread_create(&worker->base.tid, NULL, worker_thread, worker);
+    create_err = pthread_create(&worker->base.tid, NULL, socket_worker_thread, worker);
     if (create_err) {
 	int join_err;
 
@@ -299,7 +298,7 @@ socket_worker_t *worker_create(const char *arg, const config_t * config)
 }
 
 /* destroy a worker */
-void worker_destroy(socket_worker_t * worker)
+void socket_worker_destroy(socket_worker_t * worker)
 {
     uint32_t was_stopping = RELAY_ATOMIC_OR(worker->base.stopping, WORKER_STOPPING);
 

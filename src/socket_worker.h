@@ -35,10 +35,9 @@ struct socket_worker {
 };
 typedef struct socket_worker socket_worker_t;
 
-/* worker.c */
-socket_worker_t *worker_create(const char *arg, const config_t * config);
-void worker_destroy(socket_worker_t * worker);
-void *worker_thread(void *arg);
+socket_worker_t *socket_worker_create(const char *arg, const config_t * config);
+void socket_worker_destroy(socket_worker_t * worker);
+void *socket_worker_thread(void *arg);
 
 /* worker sleeps while it waits for work
  * XXX this should be configurable */
