@@ -15,13 +15,14 @@ static const char *OUR_NAME = "event-relay";
 void config_destroy(void)
 {
     int i;
-    for (i = 0; i < GLOBAL.config.argc; i++)
-	free(GLOBAL.config.argv[i]);
-    free(GLOBAL.config.argv);
-    free(GLOBAL.config.graphite.addr);
-    free(GLOBAL.config.graphite.target);
-    free(GLOBAL.config.spillway_root);
-    free(GLOBAL.config.file);
+    for (i = 0; i < GLOBAL.config->argc; i++)
+	free(GLOBAL.config->argv[i]);
+    free(GLOBAL.config->argv);
+    free(GLOBAL.config->graphite.addr);
+    free(GLOBAL.config->graphite.target);
+    free(GLOBAL.config->spillway_root);
+    free(GLOBAL.config->file);
+    free(GLOBAL.config);
 }
 
 void config_set_defaults(config_t * config)
@@ -584,23 +585,28 @@ int config_reload(config_t * config)
 
 void config_init(int argc, char **argv)
 {
-    int i = 0;
-    memset(&GLOBAL.config, 0, sizeof(GLOBAL.config));
-    config_set_defaults(&GLOBAL.config);
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config.syslog_to_stderr ? LOG_PERROR : 0),
+    GLOBAL.config = calloc_or_fatal(sizeof(config_t));
+    if (GLOBAL.config == NULL)
+	return;
+
+    config_set_defaults(GLOBAL.config);
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config->syslog_to_stderr ? LOG_PERROR : 0),
 	    OUR_FACILITY);
 
     if (argc < 2) {
 	config_die_args(argc, argv);
     } else if (argc == 2) {
-	GLOBAL.config.file = strdup(argv[1]);
-	config_reload(&GLOBAL.config);
+	GLOBAL.config->file = strdup(argv[1]);
+	config_reload(GLOBAL.config);
     } else {
-	GLOBAL.config.argv = realloc_or_fatal(GLOBAL.config.argv, sizeof(char *) * (argc));
+	GLOBAL.config->argv = realloc_or_fatal(GLOBAL.config->argv, sizeof(char *) * (argc));
+	if (GLOBAL.config->argv == NULL)
+	    return;
+	int i;
 	for (i = 0; i < argc - 1; i++) {
-	    GLOBAL.config.argv[i] = strdup(argv[i + 1]);
+	    GLOBAL.config->argv[i] = strdup(argv[i + 1]);
 	}
-	GLOBAL.config.argc = i;
+	GLOBAL.config->argc = i;
     }
 }
 

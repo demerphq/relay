@@ -527,6 +527,5 @@ int main(int argc, char **argv)
     control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
-    int rc = serve(&GLOBAL.config);
-    return rc;
+    return serve(GLOBAL.config);
 }

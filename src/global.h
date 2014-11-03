@@ -8,7 +8,7 @@
 struct relay_global {
     volatile uint32_t control;
     volatile int exit_code;
-    config_t config;
+    config_t *config;
     relay_socket_t *listener;
     graphite_worker_t *graphite_worker;
     socket_worker_pool_t pool;

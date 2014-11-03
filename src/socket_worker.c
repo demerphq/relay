@@ -29,10 +29,10 @@ static void cork(relay_socket_t * s, int flag)
 {
     if (!s || s->proto != IPPROTO_TCP)
 	return;
-#ifdef TCP_CORK /* Linux */
+#ifdef TCP_CORK			/* Linux */
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_CORK, (char *) &flag, sizeof(int)) < 0)
 	WARN_ERRNO("setsockopt TCP_CORK: %s", strerror(errno));
-#elif defined(TCP_NOPUSH) /* BSD */
+#elif defined(TCP_NOPUSH)	/* BSD */
     if (setsockopt(s->socket, IPPROTO_TCP, TCP_NOPUSH, (char *) &flag, sizeof(int)) < 0)
 	WARN_ERRNO("setsockopt TCP_NOPUSH: %s", strerror(errno));
 #else
