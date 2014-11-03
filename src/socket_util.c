@@ -204,9 +204,9 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
     return ok;
 }
 
-relay_socket_t* open_socket_eventually(relay_socket_t* s, const config_t* config)
+relay_socket_t *open_socket_eventually(relay_socket_t * s, const config_t * config)
 {
-    relay_socket_t* sck = NULL;
+    relay_socket_t *sck = NULL;
     int nap = config->sleep_after_disaster_millisec;
 
     while (!sck) {
@@ -217,7 +217,7 @@ relay_socket_t* open_socket_eventually(relay_socket_t* s, const config_t* config
 	    /* no socket - wait a while, double the wait, and then redo the loop */
 	    SAY("waiting %d millisec to retry socket %s", nap, s->to_string);
 	    worker_wait_millisec(nap);
-	    nap = 2 * nap + 1; /* XXX maybe also randomize a bit? */
+	    nap = 2 * nap + 1;	/* XXX maybe also randomize a bit? */
 	    /* XXX maximum wait after which to give up? */
 	}
     }

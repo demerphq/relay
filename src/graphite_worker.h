@@ -12,8 +12,6 @@
 struct graphite_worker {
     struct worker_base base;
 
-    relay_socket_t output_socket;
-
     char *root;
 
     fixed_buffer_t *buffer;

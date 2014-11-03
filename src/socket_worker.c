@@ -173,13 +173,13 @@ void *socket_worker_thread(void *arg)
     memset(&private_queue, 0, sizeof(queue_t));
     memset(&spill_queue, 0, sizeof(queue_t));
 
-    const config_t* config = self->base.config;
+    const config_t *config = self->base.config;
 
     int join_err;
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    sck = open_socket_eventually(&self->output_socket, config);
+	    sck = open_socket_eventually(&self->base.output_socket, config);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
 		FATAL("Failed to get socket for graphite worker");
 		return NULL;
@@ -258,7 +258,7 @@ socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
 
     worker->exists = 1;
 
-    if (!socketize(arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker")) {
+    if (!socketize(arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "worker")) {
 	FATAL("Failed to socketize worker");
 	return NULL;
     }
@@ -274,7 +274,7 @@ socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
 
     /* setup spill_path */
     int wrote = snprintf(disk_writer->spill_path, PATH_MAX, "%s/event_relay.%s", config->spill_root,
-			 worker->output_socket.arg_clean);
+			 worker->base.output_socket.arg_clean);
     if (wrote < 0 || wrote >= PATH_MAX) {
 	FATAL("Failed to construct spill_path %s", disk_writer->spill_path);
 	return NULL;

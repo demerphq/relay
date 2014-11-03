@@ -19,8 +19,6 @@ struct socket_worker {
     stats_basic_counters_t recents;
     stats_basic_counters_t totals;
 
-    relay_socket_t output_socket;
-
     volatile uint32_t exists;
     disk_writer_t *disk_writer;
 

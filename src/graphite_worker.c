@@ -103,7 +103,8 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->root = graphite_worker_setup_root(config);
 
     if (worker->root == NULL ||
-	!socketize(worker->base.arg, &worker->output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker"))
+	!socketize(worker->base.arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
+		   "graphite worker"))
 	FATAL("Failed to socketize graphite worker");
 
     return worker;
@@ -133,7 +134,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 	accumulate_and_clear_stats(&w->recents, &recents, NULL);
 
 	int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->root,
-			     w->output_socket.arg_clean, this_epoch);
+			     w->base.output_socket.arg_clean, this_epoch);
 	if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	    WARN("Failed to initialize stats format: %s", stats_format);
 	    return 0;
@@ -229,7 +230,7 @@ void *graphite_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    sck = open_socket_eventually(&self->output_socket, config);
+	    sck = open_socket_eventually(&self->base.output_socket, config);
 	    if (sck == NULL) {
 		FATAL("Failed to get socket for graphite");
 		break;
