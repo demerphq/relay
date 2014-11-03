@@ -36,7 +36,7 @@ void config_set_defaults(config_t * config)
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
 
-    config->spill_usec = DEFAULT_SPILL_USEC;
+    config->spill_millisec = DEFAULT_SPILL_MILLISEC;
     config->spillway_root = strdup(DEFAULT_SPILLWAY_ROOT);
 
     config->graphite.addr = strdup(DEFAULT_GRAPHITE_ADDR);
@@ -57,7 +57,7 @@ void config_dump(config_t * config)
 
 
     SAY("config->spillway_root = %s", config->spillway_root);
-    SAY("config->spill_usec = %d", config->spill_usec);
+    SAY("config->spill_millisec = %d", config->spill_millisec);
 
     SAY("config->graphite.addr = %s", config->graphite.addr);
     SAY("config->graphite.target = %s", config->graphite.target);
@@ -128,11 +128,6 @@ static int is_valid_millisec(uint32_t millisec)
     return millisec > 0 && millisec <= MAX_SEC * 1000;
 }
 
-static int is_valid_microsec(uint32_t microsec)
-{
-    return microsec > 0 && microsec <= MAX_SEC * 1000000;
-}
-
 static int is_valid_buffer_size(uint32_t size)
 {
     /* Pretty arbitrary choices but let's require alignment by 4096,
@@ -159,7 +154,7 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
 
     CONFIG_VALID_STR(config, is_valid_directory, spillway_root, invalid);
-    CONFIG_VALID_NUM(config, is_valid_microsec, spill_usec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, spill_millisec, invalid);
 
     CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.addr, invalid);
     CONFIG_VALID_STR(config, is_valid_graphite_target, graphite.target, invalid);
@@ -257,7 +252,7 @@ static config_t *config_from_file(char *file)
 		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
 
 		    TRY_STR_OPT(spillway_root, line, p);
-		    TRY_NUM_OPT(spill_usec, line, p);
+		    TRY_NUM_OPT(spill_millisec, line, p);
 
 		    TRY_STR_OPT(graphite.addr, line, p);
 		    TRY_STR_OPT(graphite.target, line, p);
@@ -307,7 +302,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
 
     CONFIG_STR_VCATF(spillway_root);
-    CONFIG_NUM_VCATF(spill_usec);
+    CONFIG_NUM_VCATF(spill_millisec);
 
     CONFIG_STR_VCATF(graphite.addr);
     CONFIG_STR_VCATF(graphite.target);
@@ -515,7 +510,7 @@ int config_reload(config_t * config)
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
 
     IF_STR_OPT_CHANGED(spillway_root, config, new_config);
-    IF_NUM_OPT_CHANGED(spill_usec, config, new_config);
+    IF_NUM_OPT_CHANGED(spill_millisec, config, new_config);
 
     IF_STR_OPT_CHANGED(graphite.addr, config, new_config);
     IF_STR_OPT_CHANGED(graphite.target, config, new_config);

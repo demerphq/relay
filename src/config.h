@@ -35,7 +35,7 @@ struct config {
     int max_pps;		/* XXX unused */
     int tcp_send_timeout_millisec;
     int server_socket_rcvbuf_bytes;
-    uint32_t spill_usec;
+    uint32_t spill_millisec;
     int syslog_to_stderr;
 
     /* root directory for where we write failed sends,
@@ -67,8 +67,8 @@ typedef struct config config_t;
 #define DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC 1000
 #endif
 
-#ifndef DEFAULT_SPILL_USEC
-#define DEFAULT_SPILL_USEC 1000000
+#ifndef DEFAULT_SPILL_MILLISEC
+#define DEFAULT_SPILL_MILLISEC 1000
 #endif
 
 #ifndef DEFAULT_SPILLWAY_ROOT

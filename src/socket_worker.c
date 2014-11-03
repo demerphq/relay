@@ -53,6 +53,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 
     get_time(&send_start_time);
 
+    const uint64_t spill_microsec = 1000 * self->base.config->spill_millisec;
+
     cork(sck, 1);
 
     while (private_queue->head != NULL) {
@@ -66,11 +68,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 	/* Peel off all the blobs which have been in the queue
 	 * for longer than the spill limit, move them to the
 	 * spill queue, and enqueue them for spilling. */
-	if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= self->base.config->spill_usec) {
+	if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= spill_microsec) {
 	    spill_queue->head = cur_blob;
 	    spill_queue->count = 1;
 	    while (BLOB_NEXT(cur_blob)
-		   && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= self->base.config->spill_usec) {
+		   && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= spill_microsec) {
 		cur_blob = BLOB_NEXT(cur_blob);
 		spill_queue->count++;
 	    }
