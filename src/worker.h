@@ -37,7 +37,7 @@ struct worker {
 typedef struct worker worker_t;
 
 /* worker.c */
-worker_t *worker_init(const char *arg, const config_t * config);
+worker_t *worker_create(const char *arg, const config_t * config);
 void worker_destroy(worker_t * worker);
 void *worker_thread(void *arg);
 

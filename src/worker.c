@@ -224,7 +224,7 @@ void *worker_thread(void *arg)
 
 
 /* initialize a worker safely */
-worker_t *worker_init(const char *arg, const config_t * config)
+worker_t *worker_create(const char *arg, const config_t * config)
 {
     worker_t *worker = calloc_or_fatal(sizeof(*worker));
     disk_writer_t *disk_writer = calloc_or_fatal(sizeof(disk_writer_t));
