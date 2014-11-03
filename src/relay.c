@@ -9,6 +9,14 @@
 #include "socket_worker.h"
 #include "socket_worker_pool.h"
 
+#define EXPECTED_HEADER_SIZE sizeof(blob_size_t)
+#define ASYNC_BUFFER_SIZE (MAX_CHUNK_SIZE + EXPECTED_HEADER_SIZE)
+
+struct tcp_client {
+    unsigned char *buf;
+    uint32_t pos;
+};
+
 #define PROCESS_STATUS_BUF_LEN 256
 
 static void sig_handler(int signum);
