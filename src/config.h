@@ -33,7 +33,7 @@ struct config {
     int polling_interval_millisec;
     int sleep_after_disaster_millisec;
     int max_pps;		/* XXX unused */
-    int tcp_send_timeout_sec;
+    int tcp_send_timeout_millisec;
     int server_socket_rcvbuf_bytes;
     uint32_t spill_usec;
     int syslog_to_stderr;
@@ -55,8 +55,8 @@ typedef struct config config_t;
 #define DEFAULT_POLLING_INTERVAL_MILLISEC 1
 #endif
 
-#ifndef DEFAULT_TCP_SEND_TIMEOUT_SEC
-#define DEFAULT_TCP_SEND_TIMEOUT_SEC 2
+#ifndef DEFAULT_TCP_SEND_TIMEOUT_MILLISEC
+#define DEFAULT_TCP_SEND_TIMEOUT_MILLISEC 1000
 #endif
 
 #ifndef DEFAULT_SERVER_SOCKET_RCVBUF_BYTES

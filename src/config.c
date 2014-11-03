@@ -31,7 +31,7 @@ void config_set_defaults(config_t * config)
 	return;
 
     config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
-    config->tcp_send_timeout_sec = DEFAULT_TCP_SEND_TIMEOUT_SEC;
+    config->tcp_send_timeout_millisec = DEFAULT_TCP_SEND_TIMEOUT_MILLISEC;
     config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
@@ -50,7 +50,7 @@ void config_dump(config_t * config)
     if (config == NULL)
 	return;
     SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
-    SAY("config->tcp_send_timeout_sec = %d", config->tcp_send_timeout_sec);
+    SAY("config->tcp_send_timeout_millisec = %d", config->tcp_send_timeout_millisec);
     SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
     SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
     SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
@@ -133,11 +133,6 @@ static int is_valid_microsec(uint32_t microsec)
     return microsec > 0 && microsec <= MAX_SEC * 1000000;
 }
 
-static int is_valid_sec(uint32_t sec)
-{
-    return sec > 0 && sec <= MAX_SEC;
-}
-
 static int is_valid_buffer_size(uint32_t size)
 {
     /* Pretty arbitrary choices but let's require alignment by 4096,
@@ -158,7 +153,7 @@ static int config_valid(config_t * config)
 {
     int invalid = 0;
 
-    CONFIG_VALID_NUM(config, is_valid_sec, tcp_send_timeout_sec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, tcp_send_timeout_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, polling_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
@@ -256,7 +251,7 @@ static config_t *config_from_file(char *file)
 		TRY_OPT_BEGIN {
 		    TRY_NUM_OPT(syslog_to_stderr, line, p);
 
-		    TRY_NUM_OPT(tcp_send_timeout_sec, line, p);
+		    TRY_NUM_OPT(tcp_send_timeout_millisec, line, p);
 		    TRY_NUM_OPT(polling_interval_millisec, line, p);
 		    TRY_NUM_OPT(sleep_after_disaster_millisec, line, p);
 		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
@@ -306,7 +301,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     if (!fixed_buffer_vcatf(buf, #name " = %s\n", config->name)) return 0;
 
     CONFIG_NUM_VCATF(syslog_to_stderr);
-    CONFIG_NUM_VCATF(tcp_send_timeout_sec);
+    CONFIG_NUM_VCATF(tcp_send_timeout_millisec);
     CONFIG_NUM_VCATF(polling_interval_millisec);
     CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
     CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
@@ -514,7 +509,7 @@ int config_reload(config_t * config)
 	config_changed = 1;
     }
 
-    IF_NUM_OPT_CHANGED(tcp_send_timeout_sec, config, new_config);
+    IF_NUM_OPT_CHANGED(tcp_send_timeout_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
