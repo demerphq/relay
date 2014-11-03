@@ -73,6 +73,7 @@ static int write_blob_to_disk(disk_writer_t * self, blob_t * b)
 	    return 1;
 	}
 	FATAL_ERRNO("write '%s' failed: wrote %zd tried %d bytes:", self->last_file_path, wrote, BLOB_BUF_SIZE(b));
+	return 0;
 
     }
     RELAY_ATOMIC_INCREMENT(self->counters->disk_error_count, 1);
@@ -116,16 +117,23 @@ void *disk_writer_thread(void *arg)
 		worker_wait_millisec(self->base.config->polling_interval_millisec);
 	    }
 	} else {
+	    int failed = 0;
+
 	    do {
 		done_work++;
 		if (!write_blob_to_disk(self, b)) {
 		    FATAL("Failed to write blob to disk");
+		    failed = 1;
+		    break;
 		}
 		blob_destroy(queue_shift_nolock(&private_queue));
 	    }
-	    while ((b = private_queue.head) != NULL);
+	    while (!failed && (b = private_queue.head) != NULL);
 
 	    accumulate_and_clear_stats(self->counters, self->recents, self->totals);
+
+	    if (failed)
+		break;
 	}
     }
 
