@@ -17,8 +17,7 @@
 #include "timer.h"
 #include "worker_base.h"
 
-/* a socket worker */
-struct worker {
+struct socket_worker {
     struct worker_base base;
 
     queue_t queue;
@@ -32,13 +31,13 @@ struct worker {
     volatile uint32_t exists;
     disk_writer_t *disk_writer;
 
-     TAILQ_ENTRY(worker) entries;
+     TAILQ_ENTRY(socket_worker) entries;
 };
-typedef struct worker worker_t;
+typedef struct socket_worker socket_worker_t;
 
 /* worker.c */
-worker_t *worker_create(const char *arg, const config_t * config);
-void worker_destroy(worker_t * worker);
+socket_worker_t *worker_create(const char *arg, const config_t * config);
+void worker_destroy(socket_worker_t * worker);
 void *worker_thread(void *arg);
 
 /* worker sleeps while it waits for work

@@ -125,7 +125,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     /* reset the buffer to the beginning */
     buffer->used = 0;
 
-    worker_t *w;
+    socket_worker_t *w;
     TAILQ_FOREACH(w, &POOL.workers, entries) {
 	stats_basic_counters_t recents;
 

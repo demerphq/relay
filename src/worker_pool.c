@@ -10,7 +10,7 @@ void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_c
     LOCK(&POOL.lock);
     buf->used = 0;		/* Reset the buffer. */
     if (fixed_buffer_vcatf(buf, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
-	worker_t *w;
+	socket_worker_t *w;
 	int worker_id = 0;
 	TAILQ_FOREACH(w, &POOL.workers, entries) {
 	    if (!fixed_buffer_vcatf(buf,
@@ -38,7 +38,7 @@ void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_c
 int enqueue_blob_for_transmission(blob_t * b)
 {
     int i = 0;
-    worker_t *w;
+    socket_worker_t *w;
     blob_t *to_enqueue;
     LOCK(&POOL.lock);
     BLOB_REFCNT_set(b, POOL.n_workers);
@@ -68,7 +68,7 @@ int enqueue_blob_for_transmission(blob_t * b)
  */
 void worker_pool_init_static(config_t * config)
 {
-    worker_t *new_worker;
+    socket_worker_t *new_worker;
 
     TAILQ_INIT(&POOL.workers);
     LOCK_INIT(&POOL.lock);
@@ -90,8 +90,8 @@ void worker_pool_init_static(config_t * config)
 void worker_pool_reload_static(config_t * config)
 {
     int must_add = 0;
-    worker_t *w;
-    worker_t *wtmp;
+    socket_worker_t *w;
+    socket_worker_t *wtmp;
     int n_workers = 0;
 
 
@@ -138,7 +138,7 @@ void worker_pool_reload_static(config_t * config)
 /* worker destory static, destroy all the workers in the pool */
 void worker_pool_destroy_static(void)
 {
-    worker_t *w;
+    socket_worker_t *w;
     LOCK(&POOL.lock);
     while ((w = TAILQ_FIRST(&POOL.workers)) != NULL) {
 	TAILQ_REMOVE(&POOL.workers, w, entries);

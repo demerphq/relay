@@ -6,19 +6,19 @@
 extern worker_pool_t POOL;
 
 /* add an item to a disk worker queue */
-static void enqueue_blob_for_disk_writing(worker_t * worker, struct blob *b)
+static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)
 {
     queue_append(&worker->disk_writer->queue, b, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
 
 /* if a worker failed to send we need to write the item to the disk */
 /* XXX */
-static void enqueue_queue_for_disk_writing(worker_t * worker, queue_t * q)
+static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
 {
     queue_append_tail(&worker->disk_writer->queue, q, &POOL.lock);	/* XXX: change this to a worker level lock */
 }
 
-static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
+static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
 {
     blob_t *cur_blob;
     struct timeval now;
@@ -136,7 +136,7 @@ static int process_queue(worker_t * self, relay_socket_t * sck, queue_t * privat
  * main loop for the worker process */
 void *worker_thread(void *arg)
 {
-    worker_t *self = (worker_t *) arg;
+    socket_worker_t *self = (socket_worker_t *) arg;
 
     queue_t *main_queue = &self->queue;
     struct sock *sck = NULL;
@@ -224,9 +224,9 @@ void *worker_thread(void *arg)
 
 
 /* initialize a worker safely */
-worker_t *worker_create(const char *arg, const config_t * config)
+socket_worker_t *worker_create(const char *arg, const config_t * config)
 {
-    worker_t *worker = calloc_or_fatal(sizeof(*worker));
+    socket_worker_t *worker = calloc_or_fatal(sizeof(*worker));
     disk_writer_t *disk_writer = calloc_or_fatal(sizeof(disk_writer_t));
 
     if (worker == NULL || disk_writer == NULL)
@@ -299,7 +299,7 @@ worker_t *worker_create(const char *arg, const config_t * config)
 }
 
 /* destroy a worker */
-void worker_destroy(worker_t * worker)
+void worker_destroy(socket_worker_t * worker)
 {
     uint32_t was_stopping = RELAY_ATOMIC_OR(worker->base.stopping, WORKER_STOPPING);
 
