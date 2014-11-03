@@ -229,14 +229,10 @@ void *graphite_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    /* nope, so lets try to open one */
-	    if (open_socket(&self->output_socket, DO_CONNECT, 0, 0)) {
-		/* success, setup sck variable as a flag and save on some indirection */
-		sck = &self->output_socket;
-	    } else {
-		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(config->sleep_after_disaster_millisec);
-		continue;
+	    sck = open_socket_eventually(&self->output_socket, config);
+	    if (sck == NULL) {
+		FATAL("Failed to get socket for graphite");
+		break;
 	    }
 	}
 

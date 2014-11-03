@@ -12,6 +12,7 @@
 #include "global.h"
 #include "log.h"
 #include "relay_threads.h"
+#include "socket_util.h"
 #include "timer.h"
 
 /* add an item to a disk worker queue */
@@ -172,24 +173,17 @@ void *socket_worker_thread(void *arg)
     memset(&private_queue, 0, sizeof(queue_t));
     memset(&spill_queue, 0, sizeof(queue_t));
 
+    const config_t* config = self->base.config;
+
     int join_err;
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
-	/* check if we have a usable socket */
 	if (!sck) {
-	    /* nope, so lets try to open one */
-	    if (open_socket(&self->output_socket, DO_CONNECT, 0, 0)) {
-		/* success, setup sck variable as a flag and save on some indirection */
-		sck = &self->output_socket;
-	    } else {
-		/* no socket - wait a while, and then redo the loop */
-		worker_wait_millisec(self->base.config->sleep_after_disaster_millisec);
-		continue;
+	    sck = open_socket_eventually(&self->output_socket, config);
+	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
+		FATAL("Failed to get socket for graphite worker");
+		return NULL;
 	    }
-	}
-	if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
-	    FATAL("Failed to get socket");
-	    return NULL;
 	}
 
 	/* if we dont have anything in our local queue we need to hijack the main one */
@@ -200,7 +194,7 @@ void *socket_worker_thread(void *arg)
 	     */
 	    if (!queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock)) {
 		/* nothing to do, so sleep a while and redo the loop */
-		worker_wait_millisec(self->base.config->polling_interval_millisec);
+		worker_wait_millisec(config->polling_interval_millisec);
 		continue;
 	    }
 	}
