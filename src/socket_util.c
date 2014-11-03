@@ -109,7 +109,7 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 	return 0;
     }
     if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE)) {
-	SAY("Unexpcted proto %d\n", proto);
+	SAY("Unexpcted proto %d", proto);
 	return 0;
     }
 

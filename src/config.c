@@ -611,5 +611,5 @@ void config_init(int argc, char **argv)
 void config_die_args(int argc, char **argv)
 {
     (void) argc;
-    FATAL("%s local-host:local-port tcp@remote-host:remote-port ...\n" "or config file\n", argv[0]);
+    FATAL("%s local-host:local-port tcp@remote-host:remote-port ... or config file", argv[0]);
 }

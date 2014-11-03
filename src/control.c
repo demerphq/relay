@@ -37,16 +37,16 @@ void control_exit(int rc)
     uint32_t c = control_get_bits();
 
     if (c & RELAY_RUNNING) {
-	WARN("Running: stopping\n");
+	WARN("Running: stopping");
     } else if (c & RELAY_STARTING) {
-	WARN("Starting: exit(%d) called, exiting\n", rc);
+	WARN("Starting: exit(%d) called, exiting", rc);
 	exit(rc);
     } else if (c & RELAY_STOPPING) {
 	WARN("Already stopping");
     } else {
-	WARN("Unexpected state %#x: stopping\n", c);
+	WARN("Unexpected state %#x: stopping", c);
     }
-    WARN("Stopping: exit(%d) called\n", rc);
+    WARN("Stopping: exit(%d) called", rc);
     GLOBAL.exit_code = rc;
     if ((c & RELAY_STOPPING) == 0) {
 	control_set_bits(RELAY_STOPPING);

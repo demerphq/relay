@@ -54,7 +54,7 @@ char *graphite_worker_setup_root(const config_t * config)
     hints.ai_flags = AI_CANONNAME;
 
     if ((gai_result = getaddrinfo("localhost", "http", &hints, &info)) != 0) {
-	FATAL("Failed getaddrinfo(localhost): %s\n", gai_strerror(gai_result));
+	FATAL("Failed getaddrinfo(localhost): %s", gai_strerror(gai_result));
 	return NULL;
     }
 
