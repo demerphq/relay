@@ -200,6 +200,13 @@ static int graphite_send(relay_socket_t * sck, fixed_buffer_t * buffer, ssize_t 
 static void graphite_wait(graphite_worker_t * self, const struct graphite_config *graphite)
 {
     uint32_t wait_remains_millisec = graphite->send_interval_millisec;
+    /* We do this because a graphite worker might sleep for a while, for instance
+     * 60 seconds, between sends. But in shutdown we don't want to wait that
+     * long. So we sleep in chunks, and use two config vars: send_interval_millisec
+     * which controls how long in total we sleep between sends, and
+     * sleep_poll_interval_millisec, which determines how long each sleep "chunk" is.
+     */
+
     while (!RELAY_ATOMIC_READ(self->base.stopping) && (wait_remains_millisec > 0)) {
 	if (wait_remains_millisec < graphite->sleep_poll_interval_millisec) {
 	    worker_wait_millisec(wait_remains_millisec);
