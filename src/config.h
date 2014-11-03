@@ -40,7 +40,7 @@ struct config {
 
     /* root directory for where we write failed sends,
      * and "spilled" data */
-    char *spillway_root;
+    char *spill_root;
 
     struct graphite_config graphite;
 };
@@ -71,8 +71,8 @@ typedef struct config config_t;
 #define DEFAULT_SPILL_MILLISEC 1000
 #endif
 
-#ifndef DEFAULT_SPILLWAY_ROOT
-#define DEFAULT_SPILLWAY_ROOT "/tmp"
+#ifndef DEFAULT_SPILL_ROOT
+#define DEFAULT_SPILL_ROOT "/var/log/events/spill"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ADDR

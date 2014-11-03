@@ -278,11 +278,11 @@ socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
 
     LOCK_INIT(&worker->lock);
 
-    /* setup spillway_path */
-    int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,
+    /* setup spill_path */
+    int wrote = snprintf(disk_writer->spill_path, PATH_MAX, "%s/event_relay.%s", config->spill_root,
 			 worker->output_socket.arg_clean);
     if (wrote < 0 || wrote >= PATH_MAX) {
-	FATAL("Failed to construct spillway_path %s", disk_writer->spillway_path);
+	FATAL("Failed to construct spill_path %s", disk_writer->spill_path);
 	return NULL;
     }
 

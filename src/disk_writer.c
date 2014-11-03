@@ -7,7 +7,7 @@
 
 /* create a directory with the right permissions
  */
-static int recreate_spillway_path(char *dir)
+static int recreate_spill_path(char *dir)
 {
     if (mkdir(dir, 0750) == -1 && errno != EEXIST) {
 	FATAL("mkdir of %s failed", dir);
@@ -32,12 +32,12 @@ static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	}
     }
     if (blob_epoch) {
-	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spillway_path, blob_epoch);
+	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spill_path, blob_epoch);
 	if (wrote < 0 || wrote >= PATH_MAX) {
 	    FATAL("Filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
 	    return 0;
 	}
-	if (!recreate_spillway_path(self->spillway_path))
+	if (!recreate_spill_path(self->spill_path))
 	    return 0;
 	self->fd = open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (self->fd < 0) {
@@ -93,8 +93,8 @@ void *disk_writer_thread(void *arg)
     blob_t *b;
     uint32_t done_work = 0;
 
-    recreate_spillway_path(self->spillway_path);
-    SAY("disk writer started using path '%s' for files", self->spillway_path);
+    recreate_spill_path(self->spill_path);
+    SAY("disk writer started using path '%s' for files", self->spill_path);
 
     memset(&private_queue, 0, sizeof(private_queue));
 
