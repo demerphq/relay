@@ -5,8 +5,8 @@
 #include "setproctitle.h"
 #include "string_util.h"
 #include "timer.h"
-#include "worker.h"
-#include "worker_pool.h"
+#include "socket_worker.h"
+#include "socket_worker_pool.h"
 
 #define PROCESS_STATUS_BUF_LEN 256
 

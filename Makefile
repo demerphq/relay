@@ -39,8 +39,8 @@ CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fn
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
 
-SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/worker.c src/socket_util.c src/string_util.c src/config.c \
-	src/timer.c src/worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
+SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/socket_worker.c src/socket_util.c src/string_util.c src/config.c \
+	src/timer.c src/socket_worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c
 
 # The executable names.
 RELAY=event-relay

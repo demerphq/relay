@@ -1,7 +1,7 @@
 #include "disk_writer.h"
 
 #include "config.h"
-#include "worker_pool.h"
+#include "socket_worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern socket_worker_pool_t POOL;

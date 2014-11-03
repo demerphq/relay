@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include "log.h"
+#include "socket_worker.h"
 #include "string_util.h"
-#include "worker.h"
 
 static const char *OUR_NAME = "event-relay";
 

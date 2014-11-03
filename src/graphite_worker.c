@@ -4,8 +4,8 @@
 #include <malloc.h>
 #endif
 
+#include "socket_worker_pool.h"
 #include "string_util.h"
-#include "worker_pool.h"
 
 /* this is our POOL lock and state object. aint globals lovely. :-) */
 extern socket_worker_pool_t POOL;
