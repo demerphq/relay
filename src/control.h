@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#include "relay_threads.h"
-#include "relay_common.h"
-
 #define RELAY_STARTING	1<<0
 #define RELAY_RUNNING   1<<1
 #define RELAY_RELOADING 1<<2

@@ -3,6 +3,7 @@
 #include "config.h"
 #include "control.h"
 #include "global.h"
+#include "log.h"
 #include "setproctitle.h"
 #include "string_util.h"
 #include "timer.h"

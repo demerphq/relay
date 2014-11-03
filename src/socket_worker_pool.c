@@ -1,6 +1,8 @@
 #include "socket_worker_pool.h"
 
 #include "global.h"
+#include "log.h"
+#include "relay_threads.h"
 #include "setproctitle.h"
 #include "string_util.h"
 

@@ -4,6 +4,7 @@
 #include <libgen.h>
 
 #include "global.h"
+#include "log.h"
 #include "string_util.h"
 
 #define DEBUG_SOCKETIZE 0

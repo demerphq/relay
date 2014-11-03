@@ -6,9 +6,7 @@
 #include <sys/time.h>
 #include <stdio.h>
 
-#include "relay_common.h"
 #include "relay_threads.h"
-#include "timer.h"
 
 /* The size of the blob.  Note that the wire format is LITTLE-ENDIAN. */
 typedef uint32_t blob_size_t;

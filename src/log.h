@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "control.h"
+#include "relay_common.h"
 
 #define OUR_FACILITY LOG_LOCAL5
 
@@ -22,7 +23,6 @@
 #endif
 
 #define TS_LEN 40
-
 
 #define _LOG(type, fmt, arg...) STMT_START {	\
     struct {			\

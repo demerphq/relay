@@ -10,7 +10,9 @@
 #endif
 
 #include "global.h"
+#include "log.h"
 #include "relay_threads.h"
+#include "timer.h"
 
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)

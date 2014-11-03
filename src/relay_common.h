@@ -8,9 +8,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "log.h"
-#include "relay_threads.h"
-
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif

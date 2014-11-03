@@ -1,7 +1,8 @@
 #include "disk_writer.h"
 
-#include "global.h"
 #include "config.h"
+#include "global.h"
+#include "log.h"
 #include "socket_worker_pool.h"
 
 /* create a directory with the right permissions

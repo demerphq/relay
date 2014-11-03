@@ -1,5 +1,9 @@
 #include "blob.h"
 
+#include "log.h"
+#include "relay_threads.h"
+#include "timer.h"
+
 /* reallocate a buffer or die - (wonder if we should be more graceful
  * when we shutdown? */
 void *realloc_or_fatal(void *p, size_t size)

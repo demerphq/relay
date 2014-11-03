@@ -5,6 +5,8 @@
 #endif
 
 #include "global.h"
+#include "log.h"
+#include "relay_threads.h"
 #include "socket_worker_pool.h"
 #include "string_util.h"
 

@@ -1,6 +1,7 @@
 #include "control.h"
 
 #include "global.h"
+#include "log.h"
 #include "relay_threads.h"
 
 void control_set_bits(uint32_t c)
