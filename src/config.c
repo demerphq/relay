@@ -14,8 +14,7 @@ static const char *OUR_NAME = "event-relay";
 
 void config_destroy(void)
 {
-    int i;
-    for (i = 0; i < GLOBAL.config->argc; i++)
+    for (int i = 0; i < GLOBAL.config->argc; i++)
 	free(GLOBAL.config->argv[i]);
     free(GLOBAL.config->argv);
     free(GLOBAL.config->graphite.addr);
