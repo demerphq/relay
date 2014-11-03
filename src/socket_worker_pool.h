@@ -2,10 +2,9 @@
 #define RELAY_SOCKET_WORKER_POOL_H
 
 #include "relay_common.h"
-#include "graphite_worker.h"
 #include "socket_worker.h"
+#include "string_util.h"
 
-/* this is our GIANT lock and state object. aint globals lovely. :-)*/
 struct socket_worker_pool {
     /* macro to define a TAILQ head entry, empty first arg deliberate */
     TAILQ_HEAD(, socket_worker) workers;

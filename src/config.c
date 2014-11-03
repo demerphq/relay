@@ -1,7 +1,7 @@
 #include "config.h"
 
+#include <ctype.h>
 #include <errno.h>
-#include <libgen.h>
 #include <stdarg.h>
 #include <string.h>
 

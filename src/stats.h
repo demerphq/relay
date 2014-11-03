@@ -5,7 +5,6 @@
 
 #include "relay_common.h"
 #include "relay_threads.h"
-#include "setproctitle.h"
 
 typedef uint64_t stats_count_t;
 

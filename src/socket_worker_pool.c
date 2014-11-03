@@ -1,6 +1,7 @@
 #include "socket_worker_pool.h"
 
 #include "global.h"
+#include "setproctitle.h"
 #include "string_util.h"
 
 /* update the process status line with the status of the workers */

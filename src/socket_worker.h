@@ -1,20 +1,11 @@
 #ifndef RELAY_SOCKET_WORKER_H
 #define RELAY_SOCKET_WORKER_H
 
-#include <fcntl.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#include "blob.h"
 #include "config.h"
-#include "control.h"
 #include "disk_writer.h"
 #include "relay.h"
-#include "relay_threads.h"
-#include "setproctitle.h"
 #include "socket_util.h"
 #include "stats.h"
-#include "timer.h"
 #include "worker_base.h"
 
 struct socket_worker {

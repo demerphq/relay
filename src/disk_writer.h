@@ -4,7 +4,6 @@
 #include <pthread.h>
 
 #include "blob.h"
-#include "config.h"
 #include "relay_common.h"
 #include "stats.h"
 #include "worker_base.h"

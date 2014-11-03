@@ -1,7 +1,6 @@
 #ifndef RELAY_RELAY_H
 #define RELAY_RELAY_H
 
-#include <ctype.h>
 #include <poll.h>
 #include <signal.h>
 #include <string.h>
