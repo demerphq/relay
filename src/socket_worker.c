@@ -13,14 +13,13 @@
 /* add an item to a disk worker queue */
 static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)
 {
-    queue_append(&worker->disk_writer->queue, b, &GLOBAL.pool.lock);	/* XXX: change this to a worker level lock */
+    queue_append(&worker->disk_writer->queue, b, &worker->lock);
 }
 
 /* if a worker failed to send we need to write the item to the disk */
-/* XXX */
 static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
 {
-    queue_append_tail(&worker->disk_writer->queue, q, &GLOBAL.pool.lock);	/* XXX: change this to a worker level lock */
+    queue_append_tail(&worker->disk_writer->queue, q, &worker->lock);
 }
 
 static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue)
@@ -254,6 +253,8 @@ socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
     disk_writer->counters = &worker->counters;
     disk_writer->recents = &worker->recents;
     disk_writer->totals = &worker->totals;
+
+    LOCK_INIT(&worker->lock);
 
     /* setup spillway_path */
     int wrote = snprintf(disk_writer->spillway_path, PATH_MAX, "%s/event_relay.%s", config->spillway_root,

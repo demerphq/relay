@@ -22,6 +22,8 @@ struct socket_worker {
 
     queue_t queue;
 
+    LOCK_T lock;
+
     stats_basic_counters_t counters;
     stats_basic_counters_t recents;
     stats_basic_counters_t totals;
