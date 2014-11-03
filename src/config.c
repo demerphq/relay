@@ -574,13 +574,14 @@ int config_reload(config_t * config)
 
 void config_init(int argc, char **argv)
 {
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | LOG_PERROR, OUR_FACILITY);
+    SAY("Turned on 'syslog_to_stderr' for option parsing");
+
     GLOBAL.config = calloc_or_fatal(sizeof(config_t));
     if (GLOBAL.config == NULL)
 	return;
 
     config_set_defaults(GLOBAL.config);
-    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config->syslog_to_stderr ? LOG_PERROR : 0),
-	    OUR_FACILITY);
 
     if (argc < 2) {
 	config_die_args(argc, argv);
@@ -597,6 +598,13 @@ void config_init(int argc, char **argv)
 	}
 	GLOBAL.config->argc = i;
     }
+
+    if (!GLOBAL.config->syslog_to_stderr)
+	SAY("Turned off 'syslog_to_stderr'");
+
+    closelog();
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config->syslog_to_stderr ? LOG_PERROR : 0),
+	    OUR_FACILITY);
 }
 
 
