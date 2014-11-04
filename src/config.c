@@ -242,7 +242,6 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
 		return 0;
 	    }
 	    TRY_OPT_END;
-
 	} else {
 	    config->argv = realloc_or_fatal(config->argv, sizeof(char *) * (config->argc + 1));
 	    if (config->argv == NULL)
@@ -282,7 +281,9 @@ static config_t *config_from_file(char *file)
 
     while (getline(&line, &len, f) != -1) {
 	char *copy = strdup(line);
-	config_from_line(config, line, copy, &line_num, file);
+	if (!config_from_line(config, line, copy, &line_num, file)) {
+	    WARN("Invalid config line");
+	}
 	free(copy);
     }
     fclose(f);
@@ -561,6 +562,10 @@ int config_reload(config_t * config)
 	config_dump(config);
     }
 
+    /* XXX merge this with config_destroy, but beware initial vs merge cases */
+    free(new_config->graphite.addr);
+    free(new_config->graphite.target);
+    free(new_config->spill_root);
     free(new_config);
 
     if (config_changed) {
