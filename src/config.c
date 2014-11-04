@@ -360,7 +360,17 @@ static int config_save(const config_t * config, time_t now)
 
     /* We will do mkstemp() + rename(), but first we need a temp file
      * name template, and we need it in in the same directory as the
-     * configuration file. */
+     * configuration file.  Because if it's not in the same directory
+     * (or, rather, filesystem), rename() for the temp file won't work,
+     * we would need explicitly copy it.  On the other hand, just copying
+     * it might be less hassle.
+     *
+     * XXX need option for the save directory: the config file might
+     * be in a directory where we have no write permissions, but we
+     * would still want to take backup copies of the valid configs.
+     * Even if we have the permissions, it might be cleaner to have
+     * the directory for the config not to be littered by the copies.
+     */
     char temp[PATH_MAX];
     char *p = config->file;
     char *q = temp;
@@ -376,7 +386,8 @@ static int config_save(const config_t * config, time_t now)
     }
 
     /* dirname() is rather unportable in its behavior,
-     * unfortunately. */
+     * unfortunately (whether you get a copy, or just
+     * the modified original). */
     char *slash = NULL;
     for (q = temp; *q; q++)
 	if (*q == '/')
