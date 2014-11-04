@@ -135,13 +135,13 @@ static int is_valid_buffer_size(uint32_t size)
 }
 
 #define CONFIG_VALID_STR(config, t, v, invalid)		\
-    do { if (!t(config->v)) { SAY("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
+    do { if (!t(config->v)) { WARN("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
 #define CONFIG_VALID_SOCKETIZE(config, p, d, r, v, invalid)		\
-    do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { SAY("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
+    do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { WARN("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
 #define CONFIG_VALID_NUM(config, t, v, invalid)		\
-    do { if (!t(config->v)) { SAY("%s value %d invalid", #v, config->v); invalid++; } } while (0)
+    do { if (!t(config->v)) { WARN("%s value %d invalid", #v, config->v); invalid++; } } while (0)
 
 static int config_valid(config_t * config)
 {
@@ -161,13 +161,13 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.sleep_poll_interval_millisec, invalid);
 
     if (config->argc < 1) {
-	SAY("Missing listener address");
+	WARN("Missing listener address");
 	invalid++;
     } else {
 	CONFIG_VALID_SOCKETIZE(config, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener", argv[0], invalid);
     }
     if (config->argc < 2) {
-	SAY("Missing forward addresses");
+	WARN("Missing forward addresses");
 	invalid++;
     } else {
 	for (int i = 1; i < config->argc; i++) {
@@ -213,7 +213,7 @@ static config_t *config_from_file(char *file)
     config_set_defaults(config);
 
     if (file == NULL) {
-	SAY("Config file unknown");
+	FATAL("Config file unknown");
 	return NULL;
     }
     SAY("Loading config file %s", file);
@@ -258,7 +258,7 @@ static config_t *config_from_file(char *file)
 		    TRY_NUM_OPT(graphite.send_interval_millisec, line, p);
 		    TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, line, p);
 
-		    SAY("Error in config file %s:%d: bad config option: %s", file, line_num, line);
+		    WARN("Error in config file %s:%d: bad config option: %s", file, line_num, line);
 		    return NULL;
 		}
 		TRY_OPT_END;
@@ -280,7 +280,7 @@ static config_t *config_from_file(char *file)
 
     if (!config_valid(config)) {
 	config_dump(config);
-	SAY("Invalid configuration");
+	WARN("Invalid configuration");
 	return NULL;
     }
 

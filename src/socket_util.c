@@ -20,13 +20,13 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 	s->sa.in.sin_family = AF_INET;
 
 	if (!isdigit(p[1]) || p[1] == '0') {
-	    SAY("Invalid port number '%s' in '%s'", p + 1, arg);
+	    WARN("Invalid port number '%s' in '%s'", p + 1, arg);
 	    return 0;
 	}
 	char *endp;
 	long port = strtol(p + 1, &endp, 10);
 	if (port < 0 || port > 65535 || *endp) {
-	    SAY("Invalid port number '%s' in '%s'", p + 1, arg);
+	    WARN("Invalid port number '%s' in '%s'", p + 1, arg);
 	    return 0;
 	}
 	s->sa.in.sin_port = htons(port);
@@ -47,7 +47,7 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 		    SAY("protocol is udp");
 		proto = IPPROTO_UDP;
 	    } else {
-		SAY("Unknown protocol '%s' in argument '%s'", a, arg);
+		WARN("Unknown protocol '%s' in argument '%s'", a, arg);
 		return 0;
 	    }
 	} else {
@@ -61,7 +61,7 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 	} else if (proto == IPPROTO_UDP) {
 	    s->type = SOCK_DGRAM;
 	} else {
-	    SAY("Unknown proto '%d'", proto);
+	    WARN("Unknown proto '%d'", proto);
 	    return 0;
 	}
 
@@ -69,7 +69,7 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 	if (inet_aton(p, &ip) == 0) {
 	    struct hostent *host = gethostbyname2(p, AF_INET);
 	    if (!host) {
-		SAY("Failed to parse/resolve hostname %s", p);
+		WARN("Failed to parse/resolve hostname %s", p);
 		return 0;
 	    }
 
@@ -101,15 +101,15 @@ static int socketize_validate(const char *arg, char *a, relay_socket_t * s, int 
 	struct stat st;
 	char *dir = dirname(a);	/* NOTE: MODIFIES a! */
 	if (*dir && !(stat(dir, &st) == 0 && S_ISDIR(st.st_mode))) {
-	    SAY("%s: not a directory (for file %s)", dir, arg);
+	    WARN("%s: not a directory (for file %s)", dir, arg);
 	    return 0;
 	}
     } else {
-	SAY("Must specify a port in '%s'", arg);
+	WARN("Must specify a port in '%s'", arg);
 	return 0;
     }
     if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP || proto == SOCK_FAKE_FILE)) {
-	SAY("Unexpcted proto %d", proto);
+	WARN("Unexpcted proto %d", proto);
 	return 0;
     }
 
