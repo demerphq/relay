@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "control.h"
+#include "daemonize.h"
 #include "global.h"
 #include "log.h"
 #include "setproctitle.h"
@@ -424,10 +425,28 @@ static int serve(config_t * config)
     time_t last_alive = 0;
 
     control_set_bits(RELAY_RUNNING);
-    if (!GLOBAL.config->syslog_to_stderr)
-	printf("Running: pid %d\n", getpid());
-    else
-	SAY("Running");
+
+    if (GLOBAL.config->daemonize) {
+	if (daemonize()) {
+	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
+	} else {
+	    FATAL("Failed to daemonize");
+	    return 0;
+	}
+
+	WARN("Closing std fds");
+	if (!close_std_fds()) {
+	    FATAL("Failed to close std fds");	/* We might not see stderr of this... */
+	    return 0;
+	}
+
+	/* Now the standard file descriptors are closed,
+	 * only the syslog is available. */
+    } else {
+	printf("%s: running, pid %d\n", OUR_NAME, getpid());
+    }
+
+    SAY("Running");
 
     for (;;) {
 	uint32_t control = control_get_bits();

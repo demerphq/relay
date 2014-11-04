@@ -10,7 +10,7 @@
 #include "socket_worker.h"
 #include "string_util.h"
 
-static const char *OUR_NAME = "event-relay";
+const char *OUR_NAME = "event-relay";
 
 void config_destroy(void)
 {
@@ -30,6 +30,7 @@ void config_set_defaults(config_t * config)
 	return;
 
     config->syslog_to_stderr = DEFAULT_SYSLOG_TO_STDERR;
+    config->daemonize = DEFAULT_DAEMONIZE;
     config->tcp_send_timeout_millisec = DEFAULT_TCP_SEND_TIMEOUT_MILLISEC;
     config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
@@ -49,6 +50,7 @@ void config_dump(config_t * config)
     if (config == NULL)
 	return;
     SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
+    SAY("config->daemonize = %d", config->daemonize);
     SAY("config->tcp_send_timeout_millisec = %d", config->tcp_send_timeout_millisec);
     SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
     SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
@@ -221,6 +223,7 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
 	    p++;
 	    TRY_OPT_BEGIN {
 		TRY_NUM_OPT(syslog_to_stderr, copy, p);
+		TRY_NUM_OPT(daemonize, copy, p);
 
 		TRY_NUM_OPT(tcp_send_timeout_millisec, copy, p);
 		TRY_NUM_OPT(polling_interval_millisec, copy, p);
@@ -304,6 +307,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     if (!fixed_buffer_vcatf(buf, #name " = %s\n", config->name)) return 0;
 
     CONFIG_NUM_VCATF(syslog_to_stderr);
+    CONFIG_NUM_VCATF(daemonize);
     CONFIG_NUM_VCATF(tcp_send_timeout_millisec);
     CONFIG_NUM_VCATF(polling_interval_millisec);
     CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
@@ -511,6 +515,8 @@ int config_reload(config_t * config)
 	config->syslog_to_stderr = new_config->syslog_to_stderr;
 	config_changed = 1;
     }
+
+    IF_NUM_OPT_CHANGED(daemonize, config, new_config);
 
     IF_NUM_OPT_CHANGED(tcp_send_timeout_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);

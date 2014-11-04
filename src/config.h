@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <time.h>
 
+extern const char *OUR_NAME;
+
 struct graphite_config {
     /* host:port for sending data to graphite,
      * or a filename. */
@@ -37,6 +39,7 @@ struct config {
     int server_socket_rcvbuf_bytes;
     uint32_t spill_millisec;
     int syslog_to_stderr;
+    int daemonize;
 
     /* root directory for where we write failed sends,
      * and "spilled" data */
@@ -49,6 +52,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SYSLOG_TO_STDERR
 #define DEFAULT_SYSLOG_TO_STDERR 0
+#endif
+
+#ifndef DEFAULT_DAEMONIZE
+#define DEFAULT_DAEMONIZE 1
 #endif
 
 #ifndef DEFAULT_POLLING_INTERVAL_MILLISEC
