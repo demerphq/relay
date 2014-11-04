@@ -1,5 +1,0 @@
-* Add received stats to graphite output. (or hack a workaround for ps line)
-* Remove data about "disk writer wrote" stats from ps (last element in ps line)
-* Fixup syslog-to-stderr config option parsing
-* Better command line options (would be nice to be able to turn on stderr from cmd line)
-
