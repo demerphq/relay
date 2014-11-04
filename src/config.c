@@ -199,6 +199,60 @@ static int config_valid(config_t * config)
         break;                                                              \
     }
 
+static int config_from_line(config_t * config, char *line, char *copy, int *line_num, char *file)
+{
+    char *p;
+
+    (*line_num)++;
+
+    /* End-of-line comment. */
+    if ((p = strchr(copy, '#')))
+	*p = '\0';
+
+    trim_space(copy);
+
+    if (*copy) {
+	if ((p = strchr(copy, '='))) {
+	    if (p[1] == 0) {
+		SAY("Error in config file %s:%d: %s", file, *line_num, line);
+		return 0;
+	    }
+	    *p = '\0';
+	    p++;
+	    TRY_OPT_BEGIN {
+		TRY_NUM_OPT(syslog_to_stderr, copy, p);
+
+		TRY_NUM_OPT(tcp_send_timeout_millisec, copy, p);
+		TRY_NUM_OPT(polling_interval_millisec, copy, p);
+		TRY_NUM_OPT(sleep_after_disaster_millisec, copy, p);
+		TRY_NUM_OPT(server_socket_rcvbuf_bytes, copy, p);
+
+		TRY_STR_OPT(spill_root, copy, p);
+		TRY_NUM_OPT(spill_millisec, copy, p);
+
+		TRY_STR_OPT(graphite.addr, copy, p);
+		TRY_STR_OPT(graphite.target, copy, p);
+		TRY_NUM_OPT(graphite.send_interval_millisec, copy, p);
+		TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, copy, p);
+
+		WARN("Error in config file %s:%d: bad config option: %s", file, *line_num, line);
+		return 0;
+	    }
+	    TRY_OPT_END;
+
+	} else {
+	    config->argv = realloc_or_fatal(config->argv, sizeof(char *) * (config->argc + 1));
+	    if (config->argv == NULL)
+		return 0;
+
+	    config->argv[config->argc] = strdup(copy);
+	    config->argc++;
+	}
+    }
+
+    return 1;
+}
+
 static config_t *config_from_file(char *file)
 {
     FILE *f;
@@ -224,54 +278,9 @@ static config_t *config_from_file(char *file)
     }
 
     while (getline(&line, &len, f) != -1) {
-	char *p;
-
-	line_num++;
-
-	/* End-of-line comment. */
-	if ((p = strchr(line, '#')))
-	    *p = '\0';
-
-	trim_space(line);
-
-	if (*line) {
-	    if ((p = strchr(line, '='))) {
-		if (strlen(p) == 1) {
-		    SAY("Error in config file %s:%d: %s", file, line_num, line);
-		    return NULL;
-		}
-		*p = '\0';
-		p++;
-		TRY_OPT_BEGIN {
-		    TRY_NUM_OPT(syslog_to_stderr, line, p);
-
-		    TRY_NUM_OPT(tcp_send_timeout_millisec, line, p);
-		    TRY_NUM_OPT(polling_interval_millisec, line, p);
-		    TRY_NUM_OPT(sleep_after_disaster_millisec, line, p);
-		    TRY_NUM_OPT(server_socket_rcvbuf_bytes, line, p);
-
-		    TRY_STR_OPT(spill_root, line, p);
-		    TRY_NUM_OPT(spill_millisec, line, p);
-
-		    TRY_STR_OPT(graphite.addr, line, p);
-		    TRY_STR_OPT(graphite.target, line, p);
-		    TRY_NUM_OPT(graphite.send_interval_millisec, line, p);
-		    TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, line, p);
-
-		    WARN("Error in config file %s:%d: bad config option: %s", file, line_num, line);
-		    return NULL;
-		}
-		TRY_OPT_END;
-
-	    } else {
-		config->argv = realloc_or_fatal(config->argv, sizeof(line) * (config->argc + 1));
-		if (config->argv == NULL)
-		    return NULL;
-
-		config->argv[config->argc] = strdup(line);
-		config->argc++;
-	    }
-	}
+	char *copy = strdup(line);
+	config_from_line(config, line, copy, &line_num, file);
+	free(copy);
     }
     fclose(f);
     if (line)
@@ -580,20 +589,59 @@ void config_init(int argc, char **argv)
 
     config_set_defaults(GLOBAL.config);
 
+    closelog();
+    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID | (GLOBAL.config->syslog_to_stderr ? LOG_PERROR : 0),
+	    OUR_FACILITY);
+
     if (argc < 2) {
 	config_die_args(argc, argv);
-    } else if (argc == 2) {
-	GLOBAL.config->file = strdup(argv[1]);
+    }
+
+    int arglo = 0;		/* The last option arg. */
+
+    for (int i = 1; i < argc; i++) {
+	if (*argv[i] == '-')
+	    arglo = i;
+	else
+	    break;
+    }
+
+    int argfa = arglo + 1;	/* The first non-option arg. */
+
+    if (argfa == argc - 1) {
+	GLOBAL.config->file = strdup(argv[argfa]);
 	config_reload(GLOBAL.config);
-    } else {
+    }
+
+    /* The command line options override the defaults and the config file. */
+    for (int i = 1; i <= arglo; i++) {
+	char *p = argv[i];
+	if (*p == '-') {
+	    p++;
+	    if (*p == '-')	/* -opt=val or --opt=val */
+		p++;
+	    char *copy = strdup(p);
+	    int line_num = -1;
+	    if (!config_from_line(GLOBAL.config, argv[i], copy, &line_num, "argv")) {
+		FATAL("Invalid option");
+	    }
+	    free(copy);
+	}
+    }
+
+    if (argfa < argc - 1) {
 	GLOBAL.config->argv = realloc_or_fatal(GLOBAL.config->argv, sizeof(char *) * (argc));
 	if (GLOBAL.config->argv == NULL)
 	    return;
-	int i;
-	for (i = 0; i < argc - 1; i++) {
-	    GLOBAL.config->argv[i] = strdup(argv[i + 1]);
+	for (int i = argfa; i < argc; i++) {
+	    GLOBAL.config->argv[i - argfa] = strdup(argv[i]);
 	}
-	GLOBAL.config->argc = i;
+	GLOBAL.config->argc = argc - argfa;
+    }
+
+    if (!config_valid(GLOBAL.config)) {
+	FATAL("Invalid initial configuration");
+	return;
     }
 
     closelog();
@@ -605,5 +653,5 @@ void config_init(int argc, char **argv)
 void config_die_args(int argc, char **argv)
 {
     (void) argc;
-    FATAL("%s local-host:local-port tcp@remote-host:remote-port ... or config file", argv[0]);
+    FATAL("%s [--opt=val] [config.file | udp@local-host:local-port tcp@remote-host:remote-port ...]", argv[0]);
 }
