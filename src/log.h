@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "control.h"
+#include "global.h"
 #include "relay_common.h"
 
 #define OUR_FACILITY LOG_LOCAL5
@@ -31,12 +32,13 @@
         char str[TS_LEN];	\
      } ts;			\
     (void)time(&ts.t);		\
-    (void)localtime_r(&ts.t, &ts.tm);	\
-    strftime(ts.str, TS_LEN, "%Y-%m-%d %H:%M:%S", &ts.tm);	\
-    syslog(	\
-            (OUR_FACILITY | (LOG_ ## type)),	\
-            "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, ts.str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__ \
-    );	\
+    (void)localtime_r(&ts.t, &ts.tm); \
+    strftime(ts.str, TS_LEN, "%Y-%m-%d %H:%M:%S", &ts.tm); \
+    char logbuf[1024]; \
+    snprintf(logbuf, sizeof(logbuf), "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, ts.str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__); \
+    if ((LOG_ ## type == LOG_CRIT || LOG_ ## type == LOG_WARNING) && (!control_is(RELAY_RUNNING) || !GLOBAL.config->syslog_to_stderr)) \
+	fprintf(stderr, "%s", logbuf); \
+    syslog((OUR_FACILITY | LOG_ ## type), "%s", logbuf);	\
 } STMT_END
 
 #define WARN(fmt, arg...) _LOG(WARNING, fmt, ## arg)
