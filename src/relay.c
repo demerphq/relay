@@ -424,6 +424,10 @@ static int serve(config_t * config)
     time_t last_alive = 0;
 
     control_set_bits(RELAY_RUNNING);
+    if (!GLOBAL.config->syslog_to_stderr)
+	printf("Running: pid %d\n", getpid());
+    else
+	SAY("Running");
 
     for (;;) {
 	uint32_t control = control_get_bits();
