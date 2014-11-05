@@ -6,7 +6,7 @@
 
 #include "log.h"
 
-int daemonize(void)
+int daemonize(int do_chroot)
 {
     pid_t pid;
 
@@ -17,9 +17,9 @@ int daemonize(void)
 	return 0;
     }
     if (pid)
-	_exit(0);		/* We are the parent, bye-bye. */
+	_exit(0);		/* We are the first parent, bye-bye. */
 
-    /* Become the session leader. */
+    /* Become the session leader: detaches from the tty. */
     if (setsid() == -1) {
 	FATAL_ERRNO("Failed setsid");
 	return 0;
@@ -32,14 +32,15 @@ int daemonize(void)
 	return 0;
     }
     if (pid)
-	_exit(0);		/* We are the first generation, bye-byte. */
+	_exit(0);		/* We are the second parent, bye-byte. */
 
-    /* Change directory to root. */
-    if (chdir("/") == -1) {
+    /* Change directory to root, maybe. */
+    if (do_chroot && chdir("/") == -1) {
 	FATAL_ERRNO("Failed chdir to root");
 	return 0;
     }
 
+    /* Clear file creation mask. */
     umask(0);
 
     return 1;
