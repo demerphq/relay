@@ -20,7 +20,7 @@ void config_destroy(void)
     free(GLOBAL.config->graphite.addr);
     free(GLOBAL.config->graphite.target);
     free(GLOBAL.config->spill_root);
-    free(GLOBAL.config->file);
+    free(GLOBAL.config->config_file);
     free(GLOBAL.config);
 }
 
@@ -201,7 +201,8 @@ static int config_valid(config_t * config)
         break;                                                              \
     }
 
-static int config_from_line(config_t * config, char *line, char *copy, int *line_num, char *file)
+static int config_from_line(config_t * config, const char *line, char *copy, char **opt, char **val, int *line_num,
+			    const char *file)
 {
     char *p;
 
@@ -213,7 +214,11 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
 
     trim_space(copy);
 
+    *opt = NULL;
+    *val = NULL;
+
     if (*copy) {
+	*opt = copy;
 	if ((p = strchr(copy, '='))) {
 	    if (p[1] == 0) {
 		SAY("Error in config file %s:%d: %s", file, *line_num, line);
@@ -224,6 +229,10 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
 	    TRY_OPT_BEGIN {
 		TRY_NUM_OPT(syslog_to_stderr, copy, p);
 		TRY_NUM_OPT(daemonize, copy, p);
+
+		/* Hack: line_num zero means argv. */
+		if (*line_num == 0)
+		    TRY_STR_OPT(config_file, copy, p);
 
 		TRY_NUM_OPT(tcp_send_timeout_millisec, copy, p);
 		TRY_NUM_OPT(polling_interval_millisec, copy, p);
@@ -242,6 +251,7 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
 		return 0;
 	    }
 	    TRY_OPT_END;
+	    *val = p;
 	} else {
 	    config->argv = realloc_or_fatal(config->argv, sizeof(char *) * (config->argc + 1));
 	    if (config->argv == NULL)
@@ -255,7 +265,7 @@ static int config_from_line(config_t * config, char *line, char *copy, int *line
     return 1;
 }
 
-static config_t *config_from_file(char *file)
+static config_t *config_from_file(const char *file)
 {
     FILE *f;
     char *line = NULL;
@@ -279,9 +289,10 @@ static config_t *config_from_file(char *file)
 	return NULL;
     }
 
+    char *opt, *val;
     while (getline(&line, &len, f) != -1) {
 	char *copy = strdup(line);
-	if (!config_from_line(config, line, copy, &line_num, file)) {
+	if (!config_from_line(config, line, copy, &opt, &val, &line_num, file)) {
 	    WARN("Invalid config line");
 	}
 	free(copy);
@@ -353,8 +364,8 @@ static int config_to_file(const config_t * config, int fd)
 
 static int config_save(const config_t * config, time_t now)
 {
-    if (config->file == NULL) {
-	WARN("Failed to save config with NULL name");
+    if (config->config_file == NULL) {
+	WARN("Failed to save config with NULL file name");
 	return 0;
     }
 
@@ -372,7 +383,7 @@ static int config_save(const config_t * config, time_t now)
      * the directory for the config not to be littered by the copies.
      */
     char temp[PATH_MAX];
-    char *p = config->file;
+    char *p = config->config_file;
     char *q = temp;
     char *qe = temp + sizeof(temp);
     /* Safer than strcpy or strncpy */
@@ -381,7 +392,7 @@ static int config_save(const config_t * config, time_t now)
     if (q < qe) {
 	*q = 0;
     } else {
-	WARN("Failed to copy config filename %s", config->file);
+	WARN("Failed to copy config filename %s", config->config_file);
 	return 0;
     }
 
@@ -428,7 +439,7 @@ static int config_save(const config_t * config, time_t now)
     }
 
     char save[PATH_MAX];
-    wrote = snprintf(save, PATH_MAX, "%s.save.%ld", config->file, now);
+    wrote = snprintf(save, PATH_MAX, "%s.save.%ld", config->config_file, now);
     if (wrote < 0 || wrote >= PATH_MAX) {
 	WARN("Failed to write %s as %s.save (wrote %d bytes)", save, save, wrote);
 	return 0;
@@ -467,7 +478,7 @@ static int config_save(const config_t * config, time_t now)
     }						            \
   } while(0)
 
-int config_reload(config_t * config)
+int config_reload(config_t * config, const char *file)
 {
     time_t now = time(NULL);
     int config_changed = 0;
@@ -479,12 +490,12 @@ int config_reload(config_t * config)
 	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
     if (config->generation == 0) {
-	SAY("Loading config file %s", config->file);
+	SAY("Loading config file %s", file);
 	config_changed = 1;
     } else
-	SAY("Reloading config file %s", config->file);
+	SAY("Reloading config file %s", file);
 
-    config_t *new_config = config_from_file(config->file);
+    config_t *new_config = config_from_file(file);
 
     if (new_config == NULL) {
 	if (config->generation) {
@@ -498,10 +509,10 @@ int config_reload(config_t * config)
     }
 
     if (config->generation == 0) {
-	SAY("Loaded config file %s", config->file);
+	SAY("Loaded config file %s", file);
 	SAY("Initial config");
     } else {
-	SAY("Reloaded config file %s", config->file);
+	SAY("Reloaded config file %s", file);
 	SAY("New unmerged config");
     }
 
@@ -618,46 +629,42 @@ void config_init(int argc, char **argv)
 	config_die_args(argc, argv);
     }
 
-    int arglo = 0;		/* The last option arg. */
+    int argi = 0;
 
-    for (int i = 1; i < argc; i++) {
-	if (*argv[i] == '-')
-	    arglo = i;
-	else
-	    break;
-    }
-
-    int argfa = arglo + 1;	/* The first non-option arg. */
-
-    if (argfa == argc - 1) {
-	GLOBAL.config->file = strdup(argv[argfa]);
-	config_reload(GLOBAL.config);
-    }
-
-    /* The command line options override the defaults and the config file. */
-    for (int i = 1; i <= arglo; i++) {
-	char *p = argv[i];
+    for (argi = 1; argi < argc; argi++) {
+	char *p = argv[argi];
 	if (*p == '-') {
 	    p++;
 	    if (*p == '-')	/* -opt=val or --opt=val */
 		p++;
 	    char *copy = strdup(p);
 	    int line_num = -1;
-	    if (!config_from_line(GLOBAL.config, argv[i], copy, &line_num, "argv")) {
+	    char *opt = NULL, *val = NULL;
+	    if (config_from_line(GLOBAL.config, argv[argi], copy, &opt, &val, &line_num, "argv")) {
+		if (opt && val && STREQ(opt, "config_file"))
+		    config_reload(GLOBAL.config, val);
+	    } else {
 		FATAL("Invalid option");
 	    }
 	    free(copy);
-	}
+	} else
+	    break;
     }
 
-    if (argfa < argc - 1) {
-	GLOBAL.config->argv = realloc_or_fatal(GLOBAL.config->argv, sizeof(char *) * (argc));
+    if (argi < argc) {
+	int argn = argc - argi;
+
+	if (argn < 2) {
+	    config_die_args(argc, argv);
+	}
+
+	GLOBAL.config->argv = realloc_or_fatal(GLOBAL.config->argv, sizeof(char *) * argn);
 	if (GLOBAL.config->argv == NULL)
 	    return;
-	for (int i = argfa; i < argc; i++) {
-	    GLOBAL.config->argv[i - argfa] = strdup(argv[i]);
+	for (int i = argi; i < argc; i++) {
+	    GLOBAL.config->argv[i - argi] = strdup(argv[i]);
 	}
-	GLOBAL.config->argc = argc - argfa;
+	GLOBAL.config->argc = argn;
     }
 
     if (!config_valid(GLOBAL.config)) {
@@ -674,5 +681,5 @@ void config_init(int argc, char **argv)
 void config_die_args(int argc, char **argv)
 {
     (void) argc;
-    FATAL("%s [--opt=val] [config.file | udp@local-host:local-port tcp@remote-host:remote-port ...]", argv[0]);
+    FATAL("%s [--opt=val ...] [udp@local-host:local-port tcp@remote-host:remote-port ...]", argv[0]);
 }

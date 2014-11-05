@@ -29,7 +29,7 @@ struct config {
     time_t epoch_success;
 
     /* config filename itself */
-    char *file;
+    char *config_file;
 
     /* various meta data used for sending, etc */
     int polling_interval_millisec;
@@ -98,7 +98,7 @@ typedef struct config config_t;
 #define DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC 500
 #endif
 
-int config_reload(config_t * config);
+int config_reload(config_t * config, const char *file);
 void config_set_defaults(config_t * config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);
