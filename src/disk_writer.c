@@ -88,13 +88,16 @@ void *disk_writer_thread(void *arg)
 {
     disk_writer_t *self = (disk_writer_t *) arg;
 
+    if (!recreate_spill_path(self->spill_path)) {
+	WARN("Spill path creation failed");
+	return NULL;
+    }
+    SAY("disk writer started using path '%s' for files", self->spill_path);
+
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
     blob_t *b;
     uint32_t done_work = 0;
-
-    recreate_spill_path(self->spill_path);
-    SAY("disk writer started using path '%s' for files", self->spill_path);
 
     memset(&private_queue, 0, sizeof(private_queue));
 
