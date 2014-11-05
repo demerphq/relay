@@ -461,7 +461,10 @@ static int config_save(const config_t * config, time_t now)
         free(config->name);                                 \
         config->name = new_config->name;                    \
         config_changed = 1;                                 \
-    } \
+    } else {						    \
+	free(new_config->name);			    	    \
+	new_config->name = NULL;		    	    \
+    }						            \
   } while(0)
 
 int config_reload(config_t * config)
@@ -573,10 +576,6 @@ int config_reload(config_t * config)
 	config_dump(config);
     }
 
-    /* XXX merge this with config_destroy, but beware initial vs merge cases */
-    free(new_config->graphite.addr);
-    free(new_config->graphite.target);
-    free(new_config->spill_root);
     free(new_config);
 
     if (config_changed) {
