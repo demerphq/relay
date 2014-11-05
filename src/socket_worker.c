@@ -133,8 +133,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 	    sck = NULL;
 	    break;		/* stop sending from the hijacked queue */
 	} else if (bytes_sent < bytes_to_send) {
-	    /* XXX should this be FATAL_ERRNO() ? */
-	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_sent, sck->to_string, bytes_to_send);
+	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_to_send, sck->to_string, bytes_sent);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    wrote += bytes_sent;
 	} else {
