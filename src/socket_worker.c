@@ -105,6 +105,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 	    raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
 	    bytes_sent = sendto(sck->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
 	}
+
+	/* For debugging. */
 	if (0) {
 	    int saverrno = errno;
 	    WARN("%s: tried sending %zd bytes, sent %zd",
