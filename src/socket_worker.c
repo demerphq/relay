@@ -184,7 +184,7 @@ void *socket_worker_thread(void *arg)
 	    sck = open_socket_eventually(&self->base.output_socket, config);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
 		FATAL("Failed to get socket for graphite worker");
-		return NULL;
+		break;
 	    }
 	}
 
