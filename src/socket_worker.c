@@ -59,12 +59,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     const struct sockaddr *dest_addr = (const struct sockaddr *) &(*sck)->sa.in;
     socklen_t addr_len = (*sck)->addrlen;
 
+    char *to_addr = (*sck)->to_string;
+
     cork(*sck, 1);
 
     while (private_queue->head != NULL) {
-	ssize_t bytes_sent = -2;
-	ssize_t bytes_to_send = 0;
-
 	get_time(&now);
 
 	cur_blob = private_queue->head;
@@ -96,54 +95,76 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	if (!cur_blob)
 	    break;
 
-	void *raw_bytes;
+	void *blob_data;
+	ssize_t blob_size;
+
 	if ((*sck)->type == SOCK_DGRAM) {
-	    bytes_to_send = BLOB_BUF_SIZE(cur_blob);
-	    raw_bytes = BLOB_BUF_addr(cur_blob);
-	    bytes_sent = sendto((*sck)->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, dest_addr, addr_len);
+	    blob_size = BLOB_BUF_SIZE(cur_blob);
+	    blob_data = BLOB_BUF_addr(cur_blob);
 	} else {		/* (*sck)->type == SOCK_STREAM */
-	    bytes_to_send = BLOB_DATA_MBR_SIZE(cur_blob);
-	    raw_bytes = BLOB_DATA_MBR_addr(cur_blob);
-	    bytes_sent = sendto((*sck)->socket, raw_bytes, bytes_to_send, MSG_NOSIGNAL, NULL, 0);
+	    blob_size = BLOB_DATA_MBR_SIZE(cur_blob);
+	    blob_data = BLOB_DATA_MBR_addr(cur_blob);
 	}
 
-	/* For debugging. */
-	if (0) {
-	    int saverrno = errno;
-	    WARN("%s: tried sending %zd bytes, sent %zd",
-		 ((*sck)->type == SOCK_DGRAM) ? "udp" : "tcp", bytes_to_send, bytes_sent);
-	    void *p = raw_bytes;
-	    int peek_bytes = bytes_to_send > 16 ? 16 : bytes_to_send;
-	    for (int i = 0; i < peek_bytes; i++) {
-		printf("%02x ", ((unsigned char *) p)[i]);
+	ssize_t blob_left = blob_size;
+	ssize_t blob_sent = 0;
+	int disked = 0;
+
+	while (blob_left > 0) {
+	    const void *data = (const char *) blob_data + blob_sent;
+	    ssize_t sent;
+
+	    if ((*sck)->type == SOCK_DGRAM) {
+		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, dest_addr, addr_len);
+	    } else {		/* (*sck)->type == SOCK_STREAM */
+		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, NULL, 0);
 	    }
-	    printf("| ");
-	    for (int i = 0; i < peek_bytes; i++) {
-		unsigned char c = ((unsigned char *) p)[i];
-		printf("%c", isprint(c) ? c : '.');
+
+	    /* For debugging. */
+	    if (0) {
+		int saverrno = errno;
+		WARN("%s: tried sending %zd bytes, sent %zd",
+		     ((*sck)->type == SOCK_DGRAM) ? "udp" : "tcp", blob_left, sent);
+		const unsigned char *p = data;
+		int peek_bytes = blob_left > 16 ? 16 : blob_left;
+		for (int i = 0; i < peek_bytes; i++) {
+		    printf("%02x ", p[i]);
+		}
+		printf("| ");
+		for (int i = 0; i < peek_bytes; i++) {
+		    unsigned char c = p[i];
+		    printf("%c", isprint(c) ? c : '.');
+		}
+		if (peek_bytes < blob_left)
+		    printf("...\n");
+		errno = saverrno;
 	    }
-	    if (peek_bytes < bytes_to_send)
-		printf("...\n");
-	    errno = saverrno;
+
+	    if (sent == -1) {
+		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, to_addr);
+		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
+		disked = 1;
+		enqueue_blob_for_disk_writing(self, cur_blob);
+		close((*sck)->socket);
+		*sck = NULL;	/* will be reopened by the main loop */
+		break;		/* stop sending from the hijacked queue */
+	    }
+
+	    blob_sent += sent;
+	    blob_left -= sent;
 	}
 
-	if (bytes_sent == -1) {
-	    /* XXX should this be FATAL_ERRNO() ? */
-	    WARN_ERRNO("sendto() tried %zd bytes to %s but wrote none", bytes_to_send, (*sck)->to_string);
-	    RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
-	    enqueue_blob_for_disk_writing(self, cur_blob);
-	    close((*sck)->socket);
-	    *sck = NULL;	/* will be reopened by the main loop */
-	    break;		/* stop sending from the hijacked queue */
-	} else if (bytes_sent < bytes_to_send) {
-	    WARN("sendto() tried %zd bytes to %s but wrote only %zd", bytes_to_send, (*sck)->to_string, bytes_sent);
-	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
-	    wrote += bytes_sent;
-	} else {
+	if (blob_sent == blob_size) {
 	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
-	    wrote += bytes_sent;
+	} else if (blob_sent < blob_size) {
+	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, to_addr, blob_sent);
+	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	}
-	blob_destroy(cur_blob);
+
+	if (!disked) /* The disk writer will destroy this blob. */
+	    blob_destroy(cur_blob);
+
+	wrote += blob_sent;
     }
 
     cork(*sck, 0);
