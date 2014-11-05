@@ -110,13 +110,24 @@ static int is_valid_socketize(const char *arg, int default_proto, int connection
     return 1;
 }
 
-static int is_valid_directory(const char *path)
+static int is_valid_directory(const char *path, int *saverr)
 {
-    if (!is_non_empty_string(path))
-	return 0;
-    struct stat st;
-    /* Yes, there's a race condition here. */
-    return (stat(path, &st) == 0 || S_ISDIR(st.st_mode)) ? 1 : 0;
+    if (is_non_empty_string(path)) {
+	struct stat st;
+	/* Yes, there's a race condition here. */
+	if (stat(path, &st) == 0) {
+	    if (S_ISDIR(st.st_mode)) {
+		return 1;
+	    } else {
+		*saverr = ENOTDIR;
+	    }
+	} else {
+	    *saverr = errno;
+	}
+    } else {
+	*saverr = EINVAL;
+    }
+    return 0;
 }
 
 /* The upper limit is pretty arbitrary, but the basic idea is to
@@ -139,6 +150,9 @@ static int is_valid_buffer_size(uint32_t size)
 #define CONFIG_VALID_STR(config, t, v, invalid)		\
     do { if (!t(config->v)) { WARN("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
+#define CONFIG_VALID_DIRECTORY(config, v, invalid)		\
+    do { int saverr; if (!is_valid_directory(config->v, &saverr)) { errno = saverr; WARN_ERRNO("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
+
 #define CONFIG_VALID_SOCKETIZE(config, p, d, r, v, invalid)		\
     do { if (!is_valid_socketize(config->v, p, d, r " (config check)")) { WARN("%s value '%s' invalid", #v, config->v); invalid++; } } while (0)
 
@@ -154,7 +168,7 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
 
-    CONFIG_VALID_STR(config, is_valid_directory, spill_root, invalid);
+    CONFIG_VALID_DIRECTORY(config, spill_root, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, spill_millisec, invalid);
 
     CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.addr, invalid);
