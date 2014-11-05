@@ -352,7 +352,7 @@ pthread_t setup_listener(config_t * config)
     GLOBAL.listener->polling_interval_millisec = config->polling_interval_millisec;
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(GLOBAL.listener, DO_BIND | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
+    open_socket(GLOBAL.listener, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
