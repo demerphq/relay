@@ -59,8 +59,6 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     const struct sockaddr *dest_addr = (const struct sockaddr *) &(*sck)->sa.in;
     socklen_t addr_len = (*sck)->addrlen;
 
-    char *to_addr = (*sck)->to_string;
-
     cork(*sck, 1);
 
     while (private_queue->head != NULL) {
@@ -108,6 +106,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 
 	ssize_t blob_left = blob_size;
 	ssize_t blob_sent = 0;
+	int failed = 0;
 	int disked = 0;
 
 	while (blob_left > 0) {
@@ -141,12 +140,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    }
 
 	    if (sent == -1) {
-		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, to_addr);
+		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, (*sck)->to_string);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
 		disked = 1;
 		enqueue_blob_for_disk_writing(self, cur_blob);
-		close((*sck)->socket);
-		*sck = NULL;	/* will be reopened by the main loop */
+		failed = 1;
 		break;		/* stop sending from the hijacked queue */
 	    }
 
@@ -157,17 +155,25 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	if (blob_sent == blob_size) {
 	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
 	} else if (blob_sent < blob_size) {
-	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, to_addr, blob_sent);
+	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, (*sck)->to_string, blob_sent);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
+	    failed = 1;
 	}
 
-	if (!disked) /* The disk writer will destroy this blob. */
+	wrote += blob_sent;
+
+	if (!disked)		/* The disk writer will destroy this blob. */
 	    blob_destroy(cur_blob);
 
-	wrote += blob_sent;
+	if (failed) {
+	    close((*sck)->socket);
+	    *sck = NULL;	/* will be reopened by the main loop */
+	    break;
+	}
     }
 
-    cork(*sck, 0);
+    if (*sck)
+	cork(*sck, 0);
 
     get_time(&send_end_time);
 
