@@ -10,7 +10,7 @@
 void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_t received, stats_count_t tcp)
 {
     LOCK(&GLOBAL.pool.lock);
-    buf->used = 0;		/* Reset the buffer. */
+    fixed_buffer_reset(buf);
     do {
 	for (int i = 0; i < config->argc; i++) {
 	    if (!fixed_buffer_vcatf(buf, "%s ", config->argv[i]))
@@ -36,7 +36,7 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 	}
     } while (0);
     UNLOCK(&GLOBAL.pool.lock);
-    buf->data[buf->used < buf->size ? buf->used : buf->size - 1] = 0;
+    fixed_buffer_zero_terminate(buf);
     setproctitle(buf->data);
 }
 

@@ -122,8 +122,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
     LOCK(&GLOBAL.pool.lock);
 
-    /* reset the buffer to the beginning */
-    buffer->used = 0;
+    fixed_buffer_reset(buffer);
 
     socket_worker_t *w;
     TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
