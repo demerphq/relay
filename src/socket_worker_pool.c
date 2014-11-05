@@ -7,28 +7,34 @@
 #include "string_util.h"
 
 /* update the process status line with the status of the workers */
-void update_process_status(fixed_buffer_t * buf, stats_count_t received, stats_count_t tcp)
+void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_t received, stats_count_t tcp)
 {
     LOCK(&GLOBAL.pool.lock);
     buf->used = 0;		/* Reset the buffer. */
-    if (fixed_buffer_vcatf(buf, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
-	socket_worker_t *w;
-	int worker_id = 0;
-	TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
-	    if (!fixed_buffer_vcatf(buf,
-				    " [%d] sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
-				    ++worker_id,
-				    (unsigned long) RELAY_ATOMIC_READ(w->recents.sent_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->recents.spilled_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->recents.disk_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->recents.disk_error_count),
-				    (unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count)))
+    do {
+	for (int i = 0; i < config->argc; i++) {
+	    if (!fixed_buffer_vcatf(buf, "%s ", config->argv[i]))
 		break;
 	}
-    }
+	if (fixed_buffer_vcatf(buf, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
+	    socket_worker_t *w;
+	    int worker_id = 0;
+	    TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
+		if (!fixed_buffer_vcatf(buf,
+					" [%d] sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
+					++worker_id,
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.sent_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.spilled_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.disk_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.disk_error_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.disk_error_count)))
+		    break;
+	    }
+	}
+    } while (0);
     UNLOCK(&GLOBAL.pool.lock);
     buf->data[buf->used < buf->size ? buf->used : buf->size - 1] = 0;
     setproctitle(buf->data);
