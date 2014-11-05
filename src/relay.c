@@ -400,32 +400,6 @@ static void graphite_config_destroy(struct graphite_config *config)
 
 static int serve(config_t * config)
 {
-    pthread_t server_tid = 0;
-
-    signal(SIGTERM, sig_handler);
-    signal(SIGINT, sig_handler);
-    signal(SIGPIPE, sig_handler);
-    signal(SIGHUP, sig_handler);
-
-    setproctitle("starting");
-
-    GLOBAL.listener = calloc_or_fatal(sizeof(relay_socket_t));
-    if (GLOBAL.listener == NULL)
-	return EXIT_FAILURE;
-
-    worker_pool_init_static(config);
-    server_tid = setup_listener(config);
-    GLOBAL.graphite_worker = graphite_worker_create(config);
-    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread, GLOBAL.graphite_worker);
-
-    fixed_buffer_t *process_status_buffer = fixed_buffer_create(PROCESS_STATUS_BUF_LEN);
-
-    /* Every ALIVE_PERIOD second show the process status line also with syslog(). */
-#define ALIVE_PERIOD 60
-    time_t last_alive = 0;
-
-    control_set_bits(RELAY_RUNNING);
-
     if (GLOBAL.config->daemonize) {
 	if (daemonize()) {
 	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
@@ -446,7 +420,35 @@ static int serve(config_t * config)
 	printf("%s: running, pid %d\n", OUR_NAME, getpid());
     }
 
+    setproctitle("starting");
+
+    signal(SIGTERM, sig_handler);
+    signal(SIGINT, sig_handler);
+    signal(SIGPIPE, sig_handler);
+    signal(SIGHUP, sig_handler);
+
+    GLOBAL.listener = calloc_or_fatal(sizeof(relay_socket_t));
+    if (GLOBAL.listener == NULL)
+	return EXIT_FAILURE;
+
+    pthread_t server_tid = 0;
+
+    worker_pool_init_static(config);
+    server_tid = setup_listener(config);
+    GLOBAL.graphite_worker = graphite_worker_create(config);
+    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread, GLOBAL.graphite_worker);
+
+    fixed_buffer_t *process_status_buffer = fixed_buffer_create(PROCESS_STATUS_BUF_LEN);
+
+    /* Every ALIVE_PERIOD second show the process status line also with syslog(). */
+#define ALIVE_PERIOD 60
+    time_t last_alive = 0;
+
+    control_set_bits(RELAY_RUNNING);
+
     SAY("Running");
+
+    setproctitle("running");
 
     for (;;) {
 	uint32_t control = control_get_bits();
@@ -489,6 +491,9 @@ static int serve(config_t * config)
 	    last_alive = now;
 	}
     }
+
+    setproctitle("stopping");
+
     final_shutdown(server_tid);
     fixed_buffer_destroy(process_status_buffer);
     SAY("Bye");
