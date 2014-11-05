@@ -1,5 +1,7 @@
 #include "disk_writer.h"
 
+#include <unistd.h>
+
 #include "config.h"
 #include "global.h"
 #include "log.h"
@@ -11,6 +13,22 @@ static int recreate_spill_path(char *dir)
 {
     if (mkdir(dir, 0750) == -1 && errno != EEXIST) {
 	FATAL_ERRNO("mkdir of %s failed", dir);
+	return 0;
+    }
+    /* Yes, this is full of race fail. */
+    struct stat st;
+    if (stat(dir, &st) == -1) {
+	FATAL_ERRNO("stat of %s failed", dir);
+	return 0;
+    }
+    if (!S_ISDIR(st.st_mode)) {
+	errno = ENOTDIR;
+	FATAL_ERRNO("%s", dir);
+	return 0;
+    }
+    if (access(dir, R_OK | W_OK | X_OK)) {
+	errno = EPERM;
+	FATAL_ERRNO("%s", dir);
 	return 0;
     }
     return 1;
