@@ -495,10 +495,17 @@ static int serve(config_t * config)
 	}
     }
 
+    update_process_status(process_status_buffer,
+			  config,
+			  RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
+			  RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
+    SAY("%s", process_status_buffer->data);
+    fixed_buffer_destroy(process_status_buffer);
+
     setproctitle("stopping");
 
     final_shutdown(server_tid);
-    fixed_buffer_destroy(process_status_buffer);
+
     SAY("Bye");
     closelog();
 
