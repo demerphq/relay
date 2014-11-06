@@ -21,7 +21,11 @@ struct disk_writer {
 
     char spill_path[PATH_MAX];
     char last_file_path[PATH_MAX];
+
+    int spill_path_created;
+
     time_t last_epoch;
+
     int fd;
 };
 typedef struct disk_writer disk_writer_t;

@@ -55,8 +55,11 @@ static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	    FATAL("Filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
 	    return 0;
 	}
-	if (!recreate_spill_path(self->spill_path))
-	    return 0;
+	if (!self->spill_path_created) {
+	    if (!recreate_spill_path(self->spill_path))
+		return 0;
+	    self->spill_path_created = 1;
+	}
 	self->fd = open(self->last_file_path, O_WRONLY | O_APPEND | O_CREAT, 0640);
 	if (self->fd < 0) {
 	    FATAL_ERRNO("open '%s' failed", self->last_file_path);
