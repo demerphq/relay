@@ -37,6 +37,7 @@ struct config {
     int max_pps;		/* XXX unused */
     int tcp_send_timeout_millisec;
     int server_socket_rcvbuf_bytes;
+    int server_socket_sndbuf_bytes;
     uint32_t spill_millisec;
     int syslog_to_stderr;
     int daemonize;
@@ -68,6 +69,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SERVER_SOCKET_RCVBUF_BYTES
 #define DEFAULT_SERVER_SOCKET_RCVBUF_BYTES (32 * 1024 * 1024)
+#endif
+
+#ifndef DEFAULT_SERVER_SOCKET_SNDBUF_BYTES
+#define DEFAULT_SERVER_SOCKET_SNDBUF_BYTES (32 * 1024 * 1024)
 #endif
 
 #ifndef DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC

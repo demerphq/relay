@@ -35,6 +35,7 @@ void config_set_defaults(config_t * config)
     config->polling_interval_millisec = DEFAULT_POLLING_INTERVAL_MILLISEC;
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
+    config->server_socket_sndbuf_bytes = DEFAULT_SERVER_SOCKET_SNDBUF_BYTES;
 
     config->spill_millisec = DEFAULT_SPILL_MILLISEC;
     config->spill_root = strdup(DEFAULT_SPILL_ROOT);
@@ -55,7 +56,7 @@ void config_dump(config_t * config)
     SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
     SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
     SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
-
+    SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_sndbuf_bytes);
 
     SAY("config->spill_root = %s", config->spill_root);
     SAY("config->spill_millisec = %d", config->spill_millisec);
@@ -168,6 +169,7 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_millisec, polling_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
+    CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_sndbuf_bytes, invalid);
 
     CONFIG_VALID_DIRECTORY(config, spill_root, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, spill_millisec, invalid);
@@ -253,6 +255,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 		TRY_NUM_OPT(polling_interval_millisec, copy, p);
 		TRY_NUM_OPT(sleep_after_disaster_millisec, copy, p);
 		TRY_NUM_OPT(server_socket_rcvbuf_bytes, copy, p);
+		TRY_NUM_OPT(server_socket_sndbuf_bytes, copy, p);
 
 		TRY_STR_OPT(spill_root, copy, p);
 		TRY_NUM_OPT(spill_millisec, copy, p);
@@ -339,6 +342,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     CONFIG_NUM_VCATF(polling_interval_millisec);
     CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
     CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
+    CONFIG_NUM_VCATF(server_socket_sndbuf_bytes);
 
     CONFIG_STR_VCATF(spill_root);
     CONFIG_NUM_VCATF(spill_millisec);
@@ -563,6 +567,7 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(sleep_after_disaster_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
+    IF_NUM_OPT_CHANGED(server_socket_sndbuf_bytes, config, new_config);
 
     IF_STR_OPT_CHANGED(spill_root, config, new_config);
     IF_NUM_OPT_CHANGED(spill_millisec, config, new_config);
