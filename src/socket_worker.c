@@ -102,7 +102,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	ssize_t blob_sent = 0;
 	int failed = 0;
 
-	while (blob_left > 0) {
+	while (!RELAY_ATOMIC_READ(self->base.stopping) && blob_left > 0) {
 	    const void *data = (const char *) blob_data + blob_sent;
 	    ssize_t sent;
 
