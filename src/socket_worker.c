@@ -53,6 +53,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     const struct sockaddr *dest_addr = (const struct sockaddr *) &(*sck)->sa.in;
     socklen_t addr_len = (*sck)->addrlen;
 
+    int failed = 0;
+
     cork(*sck, 1);
 
     while (private_queue->head != NULL) {
@@ -100,7 +102,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 
 	ssize_t blob_left = blob_size;
 	ssize_t blob_sent = 0;
-	int failed = 0;
+
+	failed = 0;
 
 	while (!RELAY_ATOMIC_READ(self->base.stopping) && blob_left > 0) {
 	    const void *data = (const char *) blob_data + blob_sent;
@@ -154,8 +157,6 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	wrote += blob_sent;
 
 	if (failed) {
-	    close((*sck)->socket);
-	    *sck = NULL;	/* will be reopened by the main loop */
 	    break;
 	} else {
 	    queue_shift_nolock(private_queue);
@@ -163,8 +164,12 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	}
     }
 
-    if (*sck)
-	cork(*sck, 0);
+    cork(*sck, 0);
+
+    if (failed) {
+	close((*sck)->socket);
+	*sck = NULL;		/* will be reopened by the main loop */
+    }
 
     get_time(&send_end_time);
 
