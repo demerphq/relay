@@ -142,9 +142,10 @@ static int is_valid_millisec(uint32_t millisec)
 
 static int is_valid_buffer_size(uint32_t size)
 {
-    /* Pretty arbitrary choices but let's require alignment by 4096,
-     * and at least one megabyte. */
-    return ((size & 4095) == 0) && (size >= 1 << 20);
+    /* Pretty arbitrary choice but let's require alignment by 1048576,
+     * which is also the minimum size. */
+#define ONE_MEGABYTE (1024 * 1024)
+    return (size >= ONE_MEGABYTE && ((size & (ONE_MEGABYTE - 1)) == 0));
 }
 
 #define CONFIG_VALID_STR(config, t, v, invalid)		\
