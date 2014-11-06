@@ -218,7 +218,7 @@ relay_socket_t *open_send_socket_eventually(relay_socket_t * s, const config_t *
 	    /* no socket - wait a while, double the wait, and then redo the loop */
 	    SAY("waiting %d millisec to retry socket %s", nap, s->to_string);
 	    worker_wait_millisec(nap);
-	    nap = 2 * nap + 1;	/* XXX maybe also randomize a bit? */
+	    nap = 2 * nap + (time(NULL) & 31); /* "Random" fuzz of up to 0.031s. */
 	    /* XXX maximum wait after which to give up? */
 	}
     }
