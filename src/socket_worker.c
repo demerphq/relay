@@ -52,14 +52,15 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     stats_count_t spilled = 0;
     ssize_t wrote = 0;
 
-    get_time(&send_start_time);
-
-    const uint64_t spill_microsec = 1000 * self->base.config->spill_millisec;
+    const config_t *config = self->base.config;
+    const uint64_t spill_microsec = 1000 * config->spill_millisec;
 
     const struct sockaddr *dest_addr = (const struct sockaddr *) &(*sck)->sa.in;
     socklen_t addr_len = (*sck)->addrlen;
 
     int failed = 0;
+
+    get_time(&send_start_time);
 
     cork(*sck, 1);
 
@@ -108,6 +109,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 
 	ssize_t blob_left = blob_size;
 	ssize_t blob_sent = 0;
+	int sendto_errno = 0;
 
 	failed = 0;
 
@@ -115,11 +117,13 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    const void *data = (const char *) blob_data + blob_sent;
 	    ssize_t sent;
 
+	    sendto_errno = 0;
 	    if ((*sck)->type == SOCK_DGRAM) {
 		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, dest_addr, addr_len);
 	    } else {		/* (*sck)->type == SOCK_STREAM */
 		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, NULL, 0);
 	    }
+	    sendto_errno = errno;
 
 	    /* For debugging. */
 	    if (0) {
@@ -144,6 +148,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    if (sent == -1) {
 		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, (*sck)->to_string);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
+		if (sendto_errno == EINTR) {
+		    /* sendto() got interrupted by a signal.  Wait a while and retry. */
+		    worker_wait_millisec(config->sleep_after_disaster_millisec);
+		    continue;
+		}
 		failed = 1;
 		break;		/* stop sending from the hijacked queue */
 	    }
@@ -155,6 +164,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	if (blob_sent == blob_size) {
 	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
 	} else if (blob_sent < blob_size) {
+	    /* Despite the send-loop above, we failed to send all the bytes. */
 	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, (*sck)->to_string, blob_sent);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    failed = 1;
@@ -163,6 +173,14 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	wrote += blob_sent;
 
 	if (failed) {
+	    /* We failed to send this packet.  Exit the loop, and
+	     * right after the loop close the socket, and get out,
+	     * letting the main loop to reconnect. */
+	    if ((sendto_errno == EAGAIN || sendto_errno == EWOULDBLOCK)) {
+		/* Traffic jam.  Wait a while, but still get out. */
+		WARN("Traffic jam");
+		worker_wait_millisec(config->sleep_after_disaster_millisec);
+	    }
 	    break;
 	} else {
 	    queue_shift_nolock(private_queue);
