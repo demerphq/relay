@@ -211,7 +211,7 @@ relay_socket_t *open_socket_eventually(relay_socket_t * s, const config_t * conf
 
     while (!sck) {
 	/* lets try to open one */
-	if (open_socket(s, DO_CONNECT, 0, 0)) {
+	if (open_socket(s, DO_CONNECT, config->server_socket_sndbuf_bytes, 0)) {
 	    sck = s;
 	} else {
 	    /* no socket - wait a while, double the wait, and then redo the loop */
