@@ -40,6 +40,11 @@ static void cork(relay_socket_t * s, int flag)
 
 static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t * private_queue, queue_t * spill_queue)
 {
+    if (*sck == NULL) {
+	WARN("NULL queue socket");
+	return 0;
+    }
+
     blob_t *cur_blob;
     struct timeval now;
     struct timeval send_start_time;
