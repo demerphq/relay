@@ -14,6 +14,7 @@ my %Opt =
      proto  => "udp",
      prefix => undef,
      port   => 10000,
+     rate   => undef,
      waitns => 1000,
      period => 60,
 
@@ -24,7 +25,7 @@ my %Opt =
      forever => 0,
     );
 
-die "usage: $0 --host=$Opt{host} --port=$Opt{port} [--proto=[udp|tcp] [--prefix=...] [--file=$Opt{file}] [--count=N|--MB=N|--sec=N|--forever] [--waitns=$Opt{waitns}] [--period=N]"
+die "usage: $0 --host=$Opt{host} --port=$Opt{port} [--proto=[udp|tcp] [--prefix=...] [--file=$Opt{file}] [--count=N|--MB=N|--sec=N|--forever] [--rate=N] [--waitns=$Opt{waitns}] [--period=N]"
     unless (GetOptions("port=i"      => \$Opt{port},
 		       "file=s"      => \$Opt{file},
 		       "proto=s"     => \$Opt{proto},
@@ -34,6 +35,7 @@ die "usage: $0 --host=$Opt{host} --port=$Opt{port} [--proto=[udp|tcp] [--prefix=
 		       "sec=f"       => \$Opt{sec},
 		       "forever"     => \$Opt{forever},
 		       "period=i"    => \$Opt{period},
+		       "rate=i"      => \$Opt{rate},
 		       "waitns=i"    => \$Opt{waitns},
 		       "host=s"      => \$Opt{host})
 	    && ($Opt{count} > 0 || $Opt{mb} > 0 || $Opt{sec} > 0 || $Opt{forever}) && $Opt{proto} =~ /^(?:udp|tcp)/);
@@ -71,6 +73,7 @@ my $last_packets = 0;
 my $start_hires = Time::HiRes::time();
 my $now_hires   = $start_hires;
 my $last_time   = 0;
+my $last_hires  = 0;
 
 $SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
 
@@ -80,8 +83,10 @@ alarm($Opt{period});
 my $remote = IO::Socket::INET->new(Proto => $Opt{proto},
 				   PeerAddr => $Opt{host},
 				   PeerPort => $Opt{port}) or die "$0: $!";
+
 while (1) {
-    my $now = time();
+    my $now_hires = Time::HiRes::time();
+    my $now = int($now_hires);
     if ($last_time != $now) {
 	if ($last_time) {
 	    my $sent_packets = $packets - $last_packets;
@@ -92,6 +97,7 @@ while (1) {
 	    }
 	}
 	$last_time = $now;
+	$last_hires = $now_hires;
         $last_packets = $packets;
     }
     my $prefix = $Opt{prefix} // '';
@@ -103,6 +109,16 @@ while (1) {
     last if !$Opt{forever} &&
             ($Opt{count} > 0 && $packets >= $Opt{count}) ||
             ($Opt{sec} > 0 && $now - $start_hires >= $Opt{sec});
+    if (defined $Opt{rate} && $now_hires > $last_hires) {
+	my $rate = ($packets - $last_packets) / ($now_hires - $last_hires);
+	if ($rate > $Opt{rate}) {
+	    my $d = 1 / $Opt{rate};
+	    $d -= $Opt{waitns} / 1e9;
+	    if ($d > 0) {
+		Time::HiRes::sleep($d);
+	    }
+	}
+    }
     Time::HiRes::nanosleep($Opt{waitns}) if $Opt{waitns};
 }
 
