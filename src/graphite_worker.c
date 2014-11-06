@@ -9,6 +9,7 @@
 #include "relay_threads.h"
 #include "socket_worker_pool.h"
 #include "string_util.h"
+#include "worker_util.h"
 
 #define FORMAT_BUFFER_SIZE 256
 
@@ -236,7 +237,7 @@ void *graphite_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    sck = open_send_socket_eventually(&self->base.output_socket, config);
+	    sck = open_output_socket_eventually(&self->base);
 	    if (sck == NULL) {
 		FATAL("Failed to get socket for graphite");
 		break;

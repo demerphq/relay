@@ -8,6 +8,7 @@
 #include "setproctitle.h"
 #include "string_util.h"
 #include "timer.h"
+#include "socket_util.h"
 #include "socket_worker.h"
 #include "socket_worker_pool.h"
 

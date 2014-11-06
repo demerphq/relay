@@ -14,6 +14,7 @@
 #include "relay_threads.h"
 #include "socket_util.h"
 #include "timer.h"
+#include "worker_util.h"
 
 /* if a worker failed to send we need to write the item to the disk */
 static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
@@ -204,7 +205,7 @@ void *socket_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    sck = open_send_socket_eventually(&self->base.output_socket, config);
+	    sck = open_output_socket_eventually(&self->base);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
 		FATAL("Failed to get socket for graphite worker");
 		break;
