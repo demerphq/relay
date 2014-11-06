@@ -41,6 +41,7 @@ if ($Opt{sec} > 0) {
 my $SELECT = IO::Select->new();
 socket(my $server, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 setsockopt($server, SOL_SOCKET, SO_REUSEADDR, 1);
+setsockopt($server, SOL_SOCKET, SO_RCVBUF, 4 * 1024 * 1024);
 
 my $srl= Sereal::Decoder->new();
 
