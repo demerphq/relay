@@ -204,7 +204,7 @@ void *socket_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    sck = open_socket_eventually(&self->base.output_socket, config);
+	    sck = open_send_socket_eventually(&self->base.output_socket, config);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
 		FATAL("Failed to get socket for graphite worker");
 		break;

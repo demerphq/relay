@@ -204,7 +204,7 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
     return ok;
 }
 
-relay_socket_t *open_socket_eventually(relay_socket_t * s, const config_t * config)
+relay_socket_t *open_send_socket_eventually(relay_socket_t * s, const config_t * config)
 {
     relay_socket_t *sck = NULL;
     int nap = config->sleep_after_disaster_millisec;
