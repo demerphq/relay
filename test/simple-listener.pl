@@ -167,8 +167,8 @@ sub read_more_or_cleanup {
         delete $DATA{$fn};
         delete $SIZE{$fn};
         delete $HAS_HEADER{$fn};
-        close($fh);
         $SELECT->remove($fh);
+        close($fh);
     }
     return (exists $DATA{$fn} && length($DATA{$fn}) == $size);
 }
