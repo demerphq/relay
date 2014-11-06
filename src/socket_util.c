@@ -135,9 +135,9 @@ int socketize(const char *arg, relay_socket_t * s, int default_proto, int connec
     return valid;
 }
 
-#define FATAL_CLOSE_FAIL(s, fmt, arg...)	\
+#define WARN_CLOSE_FAIL(s, fmt, arg...)	\
 STMT_START {                        \
-    FATAL_ERRNO(fmt, ##arg);	    \
+    WARN_ERRNO(fmt, ##arg);	    \
     close(s->socket);               \
     return 0;                       \
 } STMT_END
@@ -158,48 +158,48 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
     }
 
     if ((s->socket = socket(s->sa.in.sin_family, s->type, s->proto)) < 0)
-	FATAL_CLOSE_FAIL(s, "socket[%s]", s->to_string);
+	WARN_CLOSE_FAIL(s, "socket[%s]", s->to_string);
 
     if (flags & DO_BIND) {
 	if (flags & DO_REUSEADDR) {
 	    int optval = 1;
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
-		FATAL_CLOSE_FAIL(s, "setsockopt[REUSEADDR]");
+		WARN_CLOSE_FAIL(s, "setsockopt[REUSEADDR]");
 	}
 	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
-	    FATAL_CLOSE_FAIL(s, "bind[%s]", s->to_string);
+	    WARN_CLOSE_FAIL(s, "bind[%s]", s->to_string);
 	if (s->proto == IPPROTO_TCP) {
 	    if (listen(s->socket, SOMAXCONN))
-		FATAL_CLOSE_FAIL(s, "listen[%s]", s->to_string);
+		WARN_CLOSE_FAIL(s, "listen[%s]", s->to_string);
 	}
     } else if (flags & DO_CONNECT) {
 	if (s->proto == IPPROTO_TCP) {
 	    if (connect(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
-		FATAL_CLOSE_FAIL(s, "connect[%s]", s->to_string);
+		WARN_CLOSE_FAIL(s, "connect[%s]", s->to_string);
 	    if (GLOBAL.config->tcp_send_timeout_millisec > 0) {
 		struct timeval timeout;
 		timeout.tv_sec = GLOBAL.config->tcp_send_timeout_millisec / 1000;
 		timeout.tv_usec = 1000 * (GLOBAL.config->tcp_send_timeout_millisec % 1000);
 
 		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)
-		    FATAL_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+		    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
 	    }
 	}
     }
     if (snd > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd))
 	    < 0)
-	    FATAL_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+	    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
     }
     if (rcv > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv))
 	    < 0)
-	    FATAL_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+	    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
     }
     if (ok)
 	SAY("Connected %s", s->to_string);
     else
-	FATAL_CLOSE_FAIL(s, "Failed to connect %s", s->to_string);
+	WARN_CLOSE_FAIL(s, "Failed to connect %s", s->to_string);
 
     return ok;
 }
