@@ -15,12 +15,6 @@
 #include "socket_util.h"
 #include "timer.h"
 
-/* add an item to a disk worker queue */
-static void enqueue_blob_for_disk_writing(socket_worker_t * worker, struct blob *b)
-{
-    queue_append(&worker->disk_writer->queue, b, &worker->lock);
-}
-
 /* if a worker failed to send we need to write the item to the disk */
 static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
 {
@@ -89,7 +83,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    enqueue_queue_for_disk_writing(self, spill_queue);
 	}
 
-	cur_blob = queue_shift_nolock(private_queue);
+	cur_blob = private_queue->head;
 	if (!cur_blob)
 	    break;
 
@@ -107,7 +101,6 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	ssize_t blob_left = blob_size;
 	ssize_t blob_sent = 0;
 	int failed = 0;
-	int disked = 0;
 
 	while (blob_left > 0) {
 	    const void *data = (const char *) blob_data + blob_sent;
@@ -142,8 +135,6 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    if (sent == -1) {
 		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, (*sck)->to_string);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
-		disked = 1;
-		enqueue_blob_for_disk_writing(self, cur_blob);
 		failed = 1;
 		break;		/* stop sending from the hijacked queue */
 	    }
@@ -162,13 +153,13 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 
 	wrote += blob_sent;
 
-	if (!disked)		/* The disk writer will destroy this blob. */
-	    blob_destroy(cur_blob);
-
 	if (failed) {
 	    close((*sck)->socket);
 	    *sck = NULL;	/* will be reopened by the main loop */
 	    break;
+	} else {
+	    queue_shift_nolock(private_queue);
+	    blob_destroy(cur_blob);
 	}
     }
 
