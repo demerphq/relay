@@ -164,7 +164,7 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
 	if (flags & DO_REUSEADDR) {
 	    int optval = 1;
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
-		WARN_CLOSE_FAIL(s, "setsockopt[REUSEADDR]");
+		WARN_CLOSE_FAIL(s, "setsockopt[%s, REUSEADDR, 1]", s->to_string);
 	}
 	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
 	    WARN_CLOSE_FAIL(s, "bind[%s]", s->to_string);
@@ -182,19 +182,20 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
 		timeout.tv_usec = 1000 * (GLOBAL.config->tcp_send_timeout_millisec % 1000);
 
 		if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout)) < 0)
-		    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+		    WARN_CLOSE_FAIL(s, "setsockopt[%s, SO_SNDTIMEO, %d.%06d sec]", s->to_string, (int) timeout.tv_sec,
+				    (int) timeout.tv_usec);
 	    }
 	}
     }
     if (snd > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, sizeof(snd))
 	    < 0)
-	    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+	    WARN_CLOSE_FAIL(s, "setsockopt[%s, SO_SNDBUF %d]", s->to_string, snd);
     }
     if (rcv > 0) {
 	if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv))
 	    < 0)
-	    WARN_CLOSE_FAIL(s, "setsockopt[%s]", s->to_string);
+	    WARN_CLOSE_FAIL(s, "setsockopt[%s, SO_RCVBUF, %d]", s->to_string, rcv);
     }
     if (ok)
 	SAY("Connected %s", s->to_string);
