@@ -25,12 +25,12 @@ fixed_buffer_t *fixed_buffer_create(size_t size);
 
 int fixed_buffer_vcatf(fixed_buffer_t * buf, const char *fmt, ...);
 
-INLINE void fixed_buffer_reset(fixed_buffer_t * buf)
+INLINE static void fixed_buffer_reset(fixed_buffer_t * buf)
 {
     buf->used = 0;
 }
 
-INLINE void fixed_buffer_zero_terminate(fixed_buffer_t * buf)
+INLINE static void fixed_buffer_zero_terminate(fixed_buffer_t * buf)
 {
     buf->data[buf->used < buf->size ? buf->used : buf->size - 1] = 0;
 }
