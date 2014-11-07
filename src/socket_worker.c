@@ -75,6 +75,25 @@ static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queu
     return spilled;
 }
 
+static void peek_send(relay_socket_t * sck, const void *data, ssize_t blob_left, ssize_t sent)
+{
+    int saverrno = errno;
+    WARN("%s: tried sending %zd bytes, sent %zd", (sck->type == SOCK_DGRAM) ? "udp" : "tcp", blob_left, sent);
+    const unsigned char *p = data;
+    int peek_bytes = blob_left > 16 ? 16 : blob_left;
+    for (int i = 0; i < peek_bytes; i++) {
+	printf("%02x ", p[i]);
+    }
+    printf("| ");
+    for (int i = 0; i < peek_bytes; i++) {
+	unsigned char c = p[i];
+	printf("%c", isprint(c) ? c : '.');
+    }
+    if (peek_bytes < blob_left)
+	printf("...\n");
+    errno = saverrno;
+}
+
 static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue,
 			 ssize_t * wrote)
 {
@@ -129,6 +148,9 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 
 	failed = 0;
 
+	/* Keep sending while we have data left since a single sendto()
+	 * doesn't necessarily send all of it.  This may eventually fail
+	 * if sendto() returns -1. */
 	while (!RELAY_ATOMIC_READ(self->base.stopping) && blob_left > 0) {
 	    const void *data = (const char *) blob_data + blob_sent;
 	    ssize_t sent;
@@ -141,24 +163,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 	    }
 	    sendto_errno = errno;
 
-	    /* For debugging. */
-	    if (0) {
-		int saverrno = errno;
-		WARN("%s: tried sending %zd bytes, sent %zd",
-		     (sck->type == SOCK_DGRAM) ? "udp" : "tcp", blob_left, sent);
-		const unsigned char *p = data;
-		int peek_bytes = blob_left > 16 ? 16 : blob_left;
-		for (int i = 0; i < peek_bytes; i++) {
-		    printf("%02x ", p[i]);
-		}
-		printf("| ");
-		for (int i = 0; i < peek_bytes; i++) {
-		    unsigned char c = p[i];
-		    printf("%c", isprint(c) ? c : '.');
-		}
-		if (peek_bytes < blob_left)
-		    printf("...\n");
-		errno = saverrno;
+	    if (0) {		/* For debugging. */
+		peek_send(sck, data, blob_left, sent);
 	    }
 
 	    if (sent == -1) {
