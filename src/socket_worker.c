@@ -65,12 +65,41 @@ static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queu
 	private_queue->count -= spill_queue->count;
 	BLOB_NEXT_set(cur_blob, NULL);
 
-	spilled = spill_queue->count;
+	spilled += spill_queue->count;
 
 	RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
 
 	enqueue_queue_for_disk_writing(self, spill_queue);
     }
+
+    return spilled;
+}
+
+static stats_count_t spill_all(socket_worker_t * self, queue_t * private_queue, queue_t * spill_queue)
+{
+    blob_t *cur_blob = private_queue->head;
+
+    if (!cur_blob)
+	return 0;
+
+    stats_count_t spilled = 0;
+
+    spill_queue->head = cur_blob;
+    spill_queue->count = 1;
+    while (BLOB_NEXT(cur_blob)) {
+	cur_blob = BLOB_NEXT(cur_blob);
+	spill_queue->count++;
+    }
+    spill_queue->tail = cur_blob;
+    private_queue->head = BLOB_NEXT(cur_blob);
+    private_queue->count -= spill_queue->count;
+    BLOB_NEXT_set(cur_blob, NULL);
+
+    spilled += spill_queue->count;
+
+    RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
+
+    enqueue_queue_for_disk_writing(self, spill_queue);
 
     return spilled;
 }
@@ -299,12 +328,18 @@ void *socket_worker_thread(void *arg)
 	} else {
 	    WARN("No forwarding socket to flush to");
 	}
+	SAY("Flushing any remaining events to disk");
+	stats_count_t spilled = spill_all(self, &private_queue, &spill_queue);
+	SAY("Flushed %lu events to disk", spilled);
     } else {
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
     }
 
-    SAY("worker[%s] processed %lu packets in its lifetime",
-	(sck ? sck->to_string : self->base.arg), (unsigned long) RELAY_ATOMIC_READ(self->totals.received_count));
+    SAY("worker[%s] in its lifetime received %lu sent %lu spilled %lu",
+	(sck ? sck->to_string : self->base.arg),
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.received_count),
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count),
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.sent_count));
 
     if (sck)
 	close(sck->socket);
