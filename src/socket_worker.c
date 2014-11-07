@@ -38,6 +38,43 @@ static void cork(relay_socket_t * s, int flag)
 #endif
 }
 
+static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queue, queue_t * spill_queue,
+				  uint64_t spill_microsec, struct timeval *now)
+{
+    /* Peel off all the blobs which have been in the queue
+     * for longer than the spill limit, move them to the
+     * spill queue, and enqueue them for spilling. */
+
+    blob_t *cur_blob = private_queue->head;
+
+    if (!cur_blob)
+	return 0;
+
+    stats_count_t spilled = 0;
+
+    if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), now) >= spill_microsec) {
+	spill_queue->head = cur_blob;
+	spill_queue->count = 1;
+	while (BLOB_NEXT(cur_blob)
+	       && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), now) >= spill_microsec) {
+	    cur_blob = BLOB_NEXT(cur_blob);
+	    spill_queue->count++;
+	}
+	spill_queue->tail = cur_blob;
+	private_queue->head = BLOB_NEXT(cur_blob);
+	private_queue->count -= spill_queue->count;
+	BLOB_NEXT_set(cur_blob, NULL);
+
+	spilled = spill_queue->count;
+
+	RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
+
+	enqueue_queue_for_disk_writing(self, spill_queue);
+    }
+
+    return spilled;
+}
+
 static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t * private_queue, queue_t * spill_queue)
 {
     if (*sck == NULL) {
@@ -67,30 +104,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     while (private_queue->head != NULL) {
 	get_time(&now);
 
-	cur_blob = private_queue->head;
-
-	/* Peel off all the blobs which have been in the queue
-	 * for longer than the spill limit, move them to the
-	 * spill queue, and enqueue them for spilling. */
-	if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), &now) >= spill_microsec) {
-	    spill_queue->head = cur_blob;
-	    spill_queue->count = 1;
-	    while (BLOB_NEXT(cur_blob)
-		   && elapsed_usec(&BLOB_RECEIVED_TIME(BLOB_NEXT(cur_blob)), &now) >= spill_microsec) {
-		cur_blob = BLOB_NEXT(cur_blob);
-		spill_queue->count++;
-	    }
-	    spill_queue->tail = cur_blob;
-	    private_queue->head = BLOB_NEXT(cur_blob);
-	    private_queue->count -= spill_queue->count;
-	    BLOB_NEXT_set(cur_blob, NULL);
-
-	    spilled += spill_queue->count;
-
-	    RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
-
-	    enqueue_queue_for_disk_writing(self, spill_queue);
-	}
+	spilled += spill_by_age(self, private_queue, spill_queue, spill_microsec, &now);
 
 	cur_blob = private_queue->head;
 	if (!cur_blob)
