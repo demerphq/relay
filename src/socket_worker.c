@@ -75,10 +75,11 @@ static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queu
     return spilled;
 }
 
-static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t * private_queue, queue_t * spill_queue)
+static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t * private_queue, queue_t * spill_queue,
+			 ssize_t * wrote)
 {
-    if (*sck == NULL) {
-	WARN("NULL queue socket");
+    if (sck == NULL) {
+	WARN("NULL forwarding socket");
 	return 0;
     }
 
@@ -87,19 +88,20 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     struct timeval send_start_time;
     struct timeval send_end_time;
     stats_count_t spilled = 0;
-    ssize_t wrote = 0;
 
     const config_t *config = self->base.config;
     const uint64_t spill_microsec = 1000 * config->spill_millisec;
 
-    const struct sockaddr *dest_addr = (const struct sockaddr *) &(*sck)->sa.in;
-    socklen_t addr_len = (*sck)->addrlen;
+    const struct sockaddr *dest_addr = (const struct sockaddr *) &sck->sa.in;
+    socklen_t addr_len = sck->addrlen;
 
     int failed = 0;
 
+    *wrote = 0;
+
     get_time(&send_start_time);
 
-    cork(*sck, 1);
+    cork(sck, 1);
 
     while (private_queue->head != NULL) {
 	get_time(&now);
@@ -113,10 +115,10 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	void *blob_data;
 	ssize_t blob_size;
 
-	if ((*sck)->type == SOCK_DGRAM) {
+	if (sck->type == SOCK_DGRAM) {
 	    blob_size = BLOB_BUF_SIZE(cur_blob);
 	    blob_data = BLOB_BUF_addr(cur_blob);
-	} else {		/* (*sck)->type == SOCK_STREAM */
+	} else {		/* sck->type == SOCK_STREAM */
 	    blob_size = BLOB_DATA_MBR_SIZE(cur_blob);
 	    blob_data = BLOB_DATA_MBR_addr(cur_blob);
 	}
@@ -132,10 +134,10 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    ssize_t sent;
 
 	    sendto_errno = 0;
-	    if ((*sck)->type == SOCK_DGRAM) {
-		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, dest_addr, addr_len);
-	    } else {		/* (*sck)->type == SOCK_STREAM */
-		sent = sendto((*sck)->socket, data, blob_left, MSG_NOSIGNAL, NULL, 0);
+	    if (sck->type == SOCK_DGRAM) {
+		sent = sendto(sck->socket, data, blob_left, MSG_NOSIGNAL, dest_addr, addr_len);
+	    } else {		/* sck->type == SOCK_STREAM */
+		sent = sendto(sck->socket, data, blob_left, MSG_NOSIGNAL, NULL, 0);
 	    }
 	    sendto_errno = errno;
 
@@ -143,7 +145,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    if (0) {
 		int saverrno = errno;
 		WARN("%s: tried sending %zd bytes, sent %zd",
-		     ((*sck)->type == SOCK_DGRAM) ? "udp" : "tcp", blob_left, sent);
+		     (sck->type == SOCK_DGRAM) ? "udp" : "tcp", blob_left, sent);
 		const unsigned char *p = data;
 		int peek_bytes = blob_left > 16 ? 16 : blob_left;
 		for (int i = 0; i < peek_bytes; i++) {
@@ -160,7 +162,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    }
 
 	    if (sent == -1) {
-		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, (*sck)->to_string);
+		WARN_ERRNO("sendto() tried sending %zd bytes to %s but sent none", blob_left, sck->to_string);
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
 		if (sendto_errno == EINTR) {
 		    /* sendto() got interrupted by a signal.  Wait a while and retry. */
@@ -179,12 +181,12 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	    RELAY_ATOMIC_INCREMENT(self->counters.sent_count, 1);
 	} else if (blob_sent < blob_size) {
 	    /* Despite the send-loop above, we failed to send all the bytes. */
-	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, (*sck)->to_string, blob_sent);
+	    WARN("sendto() tried sending %zd bytes to %s but sent only %zd", blob_size, sck->to_string, blob_sent);
 	    RELAY_ATOMIC_INCREMENT(self->counters.partial_count, 1);
 	    failed = 1;
 	}
 
-	wrote += blob_sent;
+	*wrote += blob_sent;
 
 	if (failed) {
 	    /* We failed to send this packet.  Exit the loop, and
@@ -202,12 +204,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
 	}
     }
 
-    cork(*sck, 0);
-
-    if (failed) {
-	close((*sck)->socket);
-	*sck = NULL;		/* will be reopened by the main loop */
-    }
+    cork(sck, 0);
 
     get_time(&send_end_time);
 
@@ -219,7 +216,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t ** sck, queue_t 
     uint64_t usec = elapsed_usec(&send_start_time, &send_end_time);
     RELAY_ATOMIC_INCREMENT(self->counters.send_elapsed_usec, usec);
 
-    return wrote;
+    return failed == 0;
 }
 
 /* the main loop for the socket worker process */
@@ -242,9 +239,10 @@ void *socket_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
+	    WARN("Opening forwarding socket");
 	    sck = open_output_socket_eventually(&self->base);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
-		FATAL("Failed to get socket for graphite worker");
+		FATAL_ERRNO("Failed to open forwarding socket");
 		break;
 	    }
 	}
@@ -270,7 +268,14 @@ void *socket_worker_thread(void *arg)
 	    break;
 	}
 
-	process_queue(self, &sck, &private_queue, &spill_queue);
+	ssize_t wrote = 0;
+	if (!process_queue(self, sck, &private_queue, &spill_queue, &wrote)) {
+	    if (!RELAY_ATOMIC_READ(self->base.stopping)) {
+		WARN("Closing forwarding socket");
+		close(sck->socket);
+		sck = NULL;
+	    }
+	}
 
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
     }
@@ -278,9 +283,16 @@ void *socket_worker_thread(void *arg)
     if (control_is(RELAY_STOPPING)) {
 	SAY("Stopping, trying worker flush");
 	stats_count_t old_sent = self->totals.sent_count;
-	ssize_t wrote = process_queue(self, &sck, &private_queue, &spill_queue);
-	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
-	SAY("Worker flush wrote %zd bytes in %lu events", wrote, self->totals.sent_count - old_sent);
+	if (sck) {
+	    ssize_t wrote = 0;
+	    if (!process_queue(self, sck, &private_queue, &spill_queue, &wrote)) {
+		WARN_ERRNO("Worker flush failed");
+	    }
+	    accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
+	    SAY("Worker flush wrote %zd bytes in %lu events", wrote, self->totals.sent_count - old_sent);
+	} else {
+	    WARN("No forwarding socket to flush to");
+	}
     } else {
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
     }
