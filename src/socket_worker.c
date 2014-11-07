@@ -316,21 +316,23 @@ void *socket_worker_thread(void *arg)
     }
 
     if (control_is(RELAY_STOPPING)) {
-	SAY("Stopping, trying worker flush");
+	SAY("Socket worker stopping, trying forwarding flush");
 	stats_count_t old_sent = self->totals.sent_count;
+	stats_count_t old_spilled = self->totals.spilled_count;
 	if (sck) {
 	    ssize_t wrote = 0;
 	    if (!process_queue(self, sck, &private_queue, &spill_queue, &wrote)) {
-		WARN_ERRNO("Worker flush failed");
+		WARN_ERRNO("Forwarding flush failed");
 	    }
 	    accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
-	    SAY("Worker flush wrote %zd bytes in %lu events", wrote, self->totals.sent_count - old_sent);
+	    SAY("Forwarding flush forwarded %zd bytes in %lu events, spilled %lu events",
+		wrote, self->totals.sent_count - old_sent, self->totals.spilled_count - old_spilled);
 	} else {
 	    WARN("No forwarding socket to flush to");
 	}
-	SAY("Flushing any remaining events to disk");
+	SAY("Socket worker spilling any remaining events to disk");
 	stats_count_t spilled = spill_all(self, &private_queue, &spill_queue);
-	SAY("Flushed %lu events to disk", spilled);
+	SAY("Socket worker spilled %lu events to disk", spilled);
     } else {
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
     }
@@ -338,8 +340,8 @@ void *socket_worker_thread(void *arg)
     SAY("worker[%s] in its lifetime received %lu sent %lu spilled %lu",
 	(sck ? sck->to_string : self->base.arg),
 	(unsigned long) RELAY_ATOMIC_READ(self->totals.received_count),
-	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count),
-	(unsigned long) RELAY_ATOMIC_READ(self->totals.sent_count));
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.sent_count),
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count));
 
     if (sck)
 	close(sck->socket);

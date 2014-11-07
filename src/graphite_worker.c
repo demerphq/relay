@@ -261,7 +261,7 @@ void *graphite_worker_thread(void *arg)
 
     if (control_is(RELAY_STOPPING)) {
 	/* Try to flush. */
-	SAY("Stopping, trying graphite flush");
+	SAY("Graphite worker stopping, trying graphite flush");
 	if (graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
 	    if (graphite_send(sck, buffer, &wrote)) {
 		SAY("Graphite flush successful, wrote %zd bytes", wrote);

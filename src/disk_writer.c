@@ -162,7 +162,7 @@ void *disk_writer_thread(void *arg)
     }
 
     if (control_is(RELAY_STOPPING)) {
-	SAY("Stopping, trying disk flush");
+	SAY("Disk writer stopping, trying disk flush");
 	queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock);
 	b = private_queue.head;
 	size_t wrote = 0;
