@@ -98,7 +98,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_SPILL_ROOT
-#define DEFAULT_SPILL_ROOT "/tmp"
+#define DEFAULT_SPILL_ROOT "/var/log/events/spill"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ADDR
