@@ -42,6 +42,9 @@ struct config {
     int syslog_to_stderr;
     int daemonize;
 
+    /* directory for the config saves */
+    char *config_save_root;
+
     /* root directory for where we write failed sends,
      * and "spilled" data */
     char *spill_root;
@@ -77,6 +80,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC
 #define DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC 100
+#endif
+
+#ifndef DEFAULT_CONFIG_SAVE_ROOT
+#define DEFAULT_CONFIG_SAVE_ROOT "/tmp"
 #endif
 
 #ifndef DEFAULT_SPILL_MILLISEC
