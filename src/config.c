@@ -49,33 +49,6 @@ void config_set_defaults(config_t * config)
     config->graphite.sleep_poll_interval_millisec = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC;
 }
 
-void config_dump(config_t * config)
-{
-    if (config == NULL)
-	return;
-    SAY("config->syslog_to_stderr = %d", config->syslog_to_stderr);
-    SAY("config->daemonize = %d", config->daemonize);
-    SAY("config->tcp_send_timeout_millisec = %d", config->tcp_send_timeout_millisec);
-    SAY("config->polling_interval_millisec = %d", config->polling_interval_millisec);
-    SAY("config->sleep_after_disaster_millisec = %d", config->sleep_after_disaster_millisec);
-    SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_rcvbuf_bytes);
-    SAY("config->server_socket_rcvbuf_bytes = %d", config->server_socket_sndbuf_bytes);
-
-    SAY("config->config_save_root = %s", config->config_save_root);
-
-    SAY("config->spill_root = %s", config->spill_root);
-    SAY("config->spill_millisec = %d", config->spill_millisec);
-
-    SAY("config->graphite.addr = %s", config->graphite.addr);
-    SAY("config->graphite.target = %s", config->graphite.target);
-    SAY("config->graphite.send_interval_millisec = %d", config->graphite.send_interval_millisec);
-    SAY("config->graphite.sleep_poll_interval_millisec = %d", config->graphite.sleep_poll_interval_millisec);
-    if (config->argc > 0)
-	SAY("listener address = %s", config->argv[0]);
-    for (int i = 1; i < config->argc; i++)
-	SAY("forward address = %s", config->argv[i]);
-}
-
 static int is_non_empty_string(const char *s)
 {
     return s && *s ? 1 : 0;
@@ -331,6 +304,52 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
     return 1;
 }
 
+static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
+{
+#define CONFIG_NUM_VCATF(name) \
+    if (!fixed_buffer_vcatf(buf, #name " = %d\n", config->name)) return 0;
+#define CONFIG_STR_VCATF(name) \
+    if (!fixed_buffer_vcatf(buf, #name " = %s\n", config->name)) return 0;
+
+    CONFIG_NUM_VCATF(syslog_to_stderr);
+    CONFIG_NUM_VCATF(daemonize);
+    CONFIG_NUM_VCATF(tcp_send_timeout_millisec);
+    CONFIG_NUM_VCATF(polling_interval_millisec);
+    CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
+    CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
+    CONFIG_NUM_VCATF(server_socket_sndbuf_bytes);
+
+    CONFIG_STR_VCATF(config_save_root);
+
+    CONFIG_STR_VCATF(spill_root);
+    CONFIG_NUM_VCATF(spill_millisec);
+
+    CONFIG_STR_VCATF(graphite.addr);
+    CONFIG_STR_VCATF(graphite.target);
+    CONFIG_NUM_VCATF(graphite.send_interval_millisec);
+    CONFIG_NUM_VCATF(graphite.sleep_poll_interval_millisec);
+
+    for (int i = 0; i < config->argc; i++) {
+	if (!fixed_buffer_vcatf(buf, "%s\n", config->argv[i]))
+	    return 0;
+    }
+    return 1;
+}
+
+void config_dump(config_t * config)
+{
+    if (config == NULL)
+	return;
+    else {
+	fixed_buffer_t *buf = fixed_buffer_create(4096);
+
+	config_to_buffer(config, buf);
+	SAY("%s", buf->data);
+
+	fixed_buffer_destroy(buf);
+    }
+}
+
 static config_t *config_from_file(const char *file)
 {
     FILE *f;
@@ -375,38 +394,6 @@ static config_t *config_from_file(const char *file)
     }
 
     return config;
-}
-
-static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
-{
-#define CONFIG_NUM_VCATF(name) \
-    if (!fixed_buffer_vcatf(buf, #name " = %d\n", config->name)) return 0;
-#define CONFIG_STR_VCATF(name) \
-    if (!fixed_buffer_vcatf(buf, #name " = %s\n", config->name)) return 0;
-
-    CONFIG_NUM_VCATF(syslog_to_stderr);
-    CONFIG_NUM_VCATF(daemonize);
-    CONFIG_NUM_VCATF(tcp_send_timeout_millisec);
-    CONFIG_NUM_VCATF(polling_interval_millisec);
-    CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
-    CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
-    CONFIG_NUM_VCATF(server_socket_sndbuf_bytes);
-
-    CONFIG_STR_VCATF(config_save_root);
-
-    CONFIG_STR_VCATF(spill_root);
-    CONFIG_NUM_VCATF(spill_millisec);
-
-    CONFIG_STR_VCATF(graphite.addr);
-    CONFIG_STR_VCATF(graphite.target);
-    CONFIG_NUM_VCATF(graphite.send_interval_millisec);
-    CONFIG_NUM_VCATF(graphite.sleep_poll_interval_millisec);
-
-    for (int i = 0; i < config->argc; i++) {
-	if (!fixed_buffer_vcatf(buf, "%s\n", config->argv[i]))
-	    return 0;
-    }
-    return 1;
 }
 
 static int config_to_file(const config_t * config, int fd)
