@@ -399,12 +399,13 @@ static void graphite_config_destroy(struct graphite_config *config)
     free(config);
 }
 
-/* Block locking the lock file.  Once successful, wrote our pid to it. */
-static int highlander(config_t * config, int lock)
+/* Block locking the lock file.  Once successful, write our pid to it,
+ * and return the lock fd.  Returns -1 on failure. */
+static int highlander(config_t * config)
 {
     if (config->lock_file == NULL) {
 	FATAL("NULL lock_file");
-	return 0;
+	return -1;
     }
 
     struct flock fl;
@@ -412,61 +413,46 @@ static int highlander(config_t * config, int lock)
 
     SAY("Attempting lock file %s", config->lock_file);
 
+    fl.l_type = F_WRLCK;
     fl.l_whence = SEEK_SET;
     fl.l_start = 0;
     fl.l_len = 0;
-    fl.l_pid = getpid();
 
     fd = open(config->lock_file, O_WRONLY | O_CREAT, 0644);
     if (fd == -1) {
 	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
-	return 0;
+	return -1;
     }
 
-    if (lock) {
-	fl.l_type = F_WRLCK;
-	if (fcntl(fd, F_SETLKW, &fl) == -1) {	/* F_SETLKW: wait for it... */
-	    WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
-	    return 0;
-	} else {
-	    char buf[16];
-	    int wrote;
-	    SAY("Locked %s", config->lock_file);
-	    wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
-	    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
-		WARN_ERRNO("Failed to build pid buffer");
-	    } else {
-		if (write(fd, buf, wrote) != wrote) {
-		    WARN_ERRNO("Failed to write pid to %s", config->lock_file);
-		    return 0;
-		} else {
-		    if (fsync(fd) != 0) {
-			WARN_ERRNO("Failed to fsync %s", config->lock_file);
-			return 0;
-		    }
-		}
-		/* Do not close() the fd, you'll lose the lock. */
-	    }
-	}
+    if (fcntl(fd, F_SETLKW, &fl) == -1) {	/* F_SETLKW: wait for it... */
+	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
+	return -1;
     } else {
-	fl.l_type = F_UNLCK;
-	if (fcntl(fd, F_SETLK, &fl) == -1) {
-	    WARN_ERRNO("Failed to unlock the lock file %s", config->lock_file);
-	    return 0;
+	char buf[16];
+	int wrote;
+	SAY("Locked %s", config->lock_file);
+	wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
+	if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+	    WARN_ERRNO("Failed to build pid buffer");
+	} else {
+	    if (write(fd, buf, wrote) != wrote) {
+		WARN_ERRNO("Failed to write pid to %s", config->lock_file);
+		return -1;
+	    } else {
+		if (fsync(fd) != 0) {
+		    WARN_ERRNO("Failed to fsync %s", config->lock_file);
+		    return -1;
+		}
+	    }
+	    /* Do not close() the fd, you'll lose the lock. */
 	}
-	SAY("Unlocked %s", config->lock_file);
     }
 
-    return 1;
+    return fd;
 }
 
 static int serve(config_t * config)
 {
-    if (!highlander(config, 1)) {
-	WARN("Failed to become the highlander");
-	return 0;
-    }
-
     if (GLOBAL.config->daemonize) {
 	if (daemonize()) {
 	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
@@ -485,6 +471,12 @@ static int serve(config_t * config)
 	 * only the syslog is available. */
     } else {
 	printf("%s: running, pid %d\n", OUR_NAME, getpid());
+    }
+
+    int lock_fd = highlander(config);
+    if (lock_fd == -1) {
+	WARN("Failed to become the highlander");
+	return 0;
     }
 
     setproctitle("starting");
@@ -571,7 +563,7 @@ static int serve(config_t * config)
 
     final_shutdown(server_tid);
 
-    if (!highlander(config, 0)) {
+    if (lock_fd != -1 && !close(lock_fd)) {
 	WARN("Failed to unbecome the highlander");
     }
     config_destroy();
