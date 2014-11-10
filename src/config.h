@@ -28,6 +28,9 @@ struct config {
     time_t epoch_changed;
     time_t epoch_success;
 
+    /* lock file */
+    char* lock_file;
+
     /* config filename itself */
     char *config_file;
 
@@ -80,6 +83,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC
 #define DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC 100
+#endif
+
+#ifndef DEFAULT_LOCK_FILE
+#define DEFAULT_LOCK_FILE "/var/run/event-relay.pid"
 #endif
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT
