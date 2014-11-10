@@ -443,49 +443,44 @@ static int config_save(const config_t * config, time_t now)
     } else {
 	char buf[PATH_MAX];
 	char *p = config->config_file;
-	char *q;
-	size_t n;
-	char *dst = buf;
-	char *src = config->config_save_root;
 
 	/* basename of config_file */
 	while (*p)
 	    p++;
-	q = p;			/* save the end */
+	char* pend = p;			/* save the end */
+
 	while (p > config->config_file && *p != '/')
 	    p--;
-	n = q - p;		/* the length of basename + 1 */
+	size_t n = pend - p;		/* the length of basename + 1 */
 
+	char *dst = buf;
+	char *src = config->config_save_root;
 	while (dst - buf < PATH_MAX && *src) {
 	    *dst++ = *src++;
 	}
-	if (dst - buf + n > PATH_MAX || n < 2 || *p != '/') {
-	    WARN("Cannot append %s to %s", config->config_file, config->config_save_root);
+
+	int room = PATH_MAX - (dst - buf);
+	int wrote = snprintf(dst, room, "%s.save.%ld", p, now);
+	if (wrote < 0 || wrote >= room) {
+	    WARN("Failed to build config save name into %s from %s", config->config_save_root, config->config_file);
 	    return 0;
-	} else {
-	    int room = PATH_MAX - (dst - buf);
-	    int wrote = snprintf(dst, room, "%s.save.%ld", p, now);
-	    if (wrote < 0 || wrote >= room) {
-		WARN("Failed to build config save name into %s from %s", config->config_save_root, config->config_file);
-		return 0;
-	    } else {
-		int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL);
-		if (fd == -1) {
-		    WARN_ERRNO("Failed to open config save %s", buf);
-		    return 0;
-		}
-		if (!config_to_file(config, fd)) {
-		    WARN_ERRNO("Failed to save config to %s", buf);
-		    return 0;
-		}
-		if (close(fd) == -1) {
-		    WARN_ERRNO("Failed to close save config as %s", buf);
-		    return 0;
-		}
-		SAY("Saved config as %s", buf);
-		return 1;
-	    }
+
 	}
+	int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL);
+	if (fd == -1) {
+	    WARN_ERRNO("Failed to open config save %s", buf);
+	    return 0;
+	}
+	if (!config_to_file(config, fd)) {
+	    WARN_ERRNO("Failed to save config to %s", buf);
+	    return 0;
+	}
+	if (close(fd) == -1) {
+	    WARN_ERRNO("Failed to close save config as %s", buf);
+	    return 0;
+	}
+	SAY("Saved config as %s", buf);
+	return 1;
     }
 }
 
