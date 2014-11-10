@@ -429,24 +429,7 @@ static int highlander(config_t * config, int lock)
 	    WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
 	    return 0;
 	} else {
-	    char buf[16];
-	    int wrote;
 	    SAY("Locked %s", config->lock_file);
-	    wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
-	    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
-		WARN_ERRNO("Failed to build pid buffer");
-	    } else {
-		if (write(fd, buf, wrote) != wrote) {
-		    WARN_ERRNO("Failed to write pid to %s", config->lock_file);
-		    return 0;
-		} else {
-		    if (fsync(fd) != 0) {
-			WARN_ERRNO("Failed to fsync %s", config->lock_file);
-			return 0;
-		    }
-		}
-		/* Do not close() the fd, you'll lose the lock. */
-	    }
 	}
     } else {
 	fl.l_type = F_UNLCK;
