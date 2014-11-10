@@ -408,6 +408,10 @@ static int highlander(config_t * config)
 	return -1;
     }
 
+    char buf[PATH_MAX];
+    snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
+    setproctitle(buf);
+
     struct flock fl;
     int fd;
 
@@ -428,7 +432,6 @@ static int highlander(config_t * config)
 	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
 	return -1;
     } else {
-	char buf[16];
 	int wrote;
 	SAY("Locked %s", config->lock_file);
 	wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
