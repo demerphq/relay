@@ -6,7 +6,7 @@
 
 #include "log.h"
 
-int daemonize(int do_chroot)
+int daemonize()
 {
     pid_t pid;
 
@@ -35,7 +35,7 @@ int daemonize(int do_chroot)
 	_exit(0);		/* We are the second parent, bye-byte. */
 
     /* Change directory to root, maybe. */
-    if (do_chroot && chdir("/") == -1) {
+    if (chdir("/") == -1) {
 	FATAL_ERRNO("Failed chdir to root");
 	return 0;
     }

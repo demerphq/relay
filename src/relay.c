@@ -402,8 +402,7 @@ static void graphite_config_destroy(struct graphite_config *config)
 static int serve(config_t * config)
 {
     if (GLOBAL.config->daemonize) {
-	/* Daemonize, but do_chroot only if the config_file is absolute. */
-	if (daemonize(config->config_file && config->config_file[0] == '/')) {
+	if (daemonize()) {
 	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
 	} else {
 	    FATAL("Failed to daemonize");
