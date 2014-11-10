@@ -275,7 +275,7 @@ void *socket_worker_thread(void *arg)
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
 	if (!sck) {
-	    WARN("Opening forwarding socket");
+	    SAY("Opening forwarding socket");
 	    sck = open_output_socket_eventually(&self->base);
 	    if (sck == NULL || !(sck->type == SOCK_DGRAM || sck->type == SOCK_STREAM)) {
 		FATAL_ERRNO("Failed to open forwarding socket");
