@@ -399,8 +399,74 @@ static void graphite_config_destroy(struct graphite_config *config)
     free(config);
 }
 
+/* Block locking the lock file.  Once successful, wrote our pid to it. */
+static int highlander(config_t * config, int lock)
+{
+    if (config->lock_file == NULL) {
+	FATAL("NULL lock_file");
+	return 0;
+    }
+
+    struct flock fl;
+    int fd;
+
+    SAY("Attempting lock file %s", config->lock_file);
+
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 0;
+    fl.l_pid = getpid();
+
+    fd = open(config->lock_file, O_WRONLY | O_CREAT, 0644);
+    if (fd == -1) {
+	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
+	return 0;
+    }
+
+    if (lock) {
+	fl.l_type = F_WRLCK;
+	if (fcntl(fd, F_SETLKW, &fl) == -1) {	/* F_SETLKW: wait for it... */
+	    WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
+	    return 0;
+	} else {
+	    char buf[16];
+	    int wrote;
+	    SAY("Locked %s", config->lock_file);
+	    wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
+	    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+		WARN_ERRNO("Failed to build pid buffer");
+	    } else {
+		if (write(fd, buf, wrote) != wrote) {
+		    WARN_ERRNO("Failed to write pid to %s", config->lock_file);
+		    return 0;
+		} else {
+		    if (fsync(fd) != 0) {
+			WARN_ERRNO("Failed to fsync %s", config->lock_file);
+			return 0;
+		    }
+		}
+		/* Do not close() the fd, you'll lose the lock. */
+	    }
+	}
+    } else {
+	fl.l_type = F_UNLCK;
+	if (fcntl(fd, F_SETLK, &fl) == -1) {
+	    WARN_ERRNO("Failed to unlock the lock file %s", config->lock_file);
+	    return 0;
+	}
+	SAY("Unlocked %s", config->lock_file);
+    }
+
+    return 1;
+}
+
 static int serve(config_t * config)
 {
+    if (!highlander(config, 1)) {
+	WARN("Failed to become the highlander");
+	return 0;
+    }
+
     if (GLOBAL.config->daemonize) {
 	if (daemonize()) {
 	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
@@ -505,6 +571,11 @@ static int serve(config_t * config)
 
     final_shutdown(server_tid);
 
+    if (!highlander(config, 0)) {
+	WARN("Failed to unbecome the highlander");
+    }
+    config_destroy();
+
     SAY("Bye");
     closelog();
 
@@ -555,9 +626,6 @@ static void final_shutdown(pthread_t server_tid)
     /* Stop graphite output. */
     graphite_worker_destroy(GLOBAL.graphite_worker);
     sleep(1);
-
-    config_destroy();
-
 }
 
 int main(int argc, char **argv)

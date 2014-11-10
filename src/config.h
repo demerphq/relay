@@ -29,7 +29,7 @@ struct config {
     time_t epoch_success;
 
     /* lock file */
-    char* lock_file;
+    char *lock_file;
 
     /* config filename itself */
     char *config_file;
