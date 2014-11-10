@@ -442,16 +442,19 @@ static int config_save(const config_t * config, time_t now)
 	return 0;
     } else {
 	char buf[PATH_MAX];
-	char *p = config->config_file;
 
-	/* basename of config_file */
+	/* Find the basename of config_file,
+	 * but leave the pointer at the last slash. */
+	char *p = config->config_file;
 	while (*p)
 	    p++;
-	char* pend = p;			/* save the end */
-
 	while (p > config->config_file && *p != '/')
 	    p--;
-	size_t n = pend - p;		/* the length of basename + 1 */
+
+	if (*p != '/' || p == config->config_file) {
+	    WARN("Config file %s looks odd", config->config_file);
+	    return 0;
+	}
 
 	char *dst = buf;
 	char *src = config->config_save_root;
