@@ -422,7 +422,7 @@ static int highlander(config_t * config)
     fl.l_start = 0;
     fl.l_len = 0;
 
-    fd = open(config->lock_file, O_WRONLY | O_CREAT, 0644);
+    fd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd == -1) {
 	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
 	return -1;

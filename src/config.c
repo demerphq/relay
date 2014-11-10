@@ -466,7 +466,7 @@ static int config_save(const config_t * config, time_t now)
 	    return 0;
 
 	}
-	int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL);
+	int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
 	    WARN_ERRNO("Failed to open config save %s", buf);
 	    return 0;
