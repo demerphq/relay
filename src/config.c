@@ -418,7 +418,11 @@ static int config_to_file(const config_t * config, int fd)
 	if (config_to_buffer(config, buf)) {
 	    ssize_t wrote;
 	    if ((wrote = write(fd, buf->data, buf->used)) == buf->used) {
-		success = 1;
+		if (fsync(fd) == 0) {
+		    success = 1;
+		} else {
+		    WARN_ERRNO("fsync() failed");
+		}
 	    } else {
 		WARN_ERRNO("write() failed, tried writing %ld but wrote %ld", buf->size, wrote);
 	    }
@@ -428,99 +432,65 @@ static int config_to_file(const config_t * config, int fd)
 
     if (!success)
 	WARN("Failed to write config to file");
+
     return success;
 }
 
 static int config_save(const config_t * config, time_t now)
 {
     if (config->config_file == NULL) {
-	WARN("Failed to save config with NULL file name");
+	WARN("Cannot save config with NULL config_file");
 	return 0;
-    }
-
-    /* We will do mkstemp() + rename(), but first we need a temp file
-     * name template, and we need it in in the same directory as the
-     * configuration file.  Because if it's not in the same directory
-     * (or, rather, filesystem), rename() for the temp file won't work,
-     * we would need explicitly copy it.  On the other hand, just copying
-     * it might be less hassle.
-     *
-     * XXX need option for the save directory: the config file might
-     * be in a directory where we have no write permissions, but we
-     * would still want to take backup copies of the valid configs.
-     * Even if we have the permissions, it might be cleaner to have
-     * the directory for the config not to be littered by the copies.
-     */
-    char temp[PATH_MAX];
-    char *p = config->config_file;
-    char *q = temp;
-    char *qe = temp + sizeof(temp);
-    /* Safer than strcpy or strncpy */
-    while (*p && q < qe)
-	*q++ = *p++;
-    if (q < qe) {
-	*q = 0;
+    } else if (config->config_save_root == NULL) {
+	WARN("Cannot save config with NULL config_save_root");
+	return 0;
     } else {
-	WARN("Failed to copy config filename %s", config->config_file);
-	return 0;
+	char buf[PATH_MAX];
+	char *p = config->config_file;
+	char *q;
+	size_t n;
+	char *dst = buf;
+	char *src = config->config_save_root;
+
+	/* basename of config_file */
+	while (*p)
+	    p++;
+	q = p;			/* save the end */
+	while (p > config->config_file && *p != '/')
+	    p--;
+	n = q - p;		/* the length of basename + 1 */
+
+	while (dst - buf < PATH_MAX && *src) {
+	    *dst++ = *src++;
+	}
+	if (dst - buf + n > PATH_MAX || n < 2 || *p != '/') {
+	    WARN("Cannot append %s to %s", config->config_file, config->config_save_root);
+	    return 0;
+	} else {
+	    int room = PATH_MAX - (dst - buf);
+	    int wrote = snprintf(dst, room, "%s.save.%ld", p, now);
+	    if (wrote < 0 || wrote >= room) {
+		WARN("Failed to build config save name into %s from %s", config->config_save_root, config->config_file);
+		return 0;
+	    } else {
+		int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL);
+		if (fd == -1) {
+		    WARN_ERRNO("Failed to open config save %s", buf);
+		    return 0;
+		}
+		if (!config_to_file(config, fd)) {
+		    WARN_ERRNO("Failed to save config to %s", buf);
+		    return 0;
+		}
+		if (close(fd) == -1) {
+		    WARN_ERRNO("Failed to close save config as %s", buf);
+		    return 0;
+		}
+		SAY("Saved config as %s", buf);
+		return 1;
+	    }
+	}
     }
-
-    /* dirname() is rather unportable in its behavior,
-     * unfortunately (whether you get a copy, or just
-     * the modified original). */
-    char *slash = NULL;
-    for (q = temp; *q; q++)
-	if (*q == '/')
-	    slash = q;
-
-    const char base[] = "event-relay.conf.XXXXXX";
-
-    int wrote;
-    int room;
-    if (slash) {
-	*slash = 0;
-	int len = slash - temp;
-	room = sizeof(temp) - len - 1;
-	wrote = snprintf(temp + len, room, "/%s", base);
-    } else {
-	room = sizeof(temp) - 2;
-	wrote = snprintf(temp, room, "./%s", base);
-    }
-    if (wrote < 0 || wrote >= room) {
-	WARN_ERRNO("Failed making filename %s", temp);
-	return 0;
-    }
-
-    int fd = mkstemp(temp);
-    if (fd == -1) {
-	WARN_ERRNO("Failed to mkstemp %s", temp);
-	return 0;
-    }
-
-    if (!config_to_file(config, fd)) {
-	WARN_ERRNO("Failed to save config to %s", temp);
-	return 0;
-    }
-
-    if (close(fd) == -1) {
-	WARN_ERRNO("Failed to close save config as %s", temp);
-	return 0;
-    }
-
-    char save[PATH_MAX];
-    wrote = snprintf(save, PATH_MAX, "%s.save.%ld", config->config_file, now);
-    if (wrote < 0 || wrote >= PATH_MAX) {
-	WARN("Failed to write %s as %s.save (wrote %d bytes)", save, save, wrote);
-	return 0;
-    }
-
-    if (rename(temp, save) != 0) {
-	WARN_ERRNO("Failed to rename %s as %s", temp, save);
-	return 0;
-    }
-
-    SAY("Saved config as %s", save);
-    return 1;
 }
 
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
