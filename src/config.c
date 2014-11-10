@@ -161,6 +161,44 @@ static int is_valid_buffer_size(uint32_t size)
 #define CONFIG_VALID_NUM(config, t, v, invalid)		\
     do { if (!t(config->v)) { WARN("%s value %d invalid", #v, config->v); invalid++; } } while (0)
 
+static int absolutize_config_file(config_t * config)
+{
+    if (config->config_file == NULL)
+	return 0;
+    if (config->config_file[0] == '/')
+	return 1;
+    else {
+	char *buf = calloc_or_fatal(PATH_MAX);
+	if (buf == NULL) {
+	    WARN("Failed to allocate absolute pathname");
+	} else {
+	    if (getcwd(buf, PATH_MAX) == NULL) {
+		WARN_ERRNO("Failed to getcwd");
+	    } else {
+		size_t o = strlen(config->config_file);
+		char *p = buf;
+		size_t n;
+		while (*p)
+		    p++;
+		n = p - buf;
+		if (n + 1 /* slash */  + o > PATH_MAX) {
+		    errno = ENAMETOOLONG;
+		    WARN("Cannot append %s to %s", config->config_file, buf);
+		} else {
+		    *p++ = '/';
+		    memcpy(p, config->config_file, o);
+		    free(config->config_file);
+		    config->config_file = buf;
+		    SAY("Config file %s", buf);
+		    return 1;
+		}
+	    }
+	}
+	free(buf);
+	return 0;
+    }
+}
+
 static int config_valid(config_t * config)
 {
     int invalid = 0;
@@ -185,6 +223,7 @@ static int config_valid(config_t * config)
     } else {
 	CONFIG_VALID_SOCKETIZE(config, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener", argv[0], invalid);
     }
+
     if (config->argc < 2) {
 	WARN("Missing forward addresses");
 	invalid++;
@@ -508,13 +547,21 @@ int config_reload(config_t * config, const char *file)
 	(long) config->generation,
 	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
-    if (config->generation == 0) {
-	SAY("Loading config file %s", file);
-	config_changed = 1;
-    } else
-	SAY("Reloading config file %s", file);
+    free(config->config_file);	/* from option parsing */
+    config->config_file = strdup(file);
+    if (!absolutize_config_file(config)) {
+	WARN("Failed to absolutize config");
+	return 0;
+    }
 
-    config_t *new_config = config_from_file(file);
+    if (config->generation == 0) {
+	SAY("Loading config file %s", config->config_file);
+	config_changed = 1;
+    } else {
+	SAY("Reloading config file %s", config->config_file);
+    }
+
+    config_t *new_config = config_from_file(config->config_file);
 
     if (new_config == NULL) {
 	if (config->generation) {
@@ -528,10 +575,10 @@ int config_reload(config_t * config, const char *file)
     }
 
     if (config->generation == 0) {
-	SAY("Loaded config file %s", file);
+	SAY("Loaded config file %s", config->config_file);
 	SAY("Initial config");
     } else {
-	SAY("Reloaded config file %s", file);
+	SAY("Reloaded config file %s", config->config_file);
 	SAY("New unmerged config");
     }
 
