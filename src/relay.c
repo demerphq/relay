@@ -1,5 +1,7 @@
 #include "relay.h"
 
+#include <sys/file.h>
+
 #include "config.h"
 #include "control.h"
 #include "daemonize.h"
@@ -412,23 +414,25 @@ static int highlander(config_t * config)
     snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
     setproctitle(buf);
 
-    struct flock fl;
-    int fd;
-
     SAY("Attempting lock file %s", config->lock_file);
 
-    fl.l_type = F_WRLCK;
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;
-
-    fd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd == -1) {
 	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
 	return -1;
     }
 
-    if (fcntl(fd, F_SETLKW, &fl) == -1) {	/* F_SETLKW: wait for it... */
+    /* Using flock() instead of fcntl(F_SETLKW) because of nasty
+     * feature of the latter: fcntl locks are not inherited across
+     * fork (or another way to look at it, the locks are by process,
+     * not by fd).
+     *
+     * Furthermore, one of the processes possibly closing the fd makes
+     * all the processes to lose the lock.  These "features" make
+     * fcntl locking quite broken for servers.
+     *
+     * flock() on the other hand is inherited across forks. */
+    if (flock(fd, LOCK_EX) == -1) {
 	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
 	return -1;
     } else {
