@@ -201,6 +201,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 		RELAY_ATOMIC_INCREMENT(self->counters.error_count, 1);
 		if (sendto_errno == EINTR) {
 		    /* sendto() got interrupted by a signal.  Wait a while and retry. */
+		    WARN("Interrupted, resuming");
 		    worker_wait_millisec(config->sleep_after_disaster_millisec);
 		    continue;
 		}
