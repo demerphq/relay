@@ -563,9 +563,11 @@ static int serve(config_t * config)
 
     final_shutdown(server_tid);
 
-    if (lock_fd != -1 && !close(lock_fd)) {
+    SAY("Unlocking %s", config->lock_file);
+    if (close(lock_fd) == -1) {
 	WARN("Failed to unbecome the highlander");
     }
+
     config_destroy();
 
     SAY("Bye");
