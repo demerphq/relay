@@ -460,7 +460,7 @@ static int config_save(const config_t * config, time_t now)
 	}
 
 	int room = PATH_MAX - (dst - buf);
-	int wrote = snprintf(dst, room, "%s.save.%ld", p, now);
+	int wrote = snprintf(dst, room, "%s.save.%ld.%d", p, (long) now, (int) getpid());
 	if (wrote < 0 || wrote >= room) {
 	    WARN("Failed to build config save name into %s from %s", config->config_save_root, config->config_file);
 	    return 0;
