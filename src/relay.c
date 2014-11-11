@@ -566,6 +566,10 @@ static int serve(config_t * config)
     SAY("%s", process_status_buffer->data);
     fixed_buffer_destroy(process_status_buffer);
 
+    if (control_exit_code()) {
+	WARN("Stopping");
+    }
+
     setproctitle("stopping");
 
     final_shutdown(server_tid);
@@ -573,6 +577,10 @@ static int serve(config_t * config)
     SAY("Unlocking %s", config->lock_file);
     if (close(lock_fd) == -1) {
 	WARN("Failed to unbecome the highlander");
+    }
+
+    if (control_exit_code()) {
+	WARN("Failed");
     }
 
     config_destroy();
