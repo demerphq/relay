@@ -57,7 +57,7 @@ struct config {
     /* root directory for where we write failed sends,
      * and "spilled" data */
     char *spill_root;
-    uint32_t spill_millisec;
+    uint32_t spill_millisec;	/* should be more than tcp send timeout */
 
     struct graphite_config graphite;
 };
@@ -101,7 +101,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_SPILL_MILLISEC
-#define DEFAULT_SPILL_MILLISEC 1000
+#define DEFAULT_SPILL_MILLISEC 3000
 #endif
 
 #ifndef DEFAULT_SPILL_ROOT

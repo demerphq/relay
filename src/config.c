@@ -202,6 +202,12 @@ static int config_valid(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.send_interval_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, graphite.sleep_poll_interval_millisec, invalid);
 
+    if (config->spill_millisec <= config->tcp_send_timeout_millisec) {
+	WARN("spill_millisec %d should be more than tcp_send_timeout_millisec %d",
+	     config->spill_millisec, config->tcp_send_timeout_millisec);
+	invalid++;
+    }
+
     if (config->argc < 1) {
 	WARN("Missing listener address");
 	invalid++;
