@@ -642,5 +642,11 @@ int main(int argc, char **argv)
     control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
-    return serve(GLOBAL.config);
+    int success = serve(GLOBAL.config);
+    if (!success) {
+	/* If the syslog was already closed, this will be go to /dev/null.
+	 * If the syslog was already closed, also stderr was already closed. */
+	WARN("Failed");
+    }
+    return success;
 }
