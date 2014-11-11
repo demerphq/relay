@@ -80,6 +80,10 @@ typedef struct config config_t;
 #define DEFAULT_TCP_SEND_TIMEOUT_MILLISEC 1000
 #endif
 
+/* Note that these received and send buffer default sizes
+ * are usually way above what the operating systems actually
+ * are willing to give.  You will get something less. */
+
 #ifndef DEFAULT_SERVER_SOCKET_RCVBUF_BYTES
 #define DEFAULT_SERVER_SOCKET_RCVBUF_BYTES (32 * 1024 * 1024)
 #endif

@@ -142,7 +142,7 @@ STMT_START {                        \
     return 0;                       \
 } STMT_END
 
-int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
+int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv)
 {
     int ok = 1;
 
@@ -195,6 +195,18 @@ int open_socket(relay_socket_t * s, int flags, int snd, int rcv)
 	if (setsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, sizeof(rcv)))
 	    WARN_CLOSE_FAIL(s, "setsockopt[%s, SO_RCVBUF, %d]", s->to_string, rcv);
     }
+    /* Show the actual buffer sizes.  Operating systems will limit
+     * what you can actually set these to.  In Linux see the files
+     * /proc/sys/net/ipv4/tcp_rmem and /proc/sys/net/ipv4/tcp_wmem
+     * (TCP rcv and snd), they contain the minimum, default, and maximum
+     * byte values. */
+    socklen_t len = sizeof(socklen_t);
+    if (getsockopt(s->socket, SOL_SOCKET, SO_RCVBUF, &rcv, &len))
+	WARN_CLOSE_FAIL(s, "getsockopt[%s, SO_RCVBUF]", s->to_string);
+    SAY("%s SO_RCVBUF = %d", s->to_string, rcv);
+    if (getsockopt(s->socket, SOL_SOCKET, SO_SNDBUF, &snd, &len))
+	WARN_CLOSE_FAIL(s, "getsockopt[%s, SO_SNDBUF]", s->to_string);
+    SAY("%s SO_SNDBUF = %d", s->to_string, snd);
     if (ok)
 	SAY("Connected %s", s->to_string);
     else

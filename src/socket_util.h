@@ -48,7 +48,7 @@ typedef struct relay_socket relay_socket_t;
 
 int socketize(const char *arg, relay_socket_t * s, int default_proto, int connection_direction, const char *role);
 
-int open_socket(relay_socket_t * s, int flags, int snd, int rcv);
+int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv);
 
 int setnonblocking(int fd);
 
