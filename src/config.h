@@ -109,7 +109,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ADDR
-#define DEFAULT_GRAPHITE_ADDR "/tmp/event_relay.graphite"
+#define DEFAULT_GRAPHITE_ADDR "/var/tmp/event_relay.graphite"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_TARGET
