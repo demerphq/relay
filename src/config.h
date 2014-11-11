@@ -28,29 +28,36 @@ struct config {
     time_t epoch_changed;
     time_t epoch_success;
 
-    /* lock file */
-    char *lock_file;
-
-    /* config filename itself */
-    char *config_file;
-
-    /* various meta data used for sending, etc */
-    int polling_interval_millisec;
-    int sleep_after_disaster_millisec;
-    int max_pps;		/* XXX unused */
-    int tcp_send_timeout_millisec;
-    int server_socket_rcvbuf_bytes;
-    int server_socket_sndbuf_bytes;
-    uint32_t spill_millisec;
+    /* if non-zero, log syslog also to stderr */
     int syslog_to_stderr;
+
+    /* if zero, stay in foreground.  otherwise fork twice and
+     * do the other usual daemony things. */
     int daemonize;
 
     /* directory for the config saves */
     char *config_save_root;
 
+    /* lock file, will contain pid */
+    char *lock_file;
+
+    /* config filename itself */
+    char *config_file;
+
+    /* various time limits used for sending, etc */
+    uint32_t tcp_send_timeout_millisec;
+    uint32_t polling_interval_millisec;
+    uint32_t sleep_after_disaster_millisec;
+
+    uint32_t server_socket_rcvbuf_bytes;
+    uint32_t server_socket_sndbuf_bytes;
+
+    uint32_t max_pps;		/* XXX unused */
+
     /* root directory for where we write failed sends,
      * and "spilled" data */
     char *spill_root;
+    uint32_t spill_millisec;
 
     struct graphite_config graphite;
 };
