@@ -80,7 +80,7 @@ typedef struct config config_t;
 #define DEFAULT_TCP_SEND_TIMEOUT_MILLISEC 1000
 #endif
 
-/* Note that these received and send buffer default sizes
+/* Note that these receive and send buffer default sizes
  * are usually way above what the operating systems actually
  * are willing to give.  You will get something less. */
 
@@ -97,11 +97,11 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_LOCK_FILE
-#define DEFAULT_LOCK_FILE "/var/run/event-relay.pid"
+#define DEFAULT_LOCK_FILE "/var/run/event-relay/event-relay.pid"
 #endif
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT
-#define DEFAULT_CONFIG_SAVE_ROOT "/var/tmp"
+#define DEFAULT_CONFIG_SAVE_ROOT "/var/run/event-relay"
 #endif
 
 #ifndef DEFAULT_SPILL_MILLISEC
@@ -113,7 +113,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ADDR
-#define DEFAULT_GRAPHITE_ADDR "/var/tmp/event_relay.graphite"
+#define DEFAULT_GRAPHITE_ADDR "/var/run/event-relay/event_relay.graphite"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_TARGET
