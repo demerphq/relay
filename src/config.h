@@ -97,7 +97,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT
-#define DEFAULT_CONFIG_SAVE_ROOT "/tmp"
+#define DEFAULT_CONFIG_SAVE_ROOT "/var/tmp"
 #endif
 
 #ifndef DEFAULT_SPILL_MILLISEC
