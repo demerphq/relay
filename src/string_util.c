@@ -44,6 +44,34 @@ void trim_space(char *s)
 	*q = 0;
 }
 
+void reverse_dotwise(char *str)
+{
+    char *p = str;
+    char *q = str;
+    char *r;
+    /* Find the end. */
+    while (*q)
+	q++;
+    r = q;
+    /* Reverse the whole string. */
+    for (q--; p < q; p++, q--) {
+	char t = *p;
+	*p = *q;
+	*q = t;
+    }
+    /* Reverse the elements. */
+    for (p = q = str; p <= r; p++) {
+	if (*p == '.' || *p == 0) {
+	    for (char *s = p - 1; q < s; q++, s--) {
+		char t = *s;
+		*s = *q;
+		*q = t;
+	    }
+	    q = p + 1;
+	}
+    }
+}
+
 fixed_buffer_t *fixed_buffer_create(size_t size)
 {
     fixed_buffer_t *b = (fixed_buffer_t *) malloc(sizeof(fixed_buffer_t) + size);

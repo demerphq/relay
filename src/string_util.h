@@ -12,6 +12,9 @@ void underscorify_nonalnum(char *str, size_t size);
 /* Trims leading and trailing whitespace. */
 void trim_space(char *str);
 
+/* Reverses the string by dot-separated elements. */
+void reverse_dotwise(char *str);
+
 #define STREQ(a, b) (strcmp((a),(b))==0)
 #define STRNE(a, b) (strcmp((a),(b))!=0)
 
