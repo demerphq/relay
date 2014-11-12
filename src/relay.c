@@ -583,8 +583,6 @@ static int serve(config_t * config)
 	WARN("Failed");
     }
 
-    config_destroy(config);
-
     SAY("Bye");
     closelog();
 
@@ -643,6 +641,8 @@ int main(int argc, char **argv)
     config_init(argc, argv);
     initproctitle(argc, argv);
     int success = serve(GLOBAL.config);
+    config_destroy(GLOBAL.config);
+    GLOBAL.config = NULL;
     if (!success) {
 	/* If the syslog was already closed, this will be going to /dev/null.
 	 * If the syslog was already closed, also stderr was already closed. */
