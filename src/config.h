@@ -113,11 +113,11 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_GRAPHITE_ADDR
-#define DEFAULT_GRAPHITE_ADDR "/var/run/event-relay/event_relay.graphite"
+#define DEFAULT_GRAPHITE_ADDR "/var/run/event-relay/event-relay.graphite"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_TARGET
-#define DEFAULT_GRAPHITE_TARGET "general.event_relay"
+#define DEFAULT_GRAPHITE_TARGET "event-relay.per_ten"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC
