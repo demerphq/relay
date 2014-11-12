@@ -510,7 +510,7 @@ static int config_save(const config_t * config, time_t now)
 #define IF_NUM_OPT_CHANGED(name,config,new_config)          \
   do { \
     if ( config->name != new_config->name ) {               \
-        SAY("Changed '" #name "' from '%d' to '%d'",        \
+        SAY("Changing '" #name "' from '%d' to '%d'",        \
                 config->name, new_config->name);            \
         config->name = new_config->name;                    \
         config_changed = 1;                                 \
@@ -520,7 +520,7 @@ static int config_save(const config_t * config, time_t now)
 #define IF_STR_OPT_CHANGED(name,config,new_config)          \
   do { \
     if ( STRNE(config->name, new_config->name) )       {    \
-        SAY("Changed '" #name "' from '%s' to '%s'",        \
+        SAY("Changing '" #name "' from '%s' to '%s'",        \
                 config->name, new_config->name);            \
         free(config->name);                                 \
         config->name = new_config->name;                    \
@@ -595,21 +595,25 @@ int config_reload(config_t * config, const char *file)
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
 	if (!new_config->syslog_to_stderr) {
 	    SAY("The stderr will stop now, logging will go only to syslog");
+	    closelog();
+	    openlog(OUR_NAME,
+		    LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
+	    if (config->generation == 0)
+		SAY("Setting 'syslog_to_stderr' to '%d'", new_config->syslog_to_stderr);
+	    else
+		SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr,
+		    new_config->syslog_to_stderr);
+	    config->syslog_to_stderr = new_config->syslog_to_stderr;
+	    config_changed = 1;
 	} else {
 	    /* The converse is sad: the stderr has been closed. */
+	    WARN("Changing syslog_to_stderr has no effect (stderr has been closed)");
 	}
-	closelog();
-	openlog(OUR_NAME,
-		LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
-	if (config->generation == 0)
-	    SAY("Setting 'syslog_to_stderr' to '%d'", new_config->syslog_to_stderr);
-	else
-	    SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr,
-		new_config->syslog_to_stderr);
-	config->syslog_to_stderr = new_config->syslog_to_stderr;
-	config_changed = 1;
     }
 
+    if (config->daemonize != new_config->daemonize && !control_is(RELAY_STARTING)) {
+	WARN("Changing daemonize has no effect (has effect only on startup)");
+    }
     IF_NUM_OPT_CHANGED(daemonize, config, new_config);
 
     IF_NUM_OPT_CHANGED(tcp_send_timeout_millisec, config, new_config);
@@ -618,6 +622,9 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_sndbuf_bytes, config, new_config);
 
+    if (STRNE(config->lock_file, new_config->lock_file) && !control_is(RELAY_STARTING)) {
+	WARN("Changing lock_file has no effect (has effect only on startup)");
+    }
     IF_STR_OPT_CHANGED(lock_file, config, new_config);
 
     IF_STR_OPT_CHANGED(config_save_root, config, new_config);
