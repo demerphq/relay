@@ -180,7 +180,7 @@ static int absolutize_config_file(config_t * config)
     }
 }
 
-static int config_valid(config_t * config)
+static int config_valid_options(config_t * config)
 {
     int invalid = 0;
 
@@ -208,6 +208,13 @@ static int config_valid(config_t * config)
 	invalid++;
     }
 
+    return invalid == 0;
+}
+
+static int config_valid_addresses(config_t * config)
+{
+    int invalid = 0;
+
     if (config->argc < 1) {
 	WARN("Missing listener address");
 	invalid++;
@@ -225,6 +232,13 @@ static int config_valid(config_t * config)
     }
 
     return invalid == 0;
+}
+
+static int config_valid_options_and_optional_addresses(config_t * config)
+{
+    int config_options_valid = config_valid_options(config);
+    int config_addresses_missing_or_valid = (config->argc == 0) || config_valid_addresses(config);
+    return config_options_valid && config_addresses_missing_or_valid;
 }
 
 #define TRY_OPT_BEGIN do
@@ -402,7 +416,7 @@ static config_t *config_from_file(const char *file)
 	free(line);
     SAY("Loaded config file %s", file);
 
-    if (!config_valid(config)) {
+    if (!config_valid_options_and_optional_addresses(config)) {
 	config_dump(config);
 	WARN("Invalid configuration");
 	return NULL;
@@ -565,11 +579,11 @@ int config_reload(config_t * config, const char *file)
 
     config_dump(new_config);
 
-    if (!config_valid(new_config)) {
+    if (!config_valid_options_and_optional_addresses(new_config)) {
 	if (config->generation == 0)
 	    FATAL("Invalid initial configuration");
 	else
-	    WARN("Invalid new configuration, ignoring it");
+	    WARN("Invalid new configuration, ignoring");
 	return 0;
     }
 
@@ -727,7 +741,10 @@ void config_init(int argc, char **argv)
 	GLOBAL.config->argc = argn;
     }
 
-    if (!config_valid(GLOBAL.config)) {
+    int config_options_valid = config_valid_options(GLOBAL.config);
+    int config_addresses_valid = config_valid_addresses(GLOBAL.config);
+
+    if (!(config_options_valid && config_addresses_valid)) {
 	FATAL("Invalid initial configuration");
 	return;
     }
