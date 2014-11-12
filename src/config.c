@@ -48,6 +48,7 @@ void config_set_defaults(config_t * config)
 
     config->graphite.dest_addr = strdup(DEFAULT_GRAPHITE_DEST_ADDR);
     config->graphite.path_root = strdup(DEFAULT_GRAPHITE_PATH_ROOT);
+    config->graphite.add_ports = DEFAULT_GRAPHITE_ADD_PORTS;
     config->graphite.send_interval_millisec = DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC;
     config->graphite.sleep_poll_interval_millisec = DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC;
 }
@@ -310,6 +311,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 
 		TRY_STR_OPT(graphite.dest_addr, copy, p);
 		TRY_STR_OPT(graphite.path_root, copy, p);
+		TRY_NUM_OPT(graphite.add_ports, copy, p);
 		TRY_NUM_OPT(graphite.send_interval_millisec, copy, p);
 		TRY_NUM_OPT(graphite.sleep_poll_interval_millisec, copy, p);
 
@@ -355,6 +357,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
 
     CONFIG_STR_VCATF(graphite.dest_addr);
     CONFIG_STR_VCATF(graphite.path_root);
+    CONFIG_NUM_VCATF(graphite.add_ports);
     CONFIG_NUM_VCATF(graphite.send_interval_millisec);
     CONFIG_NUM_VCATF(graphite.sleep_poll_interval_millisec);
 
@@ -617,6 +620,7 @@ int config_reload(config_t * config, const char *file)
 
     IF_STR_OPT_CHANGED(graphite.dest_addr, config, new_config);
     IF_STR_OPT_CHANGED(graphite.path_root, config, new_config);
+    IF_NUM_OPT_CHANGED(graphite.add_ports, config, new_config);
     IF_NUM_OPT_CHANGED(graphite.send_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(graphite.sleep_poll_interval_millisec, config, new_config);
 

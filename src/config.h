@@ -12,7 +12,17 @@ struct graphite_config {
      * or a filename. */
     char *dest_addr;
 
-    char *path_root;		/* foo.bar.val */
+    /* the full path will be either:
+     *
+     * root.com.bar.foo.metric
+     * root.com.bar.foo.ports.metric
+     *
+     * where the root is this root, and the ports is added
+     * if the add_ports is true.  If it is added, it will be
+     * something like udp_0_0_0_0_1234.tcp_localhost_5678,
+     * derived from the listener-worker pair. */
+    char *path_root;
+    int add_ports;
 
     uint32_t send_interval_millisec;
     uint32_t sleep_poll_interval_millisec;
@@ -118,6 +128,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_GRAPHITE_PATH_ROOT
 #define DEFAULT_GRAPHITE_PATH_ROOT "event-relay.per_ten"
+#endif
+
+#ifndef DEFAULT_GRAPHITE_ADD_PORTS
+#define DEFAULT_GRAPHITE_ADD_PORTS 0
 #endif
 
 #ifndef DEFAULT_GRAPHITE_SEND_INTERVAL_MILLISEC
