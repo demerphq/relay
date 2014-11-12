@@ -7,7 +7,7 @@
 #include "relay_common.h"
 
 /* Replaces any non-alphanumeric bytes with an underscore. */
-void scrub_nonalnum(char *str, size_t size);
+void underscorify_nonalnum(char *str, size_t size);
 
 /* Trims leading and trailing whitespace. */
 void trim_space(char *str);

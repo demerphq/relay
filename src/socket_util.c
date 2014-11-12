@@ -126,7 +126,7 @@ int socketize(const char *arg, relay_socket_t * s, int default_proto, int connec
 
     strncpy(s->arg, arg, PATH_MAX);
     strncpy(s->arg_clean, arg, PATH_MAX);
-    scrub_nonalnum(s->arg_clean, PATH_MAX);
+    underscorify_nonalnum(s->arg_clean, PATH_MAX);
 
     int valid = socketize_validate(arg, a, s, default_proto, connection_direction);
 

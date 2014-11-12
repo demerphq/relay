@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void scrub_nonalnum(char *str, size_t size)
+void underscorify_nonalnum(char *str, size_t size)
 {
     char *p = str;
     char *e = p + size;

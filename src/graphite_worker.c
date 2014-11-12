@@ -70,7 +70,7 @@ char *graphite_worker_setup_root(const config_t * config)
     hostname[HOST_NAME_MAX - 1] = 0;
     gethostname(hostname, sizeof(hostname) - 1);
 
-    scrub_nonalnum(hostname, sizeof(hostname));
+    underscorify_nonalnum(hostname, sizeof(hostname));
 
     root_len = strlen(config->graphite.path_root) + strlen(hostname) + strlen(GLOBAL.listener->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_fatal(root_len);
