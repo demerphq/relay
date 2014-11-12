@@ -132,6 +132,6 @@ int config_reload(config_t * config, const char *file);
 void config_set_defaults(config_t * config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);
-void config_destroy(void);
+void config_destroy(config_t * config);
 
 #endif				/* #ifndef RELAY_CONFIG_H */

@@ -12,18 +12,18 @@
 
 const char *OUR_NAME = "event-relay";
 
-void config_destroy(void)
+void config_destroy(config_t * config)
 {
-    for (int i = 0; i < GLOBAL.config->argc; i++)
-	free(GLOBAL.config->argv[i]);
-    free(GLOBAL.config->argv);
-    free(GLOBAL.config->graphite.addr);
-    free(GLOBAL.config->graphite.target);
-    free(GLOBAL.config->config_save_root);
-    free(GLOBAL.config->spill_root);
-    free(GLOBAL.config->config_file);
-    free(GLOBAL.config->lock_file);
-    free(GLOBAL.config);
+    for (int i = 0; i < config->argc; i++)
+	free(config->argv[i]);
+    free(config->argv);
+    free(config->graphite.addr);
+    free(config->graphite.target);
+    free(config->config_save_root);
+    free(config->spill_root);
+    free(config->config_file);
+    free(config->lock_file);
+    free(config);
 }
 
 void config_set_defaults(config_t * config)

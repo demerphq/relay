@@ -583,7 +583,7 @@ static int serve(config_t * config)
 	WARN("Failed");
     }
 
-    config_destroy();
+    config_destroy(config);
 
     SAY("Bye");
     closelog();
