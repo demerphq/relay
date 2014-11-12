@@ -21,8 +21,9 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 	    int worker_id = 0;
 	    TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
 		if (!fixed_buffer_vcatf(buf,
-					" [%d] sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
+					" [%d] freq %.1fs sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
 					++worker_id,
+					(double) config->graphite.send_interval_millisec / 1000,
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.sent_count),
 					(unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.spilled_count),
