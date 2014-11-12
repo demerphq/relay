@@ -542,9 +542,10 @@ int config_reload(config_t * config, const char *file)
 	(long) config->generation,
 	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
-    if (file != config->config_file)
+    if (file != config->config_file) {
 	free(config->config_file);	/* from option parsing */
-    config->config_file = strdup(file);
+	config->config_file = strdup(file);
+    }
     if (!absolutize_config_file(config)) {
 	WARN("Failed to absolutize config");
 	return 0;
