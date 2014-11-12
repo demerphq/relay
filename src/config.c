@@ -693,10 +693,18 @@ void config_init(int argc, char **argv)
 	    int line_num = -1;
 	    char *opt = NULL, *val = NULL;
 	    if (config_from_line(GLOBAL.config, argv[argi], copy, &opt, &val, &line_num, "argv")) {
-		if (opt && val && STREQ(opt, "config_file"))
-		    config_reload(GLOBAL.config, val);
+		if (opt) {
+		    if (val) {
+			if (STREQ(opt, "config_file"))
+			    config_reload(GLOBAL.config, val);
+		    } else {
+			FATAL("Option %s needs value", argv[argi]);
+		    }
+		} else {
+		    FATAL("Illegal option %s", argv[argi]);
+		}
 	    } else {
-		FATAL("Invalid option");
+		FATAL("Invalid option %s", argv[argi]);
 	    }
 	    free(copy);
 	} else
