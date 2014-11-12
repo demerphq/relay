@@ -72,12 +72,12 @@ char *graphite_worker_setup_root(const config_t * config)
 
     scrub_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite.target) + strlen(hostname) + strlen(GLOBAL.listener->arg_clean) + 3;	/* two dots plus null */
+    root_len = strlen(config->graphite.path_root) + strlen(hostname) + strlen(GLOBAL.listener->arg_clean) + 3;	/* two dots plus null */
     root = calloc_or_fatal(root_len);
     if (root == NULL)
 	return NULL;
 
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.target, hostname, GLOBAL.listener->arg_clean);
+    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.path_root, hostname, GLOBAL.listener->arg_clean);
 
     if (wrote < 0 || wrote >= root_len)
 	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
@@ -98,7 +98,7 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
 	return NULL;
 
     worker->base.config = config;
-    worker->base.arg = strdup(config->graphite.addr);
+    worker->base.arg = strdup(config->graphite.dest_addr);
 
     worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
     worker->root = graphite_worker_setup_root(config);

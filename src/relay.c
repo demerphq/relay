@@ -380,8 +380,8 @@ static struct graphite_config *graphite_config_clone(const struct graphite_confi
 {
     struct graphite_config *new_config = (struct graphite_config *) malloc(sizeof(*new_config));
     memset(new_config, 0, sizeof(*new_config));
-    new_config->addr = strdup(old_config->addr);
-    new_config->target = strdup(old_config->target);
+    new_config->dest_addr = strdup(old_config->dest_addr);
+    new_config->path_root = strdup(old_config->path_root);
     new_config->send_interval_millisec = old_config->send_interval_millisec;
     new_config->sleep_poll_interval_millisec = old_config->sleep_poll_interval_millisec;
     return new_config;
@@ -390,20 +390,20 @@ static struct graphite_config *graphite_config_clone(const struct graphite_confi
 static int graphite_config_changed(const struct graphite_config *old_config, const struct graphite_config *new_config)
 {
     return
-	STRNE(old_config->addr, new_config->addr) ||
-	STRNE(old_config->target, new_config->target) ||
+	STRNE(old_config->dest_addr, new_config->dest_addr) ||
+	STRNE(old_config->path_root, new_config->path_root) ||
 	old_config->send_interval_millisec != new_config->send_interval_millisec ||
 	old_config->sleep_poll_interval_millisec != new_config->sleep_poll_interval_millisec;
 }
 
 static void graphite_config_destroy(struct graphite_config *config)
 {
-    if (config == NULL || config->addr == NULL || config->target == NULL) {
+    if (config == NULL || config->dest_addr == NULL || config->path_root == NULL) {
 	WARN("Invalid config");
 	return;
     }
-    free(config->addr);
-    free(config->target);
+    free(config->dest_addr);
+    free(config->path_root);
     /* Reset the config to trap use-after-free. */
     memset(config, 0, sizeof(*config));
     free(config);
