@@ -36,7 +36,7 @@
     strftime(ts.str, TS_LEN, "%Y-%m-%d %H:%M:%S", &ts.tm); \
     char logbuf[1024]; \
     snprintf(logbuf, sizeof(logbuf), "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n", "" #type, ts.str _DEBUG_ARGS, ## arg,__FILE__,__LINE__,__func__); \
-    if ((LOG_ ## type == LOG_CRIT || LOG_ ## type == LOG_WARNING) && (!control_is(RELAY_RUNNING) || !GLOBAL.config->syslog_to_stderr)) \
+    if ((LOG_ ## type == LOG_CRIT || LOG_ ## type == LOG_WARNING) && (!control_is(RELAY_RUNNING) || GLOBAL.config == NULL || !GLOBAL.config->syslog_to_stderr)) \
 	fprintf(stderr, "%s", logbuf); \
     syslog((OUR_FACILITY | LOG_ ## type), "%s", logbuf);	\
 } STMT_END
