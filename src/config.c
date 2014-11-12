@@ -592,10 +592,11 @@ int config_reload(config_t * config, const char *file)
     if (config->generation)
 	SAY("Merging new configuration with old");
 
-    if (config->daemonize != new_config->daemonize && !control_is(RELAY_STARTING)) {
+    if (control_is(RELAY_STARTING)) {
+	IF_NUM_OPT_CHANGED(daemonize, config, new_config);
+    } else {
 	WARN("Changing daemonize has no effect (has effect only on startup)");
     }
-    IF_NUM_OPT_CHANGED(daemonize, config, new_config);
 
     IF_NUM_OPT_CHANGED(tcp_send_timeout_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(polling_interval_millisec, config, new_config);
@@ -603,10 +604,11 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(server_socket_rcvbuf_bytes, config, new_config);
     IF_NUM_OPT_CHANGED(server_socket_sndbuf_bytes, config, new_config);
 
-    if (STRNE(config->lock_file, new_config->lock_file) && !control_is(RELAY_STARTING)) {
+    if (control_is(RELAY_STARTING)) {
+	IF_STR_OPT_CHANGED(lock_file, config, new_config);
+    } else {
 	WARN("Changing lock_file has no effect (has effect only on startup)");
     }
-    IF_STR_OPT_CHANGED(lock_file, config, new_config);
 
     IF_STR_OPT_CHANGED(config_save_root, config, new_config);
 
