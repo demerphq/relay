@@ -623,30 +623,32 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(graphite.send_interval_millisec, config, new_config);
     IF_NUM_OPT_CHANGED(graphite.sleep_poll_interval_millisec, config, new_config);
 
-    for (int i = 0; i < config->argc; i++) {
-	if (i < new_config->argc) {
-	    if (STRNE(config->argv[i], new_config->argv[i])) {
-		if (config->generation == 0) {
-		    SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
-		} else {
-		    SAY("Changing %s socket config from '%s' to '%s'",
-			i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
+    if (new_config->argc) {
+	for (int i = 0; i < config->argc; i++) {
+	    if (i < new_config->argc) {
+		if (STRNE(config->argv[i], new_config->argv[i])) {
+		    if (config->generation == 0) {
+			SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
+		    } else {
+			SAY("Changing %s socket config from '%s' to '%s'",
+			    i == 0 ? "listen" : "forward", config->argv[i], new_config->argv[i]);
+		    }
+		    config_changed = 1;
 		}
+	    } else {
+		SAY("Stopping forward socket to '%s'", config->argv[i]);
 		config_changed = 1;
 	    }
-	} else {
-	    SAY("Stopping forward socket to '%s'", config->argv[i]);
+	    free(config->argv[i]);
+	}
+	free(config->argv);
+	for (int i = config->argc; i < new_config->argc; i++) {
+	    SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
 	    config_changed = 1;
 	}
-	free(config->argv[i]);
+	config->argc = new_config->argc;
+	config->argv = new_config->argv;
     }
-    free(config->argv);
-    for (int i = config->argc; i < new_config->argc; i++) {
-	SAY("Setting %s socket config to '%s'", i == 0 ? "listen" : "forward", new_config->argv[i]);
-	config_changed = 1;
-    }
-    config->argc = new_config->argc;
-    config->argv = new_config->argv;
 
     if (config->generation && config_changed) {
 	SAY("Merged new config");
