@@ -592,25 +592,6 @@ int config_reload(config_t * config, const char *file)
     if (config->generation)
 	SAY("Merging new configuration with old");
 
-    if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
-	if (!new_config->syslog_to_stderr) {
-	    SAY("The stderr will stop now, logging will go only to syslog");
-	    closelog();
-	    openlog(OUR_NAME,
-		    LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
-	    if (config->generation == 0)
-		SAY("Setting 'syslog_to_stderr' to '%d'", new_config->syslog_to_stderr);
-	    else
-		SAY("Changing 'syslog_to_stderr' from '%d' to '%d'", config->syslog_to_stderr,
-		    new_config->syslog_to_stderr);
-	    config->syslog_to_stderr = new_config->syslog_to_stderr;
-	    config_changed = 1;
-	} else {
-	    /* The converse is sad: the stderr has been closed. */
-	    WARN("Changing syslog_to_stderr has no effect (stderr has been closed)");
-	}
-    }
-
     if (config->daemonize != new_config->daemonize && !control_is(RELAY_STARTING)) {
 	WARN("Changing daemonize has no effect (has effect only on startup)");
     }
@@ -672,6 +653,9 @@ int config_reload(config_t * config, const char *file)
 	config_dump(config);
     }
 
+    int new_syslog_to_stderr = new_config->syslog_to_stderr;
+    int syslog_changed = new_config->syslog_to_stderr != config->syslog_to_stderr;
+
     free(new_config);
 
     if (config_changed) {
@@ -689,10 +673,35 @@ int config_reload(config_t * config, const char *file)
 	(long) config->generation,
 	(long) config->epoch_attempt, (long) config->epoch_changed, (long) config->epoch_success, (long) now);
 
+    int syslog_reopen = 0;
+
+    if (control_is(RELAY_STARTING)) {
+	if (syslog_changed) {
+	    if (new_syslog_to_stderr == 0) {
+		syslog_reopen = 1;
+		config_changed = 1;
+	    } else {
+		/* The converse is sad: the stderr has already been closed. */
+		WARN("Changing syslog_to_stderr has no effect (stderr has been closed)");
+	    }
+	}
+    } else {
+	WARN("Changing syslog_to_stderr has no effect (has effect only on startup)");
+    }
+
     if (config_changed)
 	SAY("Config changed: requires restart");
     else
 	SAY("Config unchanged: does not require restart");
+
+    if (syslog_reopen) {
+	if (new_syslog_to_stderr == 0) {
+	    SAY("The stderr will stop now, logging will go only to syslog");
+	    closelog();
+	    openlog(OUR_NAME, LOG_CONS | LOG_ODELAY | LOG_PID, OUR_FACILITY);
+	    config->syslog_to_stderr = 0;
+	}
+    }
 
     return config_changed;
 }
