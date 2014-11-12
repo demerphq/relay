@@ -90,6 +90,10 @@ void *udp_server(void *arg)
 	}
 	buf_to_blob_enqueue(buf, received);
     }
+    if (control_is(RELAY_RELOADING)) {
+	/* Race condition, but might help in debugging */
+	WARN("udp server failed, but relay seemingly reloading");
+    }
     pthread_exit(NULL);
 }
 
@@ -339,6 +343,10 @@ void *tcp_server(void *arg)
 
   out:
     tcp_context_close(&ctxt);
+    if (control_is(RELAY_RELOADING)) {
+	/* Race condition, but might help in debugging */
+	WARN("tcp server failed, but relay seemingly reloading");
+    }
     pthread_exit(NULL);
 }
 
