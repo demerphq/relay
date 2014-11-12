@@ -593,6 +593,11 @@ int config_reload(config_t * config, const char *file)
 	SAY("Merging new configuration with old");
 
     if (config->syslog_to_stderr != new_config->syslog_to_stderr) {
+	if (!new_config->syslog_to_stderr) {
+	    SAY("The stderr will stop now, logging will go only to syslog");
+	} else {
+	    /* The converse is sad: the stderr has been closed. */
+	}
 	closelog();
 	openlog(OUR_NAME,
 		LOG_CONS | LOG_ODELAY | LOG_PID | (new_config->syslog_to_stderr ? LOG_PERROR : 0), OUR_FACILITY);
@@ -626,6 +631,7 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(graphite.sleep_poll_interval_millisec, config, new_config);
 
     if (new_config->argc) {
+	SAY("Listener or forwarder changes");
 	for (int i = 0; i < config->argc; i++) {
 	    if (i < new_config->argc) {
 		if (STRNE(config->argv[i], new_config->argv[i])) {
@@ -650,6 +656,8 @@ int config_reload(config_t * config, const char *file)
 	}
 	config->argc = new_config->argc;
 	config->argv = new_config->argv;
+    } else {
+	SAY("No listener or forwarder changes");
     }
 
     if (config->generation && config_changed) {
