@@ -460,7 +460,7 @@ static int highlander(config_t * config)
 
 static int serve(config_t * config)
 {
-    if (GLOBAL.config->daemonize) {
+    if (config->daemonize) {
 	if (daemonize()) {
 	    printf("%s: daemonized, pid %d (%s)\n", OUR_NAME, getpid(), config->lock_file);
 	} else {
