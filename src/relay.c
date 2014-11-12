@@ -644,7 +644,7 @@ int main(int argc, char **argv)
     initproctitle(argc, argv);
     int success = serve(GLOBAL.config);
     if (!success) {
-	/* If the syslog was already closed, this will be go to /dev/null.
+	/* If the syslog was already closed, this will be going to /dev/null.
 	 * If the syslog was already closed, also stderr was already closed. */
 	WARN("Failed");
     }
