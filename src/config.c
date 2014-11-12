@@ -64,9 +64,9 @@ static int is_valid_graphite_target(const char *path)
     if (!is_non_empty_string(path))
 	return 0;
     const char *p;
-    /* XXX maybe stricter: can the words start with a digit? */
-    for (p = path; *p && (isalnum(*p) || *p == '_'); p++) {
-	while (isalnum(*p) || *p == '_')
+    /* XXX This could be stricter */
+    for (p = path; *p && (isalnum(*p) || *p == '_' || *p == '-'); p++) {
+	while (isalnum(*p) || *p == '_' || *p == '-')
 	    p++;
 	if (*p == 0)
 	    break;
