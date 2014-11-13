@@ -656,5 +656,6 @@ int main(int argc, char **argv)
 	 * If the syslog was already closed, also stderr was already closed. */
 	WARN("Failed");
     }
+    destroy_proctitle();
     return success;
 }

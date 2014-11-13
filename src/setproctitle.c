@@ -87,7 +87,6 @@ void initproctitle(int argc, char **argv)
 
 void setproctitle(const char *txt)
 {
-    int i;
     char buf[SPT_BUFSIZE];
 
     if (!argv0)
@@ -98,7 +97,7 @@ void setproctitle(const char *txt)
 
     sprintf(buf, "%s %s -- %s", prog_str, args_str, txt);
 
-    i = strlen(buf);
+    size_t i = strlen(buf);
     if (i > argv_lth - 2) {
 	i = argv_lth - 2;
 	buf[i] = '\0';
@@ -107,4 +106,13 @@ void setproctitle(const char *txt)
     strcpy(argv0[0], buf);
 
     argv0[1] = NULL;
+}
+
+extern void destroy_proctitle(void)
+{
+    for (char **envp = environ; *envp; envp++)
+	free(*envp);
+    free(environ);
+    free(args_str);
+    free(prog_str);
 }
