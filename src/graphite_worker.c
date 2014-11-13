@@ -45,7 +45,10 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 #endif
     char hostname[HOST_NAME_MAX];
     hostname[HOST_NAME_MAX - 1] = 0;
-    gethostname(hostname, sizeof(hostname) - 1);
+    if (gethostname(hostname, sizeof(hostname) - 1)) {
+	FATAL_ERRNO("gethostname failed");
+	return NULL;
+    }
 
     underscorify_nonalnum(hostname, sizeof(hostname));
 
