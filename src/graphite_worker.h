@@ -12,9 +12,9 @@
 struct graphite_worker {
     struct worker_base base;
 
-    char *root;
+    char *path_root;
 
-    fixed_buffer_t *buffer;
+    fixed_buffer_t *send_buffer;
 };
 
 typedef struct graphite_worker graphite_worker_t;

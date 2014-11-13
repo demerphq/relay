@@ -24,8 +24,8 @@ void graphite_worker_destroy(graphite_worker_t * worker)
     pthread_join(worker->base.tid, NULL);
 
     free(worker->base.arg);
-    free(worker->root);
-    fixed_buffer_destroy(worker->buffer);
+    free(worker->path_root);
+    fixed_buffer_destroy(worker->send_buffer);
     free(worker);
 }
 
@@ -100,10 +100,10 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->base.config = config;
     worker->base.arg = strdup(config->graphite.dest_addr);
 
-    worker->buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
-    worker->root = graphite_worker_setup_root(config);
+    worker->send_buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
+    worker->path_root = graphite_worker_setup_root(config);
 
-    if (worker->root == NULL ||
+    if (worker->send_buffer == NULL || worker->path_root == NULL ||
 	!socketize(worker->base.arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
 		   "graphite worker"))
 	FATAL("Failed to socketize graphite worker");
@@ -133,7 +133,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
 	accumulate_and_clear_stats(&w->recents, &recents, NULL);
 
-	int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->root,
+	int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->path_root,
 			     w->base.output_socket.arg_clean, this_epoch);
 	if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	    WARN("Failed to initialize stats format: %s", stats_format);
@@ -161,7 +161,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     struct mallinfo meminfo = mallinfo();
 
     /* No need to keep reformatting root, "mallinfo", and epoch. */
-    int wrote = snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->root, this_epoch);
+    int wrote = snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root, this_epoch);
     if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	WARN("Failed to initialize meminfo format: %s", stats_format);
 	return 0;
@@ -232,7 +232,7 @@ void *graphite_worker_thread(void *arg)
 
     const config_t *config = self->base.config;
     const struct graphite_config *graphite = &config->graphite;
-    fixed_buffer_t *buffer = self->buffer;
+    fixed_buffer_t *buffer = self->send_buffer;
     ssize_t wrote = 0;
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
