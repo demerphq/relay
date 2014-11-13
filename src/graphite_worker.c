@@ -29,7 +29,7 @@ void graphite_worker_destroy(graphite_worker_t * worker)
     free(worker);
 }
 
-fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
+fixed_buffer_t *graphite_worker_setup_root(graphite_worker_t * worker, const config_t * config)
 {
     if (config == NULL) {
 	FATAL("NULL config");
@@ -39,7 +39,6 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 	FATAL("NULL listener");
 	return NULL;
     }
-
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 64
 #endif
@@ -54,10 +53,23 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 
     fixed_buffer_t *root = fixed_buffer_create(256);
 
-    if (fixed_buffer_vcatf(root, "%s.%s.%s", config->graphite.path_root, hostname, GLOBAL.listener->arg_clean)) {
-	SAY("Using '%s' as root namespace for graphite", root->data);
+    int failed = 0;
+    if (fixed_buffer_vcatf(root, "%s.%s", config->graphite.path_root, hostname)) {
+	if (config->graphite.add_ports) {
+	    if (!fixed_buffer_vcatf(root, ".%s.%s", GLOBAL.listener->arg_clean, worker->base.output_socket.arg_clean)) {
+		failed = 1;
+	    }
+	}
     } else {
-	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
+	failed = 1;
+    }
+
+    if (failed) {
+	FATAL("Failed to add hostname");
+	fixed_buffer_destroy(root);
+	root = NULL;
+    } else {
+	SAY("Using '%s' as root namespace for graphite", root->data);
     }
 
     return root;
@@ -75,7 +87,7 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->base.arg = strdup(config->graphite.dest_addr);
 
     worker->send_buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
-    worker->path_root = graphite_worker_setup_root(config);
+    worker->path_root = graphite_worker_setup_root(worker, config);
 
     if (worker->send_buffer == NULL || worker->path_root == NULL ||
 	!socketize(worker->base.arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
@@ -94,8 +106,8 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
 
     accumulate_and_clear_stats(&w->recents, &recents, NULL);
 
-    int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->path_root->data,
-			 w->base.output_socket.arg_clean, this_epoch);
+    int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%%s %%ld %lu\n", self->path_root->data,
+			 this_epoch);
     if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	WARN("Failed to initialize stats format: %s", stats_format);
 	return 0;
