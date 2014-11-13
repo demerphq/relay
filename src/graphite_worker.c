@@ -50,7 +50,7 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 	return NULL;
     }
 
-    underscorify_nonalnum(hostname, sizeof(hostname));
+    reverse_dotwise(hostname);
 
     fixed_buffer_t *root = fixed_buffer_create(256);
 
