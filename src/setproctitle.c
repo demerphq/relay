@@ -18,31 +18,30 @@
 extern char **environ;
 
 static char **argv0 = NULL;
-static int argv_lth = 0;
+static size_t argv_lth = 0;
 
 static char *prog_str = NULL;
-static int prog_len = 0;
+static size_t prog_len = 0;
 
 static char *args_str = NULL;
-static int args_len = 0;
+static size_t args_len = 0;
 
 void initproctitle(int argc, char **argv)
 {
-    int i;
     char **envp = environ;
 
     if (argc) {
 	prog_len = strlen(argv[0]);
 	prog_str = strdup(argv[0]);
 	if (argc > 1) {
-	    for (i = 1; i < argc; i++) {
+	    for (int i = 1; i < argc; i++) {
 		args_len += strlen(argv[i]);
 		args_len++;
 	    }
 	    args_str = (char *) malloc(args_len);
 	    args_len = 0;
-	    for (i = 1; i < argc; i++) {
-		int l = strlen(argv[i]);
+	    for (int i = 1; i < argc; i++) {
+		size_t l = strlen(argv[i]);
 		memcpy(args_str + args_len, argv[i], l);
 		args_len += l;
 		args_str[args_len++] = ' ';
@@ -66,6 +65,7 @@ void initproctitle(int argc, char **argv)
      * WARNING: ugly assumptions on memory layout here;
      *          if this ever causes problems, #undef DO_PS_FIDDLING
      */
+    size_t i;			/* used after the loops */
     for (i = 0; envp[i] != NULL; i++)
 	continue;
 
