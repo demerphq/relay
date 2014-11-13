@@ -592,7 +592,6 @@ static int serve(config_t * config)
     }
 
     SAY("Bye");
-    closelog();
 
     return control_exit_code();
 }
@@ -657,5 +656,6 @@ int main(int argc, char **argv)
 	WARN("Failed");
     }
     destroy_proctitle();
+    closelog();
     return success;
 }
