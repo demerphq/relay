@@ -29,8 +29,6 @@ void graphite_worker_destroy(graphite_worker_t * worker)
     free(worker);
 }
 
-/* code shamelessly derived from
- * http://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info */
 fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 {
     if (config == NULL) {
@@ -42,24 +40,6 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 	return NULL;
     }
 
-    struct addrinfo hints;
-    struct addrinfo *info = NULL;
-    int gai_result;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;	/*either IPV4 or IPV6 */
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_CANONNAME;
-
-    if ((gai_result = getaddrinfo("localhost", "http", &hints, &info)) != 0) {
-	FATAL("Failed getaddrinfo(localhost): %s", gai_strerror(gai_result));
-	return NULL;
-    }
-
-    if (!info) {
-	FATAL("No info from getaddrinfo(localhost)");
-	return NULL;
-    }
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 64
 #endif
@@ -76,8 +56,6 @@ fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
     } else {
 	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
     }
-
-    freeaddrinfo(info);
 
     return root;
 }
