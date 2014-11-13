@@ -12,7 +12,7 @@
 struct graphite_worker {
     struct worker_base base;
 
-    char *path_root;
+    fixed_buffer_t *path_root;
 
     fixed_buffer_t *send_buffer;
 };

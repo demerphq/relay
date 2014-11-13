@@ -24,14 +24,14 @@ void graphite_worker_destroy(graphite_worker_t * worker)
     pthread_join(worker->base.tid, NULL);
 
     free(worker->base.arg);
-    free(worker->path_root);
+    fixed_buffer_destroy(worker->path_root);
     fixed_buffer_destroy(worker->send_buffer);
     free(worker);
 }
 
 /* code shamelessly derived from
  * http://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info */
-char *graphite_worker_setup_root(const config_t * config)
+fixed_buffer_t *graphite_worker_setup_root(const config_t * config)
 {
     if (config == NULL) {
 	FATAL("NULL config");
@@ -45,9 +45,6 @@ char *graphite_worker_setup_root(const config_t * config)
     struct addrinfo hints;
     struct addrinfo *info = NULL;
     int gai_result;
-    char *root;
-    int root_len;
-    int wrote;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;	/*either IPV4 or IPV6 */
@@ -72,17 +69,13 @@ char *graphite_worker_setup_root(const config_t * config)
 
     underscorify_nonalnum(hostname, sizeof(hostname));
 
-    root_len = strlen(config->graphite.path_root) + strlen(hostname) + strlen(GLOBAL.listener->arg_clean) + 3;	/* two dots plus null */
-    root = calloc_or_fatal(root_len);
-    if (root == NULL)
-	return NULL;
+    fixed_buffer_t *root = fixed_buffer_create(256);
 
-    wrote = snprintf(root, root_len, "%s.%s.%s", config->graphite.path_root, hostname, GLOBAL.listener->arg_clean);
-
-    if (wrote < 0 || wrote >= root_len)
+    if (fixed_buffer_vcatf(root, "%s.%s.%s", config->graphite.path_root, hostname, GLOBAL.listener->arg_clean)) {
+	SAY("Using '%s' as root namespace for graphite", root->data);
+    } else {
 	FATAL("Failed to snprintf hostname in graphite_worker_setup_root()");
-    else
-	SAY("Using '%s' as root namespace for graphite", root);
+    }
 
     freeaddrinfo(info);
 
@@ -120,7 +113,7 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
 
     accumulate_and_clear_stats(&w->recents, &recents, NULL);
 
-    int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->path_root,
+    int wrote = snprintf(stats_format, FORMAT_BUFFER_SIZE, "%s.%s.%%s %%d %lu\n", self->path_root->data,
 			 w->base.output_socket.arg_clean, this_epoch);
     if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	WARN("Failed to initialize stats format: %s", stats_format);
@@ -171,7 +164,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     struct mallinfo meminfo = mallinfo();
 
     /* No need to keep reformatting root, "mallinfo", and epoch. */
-    int wrote = snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root, this_epoch);
+    int wrote =
+	snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data, this_epoch);
     if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
 	WARN("Failed to initialize meminfo format: %s", stats_format);
 	return 0;
