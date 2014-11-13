@@ -119,7 +119,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_SPILL_ROOT
-#define DEFAULT_SPILL_ROOT "/var/log/event/spill"
+#define DEFAULT_SPILL_ROOT "/var/tmp/event-relay/spill"
 #endif
 
 #ifndef DEFAULT_GRAPHITE_DEST_ADDR
