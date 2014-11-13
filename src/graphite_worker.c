@@ -87,12 +87,13 @@ graphite_worker_t *graphite_worker_create(const config_t * config)
     worker->base.arg = strdup(config->graphite.dest_addr);
 
     worker->send_buffer = fixed_buffer_create(GRAPHITE_BUFFER_MAX);
-    worker->path_root = graphite_worker_setup_root(worker, config);
 
-    if (worker->send_buffer == NULL || worker->path_root == NULL ||
-	!socketize(worker->base.arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
-		   "graphite worker"))
+    if (!socketize(worker->base.arg, &worker->base.output_socket, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND,
+		   "graphite worker")) {
 	FATAL("Failed to socketize graphite worker");
+    }
+
+    worker->path_root = graphite_worker_setup_root(worker, config);
 
     return worker;
 }
