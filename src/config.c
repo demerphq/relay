@@ -384,42 +384,55 @@ void config_dump(config_t * config)
 
 static config_t *config_from_file(const char *file)
 {
-    FILE *f;
-    char *line = NULL;
-    size_t len = 0;
-    int line_num = 0;
-    config_t *config = calloc_or_fatal(sizeof(config_t));
-
-    if (config == NULL)
-	return NULL;
-
-    config_set_defaults(config);
-
     if (file == NULL) {
 	FATAL("Config file unknown");
 	return NULL;
     }
-    SAY("Loading config file %s", file);
-    f = fopen(file, "r");
-    if (f == NULL) {
-	WARN_ERRNO("Failed to open: %s", file);
+
+    config_t *config = calloc_or_fatal(sizeof(config_t));
+    if (config == NULL) {
+	WARN("Failed to alloc config");
 	return NULL;
     }
 
-    char *opt, *val;
-    while (getline(&line, &len, f) != -1) {
-	char *copy = strdup(line);
-	if (!config_from_line(config, line, copy, &opt, &val, &line_num, file)) {
-	    WARN("Invalid config line");
+    config_set_defaults(config);
+
+    SAY("Loading config file %s", file);
+
+    int success = 0;
+    int failure = 0;
+    FILE *fp = fopen(file, "r");
+    if (fp == NULL) {
+	WARN_ERRNO("Failed to open: %s", file);
+    } else {
+	size_t len = 1024;
+	char *line = calloc_or_fatal(len);
+	if (line == NULL) {
+	    WARN("Failed to alloc line buffer");
+	} else {
+	    int line_num = 0;
+	    char *opt, *val;
+	    while (getline(&line, &len, fp) != -1) {
+		char *copy = strdup(line);
+		if (config_from_line(config, line, copy, &opt, &val, &line_num, file)) {
+		    success++;
+		} else {
+		    failure++;
+		}
+		free(copy);
+	    }
+	    free(line);
 	}
-	free(copy);
+	fclose(fp);
     }
-    fclose(f);
-    if (line)
-	free(line);
+
     SAY("Loaded config file %s", file);
 
     if (!config_valid_options_and_optional_addresses(config)) {
+	failure++;
+    }
+
+    if (failure) {
 	config_dump(config);
 	WARN("Invalid configuration");
 	return NULL;
