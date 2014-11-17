@@ -166,6 +166,11 @@ int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv)
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)))
 		WARN_CLOSE_FAIL(s, "setsockopt[%s, REUSEADDR, 1]", s->to_string);
 	}
+	if (flags & DO_REUSEPORT) {
+	    int optval = 1;
+	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)))
+		WARN_CLOSE_FAIL(s, "setsockopt[%s, REUSEPORT, 1]", s->to_string);
+	}
 	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
 	    WARN_CLOSE_FAIL(s, "bind[%s]", s->to_string);
 	if (s->proto == IPPROTO_TCP) {

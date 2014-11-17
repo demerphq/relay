@@ -26,6 +26,7 @@
 #define DO_CONNECT      0x02
 #define DO_REUSEADDR    0x04
 #define DO_EPOLLFD      0x08
+#define DO_REUSEPORT    0x10
 
 #define SOCK_FAKE_FILE  -1
 #define SOCK_FAKE_ERROR -2
