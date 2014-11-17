@@ -416,21 +416,12 @@ static void graphite_config_destroy(struct graphite_config *config)
 
 /* Block locking the lock file.  Once successful, write our pid to it,
  * and return the lock fd.  Returns -1 on failure. */
-static int highlander(config_t * config)
+static int highlander_blocking_lock(config_t * config)
 {
-    if (config->lock_file == NULL) {
-	FATAL("NULL lock_file");
-	return -1;
-    }
-
-    char buf[PATH_MAX];
-    snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
-    setproctitle(buf);
-
     SAY("Attempting lock file %s", config->lock_file);
 
-    int fd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-    if (fd == -1) {
+    int lockfd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    if (lockfd == -1) {
 	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
 	return -1;
     }
@@ -445,24 +436,26 @@ static int highlander(config_t * config)
      * fcntl locking quite broken for servers.
      *
      * flock() on the other hand is inherited across forks. */
-    if (flock(fd, LOCK_EX) == -1) {
+    if (flock(lockfd, LOCK_EX) == -1) {
 	/* Under normal circumstances this never returns -1, since
 	 * we block until we succeed.  This *can* fail, however,
 	 * for example by being interrupted by signals. */
 	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
 	return -1;
     } else {
-	int wrote;
 	SAY("Locked %s", config->lock_file);
-	wrote = snprintf(buf, sizeof(buf), "%d\n", getpid());
-	if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+
+	/* Write in our pid to the lock file. */
+	char pidbuf[16];
+	int wrote = snprintf(pidbuf, sizeof(pidbuf), "%d\n", getpid());
+	if (wrote < 0 || wrote >= (int) sizeof(pidbuf)) {
 	    WARN_ERRNO("Failed to build pid buffer");
 	} else {
-	    if (write(fd, buf, wrote) != wrote) {
+	    if (write(lockfd, pidbuf, wrote) != wrote) {
 		WARN_ERRNO("Failed to write pid to %s", config->lock_file);
 		return -1;
 	    } else {
-		if (fsync(fd) != 0) {
+		if (fsync(lockfd) != 0) {
 		    WARN_ERRNO("Failed to fsync %s", config->lock_file);
 		    return -1;
 		}
@@ -471,7 +464,58 @@ static int highlander(config_t * config)
 	}
     }
 
-    return fd;
+    return lockfd;
+}
+
+/* Blocks waiting for the lock file, returns the lockfd once
+ * successful.  Creates and removes a "wait file" (in the same directory
+ * as the lock file) which exists only during the wait. */
+static int highlander(config_t * config)
+{
+    if (config->lock_file == NULL) {
+	FATAL("NULL lock_file");
+	return -1;
+    }
+
+    char buf[PATH_MAX];
+    int wrote;
+
+    wrote = snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
+    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+	return -1;
+    }
+    setproctitle(buf);
+
+    /* We will create an empty "wait file" which records in a crude way
+     * (in the filename) the process waiting for the lock.  Usually there
+     * shouldn't be more than one of these. */
+    /* Note that buf is reused here, and used later. */
+    wrote = snprintf(buf, sizeof(buf), "%s.wait.%d", config->lock_file, getpid());
+    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+	return -1;
+    }
+
+    SAY("Creating wait file %s", buf);
+    int waitfd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+    if (waitfd == -1) {
+	WARN_ERRNO("Failed to open wait file %s", buf);
+	return -1;
+    }
+
+    int lockfd = highlander_blocking_lock(config);
+
+    /* Remove our "waiting ticket". */
+    SAY("Removing wait file %s", buf);
+    if (close(waitfd)) {
+	WARN_ERRNO("Failed to close wait fd for %s", buf);
+    }
+    if (unlink(buf)) {
+	WARN_ERRNO("Failed to unlink wait file %s", buf);
+    }
+
+    return lockfd;
 }
 
 static int serve(config_t * config)
