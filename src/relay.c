@@ -446,6 +446,9 @@ static int highlander(config_t * config)
      *
      * flock() on the other hand is inherited across forks. */
     if (flock(fd, LOCK_EX) == -1) {
+	/* Under normal circumstances this never returns -1, since
+	 * we block until we succeed.  This *can* fail, however,
+	 * for example by being interrupted by signals. */
 	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
 	return -1;
     } else {
