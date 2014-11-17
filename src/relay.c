@@ -1,6 +1,7 @@
 #include "relay.h"
 
 #include <sys/file.h>
+#include <sys/socket.h>
 
 #include "config.h"
 #include "control.h"
@@ -363,7 +364,11 @@ pthread_t setup_listener(config_t * config)
     GLOBAL.listener->polling_interval_millisec = config->polling_interval_millisec;
 
     /* must open the socket BEFORE we create the worker pool */
-    open_socket(GLOBAL.listener, DO_BIND | DO_REUSEADDR | DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
+    open_socket(GLOBAL.listener, DO_BIND | DO_REUSEADDR |
+#ifdef SO_REUSEPORT
+		(GLOBAL.listener->proto == IPPROTO_TCP ? DO_REUSEPORT : 0) |
+#endif
+		DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
