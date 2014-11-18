@@ -44,27 +44,27 @@ open(my $fh, '<', $Opt{file}) or die qq[$0: failed to open "$Opt{file}" for read
 my $data = do { local $/; <$fh> };
 close($fh);
 my $data_mb = length($data) / 1024**2;
-printf "NOTE: packet size %.4f MB\n", $data_mb;
+printf "$0: [$$] NOTE: packet size %.4f MB\n", $data_mb;
 
 if ($Opt{count} == 0 && $Opt{mb} > 0) {
     $Opt{count} = int($Opt{mb} / $data_mb + 0.5);
-    print "NOTE: setting count to $Opt{count} based on $Opt{mb} MB\n";
+    print "$0: [$$] NOTE: setting count to $Opt{count} based on $Opt{mb} MB\n";
 }
 
 if ($Opt{forever}) {
-    print "NOTE: will loop forever\n";
+    print "$0: [$$] NOTE: will loop forever\n";
     if (defined $Opt{count} || defined $Opt{sec}) {
-	print "NOTE: ignoring count and sec\n";
+	print "$0: [$$] NOTE: ignoring count and sec\n";
     }
 } else {
     if ($Opt{count} > 0) {
-	print "NOTE: will exit after count $Opt{count}\n";
+	print "$0: [$$] NOTE: will exit after count $Opt{count}\n";
     }
     if ($Opt{count} > 0 && $Opt{sec} > 0) {
-	print "NOTE: will exit after sec $Opt{sec}\n";
+	print "$0: [$$] NOTE: will exit after sec $Opt{sec}\n";
     }
     if ($Opt{count} > 0 && $Opt{sec} > 0) {
-	print "NOTE: will exit after EITHER count $Opt{count} OR sec $Opt{sec}\n";
+	print "$0: [$$] NOTE: will exit after EITHER count $Opt{count} OR sec $Opt{sec}\n";
     }
 }
 
@@ -76,14 +76,14 @@ my $last_time   = 0;
 my $last_hires  = 0;
 
 $SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
-$SIG{PIPE} = sub { print "SIGPIPE ($!)\n"; exit(1);  };
+$SIG{PIPE} = sub { print "$0: [$$] SIGPIPE ($!)\n"; exit(1);  };
 
 $SIG{ALRM} = sub { show_totals(); alarm($Opt{period}); };
 alarm($Opt{period});
 
 my $remote = IO::Socket::INET->new(Proto => $Opt{proto},
 				   PeerAddr => $Opt{host},
-				   PeerPort => $Opt{port}) or die "$0: $!";
+				   PeerPort => $Opt{port}) or die "$0: [$$] $!";
 
 my $last_send_fail = 0;
 
@@ -95,7 +95,7 @@ while (1) {
 	    my $sent_packets = $packets - $last_packets;
 	    if ($now > $last_time) {
 		my $sent_time = $now - $last_time; # Ever > 1.0?
-		printf("SENDING %d packets/s (%.2f MB/s) epoch %d\n",
+		printf("$0: [$$] SENDING %d packets/s (%.2f MB/s) epoch %d\n",
 		       $sent_packets, $data_mb * $sent_packets / $sent_time, $now);
 	    }
 	}
@@ -112,7 +112,7 @@ while (1) {
 	my $now = time();
 	if ($now > $last_send_fail) {
 	    $! = $errno;
-	    print "send: $!\n";
+	    print "$0: [$$] send: $!\n";
 	    $last_send_fail = $now;
 	}
     }
@@ -137,10 +137,10 @@ sub show_totals {
     $now_hires = Time::HiRes::time();
     my $took = $now_hires - $start_hires;
     if ($took > 0) {
-	printf("SENT %d packets (%.2f MB) in %.2f sec at %.2f packets/s (%.2f MB/s) epoch %d\n",
+	printf("$0: [$$] SENT %d packets (%.2f MB) in %.2f sec at %.2f packets/s (%.2f MB/s) epoch %d\n",
 	       $packets, $data_mb * $packets, $took, $packets / $took, $data_mb * $packets / $took, int($now_hires));
     } else {
-	die "$0: took less time than nothing\n";
+	die "$0: [$$] took less time than nothing\n";
     }
 }
 
