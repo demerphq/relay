@@ -175,8 +175,31 @@ int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv)
 	    WARN("No SO_REUSEPORT");
 #endif
 	}
-	if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen))
+	time_t last_addrinuse = 0;
+	for (;;) {
+	    errno = 0;
+	    if (bind(s->socket, (struct sockaddr *) &s->sa.in, s->addrlen) == 0)
+		break;
+	    if (errno == EADDRINUSE) {
+		/* If we got EADDRINUSE, we have probably have no
+		 * functional SO_REUSEPORT.  What we'll do is to enter
+		 * busywait: in other words, we keep calling bind
+		 * again and again until we either succeed (bind
+		 * returns zero) or we get something else than
+		 * EADDRINUSE.  This is not nice in that we burn CPU,
+		 * but the goal is to minimize the window of dropped
+		 * packets, and this state is not supposed to last
+		 * more than few seconds while the old relay is
+		 * draining. */
+		time_t now = time(NULL);
+		if (now > last_addrinuse) {
+		    WARN_ERRNO("bind busywait %s", s->to_string);
+		    last_addrinuse = now;
+		}
+		continue;
+	    }
 	    WARN_CLOSE_FAIL(s, "bind[%s]", s->to_string);
+	}
 	if (s->proto == IPPROTO_TCP) {
 	    if (listen(s->socket, SOMAXCONN))
 		WARN_CLOSE_FAIL(s, "listen[%s]", s->to_string);
