@@ -76,6 +76,7 @@ my $last_time   = 0;
 my $last_hires  = 0;
 
 $SIG{INT} = sub { print "\n"; show_totals(); exit(1); };
+$SIG{PIPE} = sub { print "SIGPIPE ($!)\n"; exit(1);  };
 
 $SIG{ALRM} = sub { show_totals(); alarm($Opt{period}); };
 alarm($Opt{period});
@@ -104,7 +105,7 @@ while (1) {
     if ($Opt{proto} eq 'tcp') {
 	$prefix = pack('L', length($prefix) + length($data)) . $prefix;
     }
-    $remote->send($prefix . $data);
+    print "send: $!\n" unless $remote->send($prefix . $data);
     $packets++;
     last if !$Opt{forever} &&
             ($Opt{count} > 0 && $packets >= $Opt{count}) ||
