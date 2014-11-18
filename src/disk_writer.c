@@ -50,7 +50,7 @@ static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
 	}
     }
     if (blob_epoch) {
-	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.srlc", self->spill_path, blob_epoch);
+	int wrote = snprintf(self->last_file_path, PATH_MAX, "%s/%li.%d.srlc", self->spill_path, blob_epoch, getpid());
 	if (wrote < 0 || wrote >= PATH_MAX) {
 	    FATAL("Filename was truncated to %d bytes: '%s'", PATH_MAX, self->last_file_path);
 	    return 0;
