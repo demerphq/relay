@@ -165,12 +165,16 @@ int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv)
 	    int optval = 1;
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)))
 		WARN_CLOSE_FAIL(s, "setsockopt[%s, REUSEADDR, 1]", s->to_string);
+	    else
+		SAY("SO_REUSEADDR %s", s->to_string);
 	}
 	if (flags & DO_REUSEPORT) {
 #ifdef SO_REUSEPORT
 	    int optval = 1;
 	    if (setsockopt(s->socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)))
 		WARN_CLOSE_FAIL(s, "setsockopt[%s, REUSEPORT, 1]", s->to_string);
+	    else
+		SAY("SO_REUSEPORT %s", s->to_string);
 #else
 	    WARN("No SO_REUSEPORT");
 #endif
