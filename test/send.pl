@@ -85,6 +85,8 @@ my $remote = IO::Socket::INET->new(Proto => $Opt{proto},
 				   PeerAddr => $Opt{host},
 				   PeerPort => $Opt{port}) or die "$0: $!";
 
+my $last_send_fail = 0;
+
 while (1) {
     my $now_hires = Time::HiRes::time();
     my $now = int($now_hires);
@@ -105,7 +107,15 @@ while (1) {
     if ($Opt{proto} eq 'tcp') {
 	$prefix = pack('L', length($prefix) + length($data)) . $prefix;
     }
-    print "send: $!\n" unless $remote->send($prefix . $data);
+    unless ($remote->send($prefix . $data)) {
+	my $errno = $!;
+	my $now = time();
+	if ($now > $last_send_fail) {
+	    $! = $errno;
+	    print "send: $!\n";
+	    $last_send_fail = $now;
+	}
+    }
     $packets++;
     last if !$Opt{forever} &&
             ($Opt{count} > 0 && $packets >= $Opt{count}) ||
