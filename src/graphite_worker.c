@@ -257,22 +257,24 @@ void *graphite_worker_thread(void *arg)
 	graphite_wait(self, graphite);
     }
 
-    if (control_is(RELAY_STOPPING)) {
-	/* Try to flush. */
-	SAY("Graphite worker stopping, trying graphite flush");
-	if (graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
-	    if (graphite_send(sck, buffer, &wrote)) {
-		SAY("Graphite flush successful, wrote %zd bytes", wrote);
+    if (sck) {
+	if (control_is(RELAY_STOPPING)) {
+	    /* Try to flush. */
+	    SAY("Graphite worker stopping, trying graphite flush");
+	    if (graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
+		if (graphite_send(sck, buffer, &wrote)) {
+		    SAY("Graphite flush successful, wrote %zd bytes", wrote);
+		} else {
+		    WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
+		}
 	    } else {
 		WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
 	    }
-	} else {
-	    WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
 	}
-    }
-
-    if (sck)
 	close(sck->socket);
+    } else {
+	WARN("No graphite socket, not flushing");
+    }
 
     return NULL;
 }
