@@ -48,8 +48,8 @@ struct config {
     /* directory for the config saves */
     char *config_save_root;
 
-    /* pid filename */
-    char *pid_file;
+    /* lock file, will contain pid */
+    char *lock_file;
 
     /* config filename itself */
     char *config_file;
@@ -106,8 +106,8 @@ typedef struct config config_t;
 #define DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC 100
 #endif
 
-#ifndef DEFAULT_PID_FILE
-#define DEFAULT_PID_FILE "/var/run/event-relay/event-relay.pid"
+#ifndef DEFAULT_LOCK_FILE
+#define DEFAULT_LOCK_FILE "/var/run/event-relay/event-relay.pid"
 #endif
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT

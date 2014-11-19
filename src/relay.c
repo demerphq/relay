@@ -414,11 +414,115 @@ static void graphite_config_destroy(struct graphite_config *config)
     free(config);
 }
 
+/* Block locking the lock file.  Once successful, write our pid to it,
+ * and return the lock fd.  Returns -1 on failure. */
+static int highlander_blocking_lock(config_t * config)
+{
+    SAY("Attempting lock file %s", config->lock_file);
+
+    int lockfd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    if (lockfd == -1) {
+	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
+	return -1;
+    }
+
+    /* Using flock() instead of fcntl(F_SETLKW) because of nasty
+     * feature of the latter: fcntl locks are not inherited across
+     * fork (or another way to look at it, the locks are by process,
+     * not by fd).
+     *
+     * Furthermore, one of the processes possibly closing the fd makes
+     * all the processes to lose the lock.  These "features" make
+     * fcntl locking quite broken for servers.
+     *
+     * flock() on the other hand is inherited across forks. */
+    if (flock(lockfd, LOCK_EX) == -1) {
+	/* Under normal circumstances this never returns -1, since
+	 * we block until we succeed.  This *can* fail, however,
+	 * for example by being interrupted by signals. */
+	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
+	return -1;
+    } else {
+	SAY("Locked %s", config->lock_file);
+
+	/* Write in our pid to the lock file. */
+	char pidbuf[16];
+	int wrote = snprintf(pidbuf, sizeof(pidbuf), "%d\n", getpid());
+	if (wrote < 0 || wrote >= (int) sizeof(pidbuf)) {
+	    WARN_ERRNO("Failed to build pid buffer");
+	} else {
+	    if (write(lockfd, pidbuf, wrote) != wrote) {
+		WARN_ERRNO("Failed to write pid to %s", config->lock_file);
+		return -1;
+	    } else {
+		if (fsync(lockfd) != 0) {
+		    WARN_ERRNO("Failed to fsync %s", config->lock_file);
+		    return -1;
+		}
+	    }
+	    /* Do not close() the fd, you'll lose the lock. */
+	}
+    }
+
+    return lockfd;
+}
+
+/* Blocks waiting for the lock file, returns the lockfd once
+ * successful.  Creates and removes a "wait file" (in the same directory
+ * as the lock file) which exists only during the wait. */
+static int highlander(config_t * config)
+{
+    if (config->lock_file == NULL) {
+	FATAL("NULL lock_file");
+	return -1;
+    }
+
+    char buf[PATH_MAX];
+    int wrote;
+
+    wrote = snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
+    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+	return -1;
+    }
+    setproctitle(buf);
+
+    /* We will create an empty "wait file" which records in a crude way
+     * (in the filename) the process waiting for the lock.  Usually there
+     * shouldn't be more than one of these. */
+    /* Note that buf is reused here, and used later. */
+    wrote = snprintf(buf, sizeof(buf), "%s.wait.%d", config->lock_file, getpid());
+    if (wrote < 0 || wrote >= (int) sizeof(buf)) {
+	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+	return -1;
+    }
+
+    SAY("Creating wait file %s", buf);
+    int waitfd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+    if (waitfd == -1) {
+	WARN_ERRNO("Failed to open wait file %s", buf);
+	return -1;
+    }
+
+    int lockfd = highlander_blocking_lock(config);
+
+    /* Remove our "waiting ticket". */
+    SAY("Removing wait file %s", buf);
+    if (close(waitfd)) {
+	WARN_ERRNO("Failed to close wait fd for %s", buf);
+    }
+    if (unlink(buf)) {
+	WARN_ERRNO("Failed to unlink wait file %s", buf);
+    }
+
+    return lockfd;
+}
+
 static int serve(config_t * config)
 {
     if (config->daemonize) {
 	if (daemonize()) {
-	    printf("%s: daemonized, pid %d (%s)\n", OUR_NAME, getpid(), config->pid_file);
+	    printf("%s: daemonized, pid %d (%s)\n", OUR_NAME, getpid(), config->lock_file);
 	} else {
 	    FATAL("Failed to daemonize");
 	    return 0;
@@ -433,7 +537,13 @@ static int serve(config_t * config)
 	/* Now the standard file descriptors are closed,
 	 * only the syslog is available. */
     } else {
-	printf("%s: running, pid %d (%s)\n", OUR_NAME, getpid(), config->pid_file);
+	printf("%s: running, pid %d (%s)\n", OUR_NAME, getpid(), config->lock_file);
+    }
+
+    int lock_fd = highlander(config);
+    if (lock_fd == -1) {
+	WARN("Failed to become the highlander");
+	return 0;
     }
 
     setproctitle("starting");
@@ -524,6 +634,11 @@ static int serve(config_t * config)
 
     final_shutdown(server_tid);
 
+    SAY("Unlocking %s", config->lock_file);
+    if (close(lock_fd) == -1) {
+	WARN("Failed to unbecome the highlander");
+    }
+
     if (control_exit_code()) {
 	WARN("Failed");
     }
@@ -579,62 +694,12 @@ static void final_shutdown(pthread_t server_tid)
     sleep(1);
 }
 
-static int create_pid_file(config_t * config)
-{
-    SAY("Creating pid_file");
-    char pid_file[PATH_MAX];
-    int wrote = snprintf(pid_file, sizeof(pid_file), "%s.%d", config->pid_file, getpid());
-    if (wrote < 0 || wrote >= (int) sizeof(pid_file)) {
-	WARN_ERRNO("Failed to build pid_file %s", config->pid_file);
-	return -1;
-    }
-    free(config->pid_file);
-    config->pid_file = strdup(pid_file);
-
-    SAY("Creating pid file %s", config->pid_file);
-    int pid_fd = open(config->pid_file, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-    if (pid_fd == -1) {
-	WARN_ERRNO("Failed to create pid_file %s", config->pid_file);
-	return -1;
-    }
-    SAY("Created pid_file %s pid_fd %d", config->pid_file, pid_fd);
-
-    return pid_fd;
-}
-
-static int remove_pid_file(config_t * config, int pid_fd)
-{
-    SAY("Removing pid_file %s", config->pid_file);
-    int success = 0;
-    if (close(pid_fd) == 0) {
-	if (unlink(config->pid_file) == 0) {
-	    success = 1;
-	} else {
-	    WARN_ERRNO("Failed to unlink pid_file %s", config->pid_file);
-	}
-    } else {
-	WARN_ERRNO("Failed to close pid_fd %d pid_file %s", pid_fd, config->pid_file);
-    }
-    return success;
-}
-
 int main(int argc, char **argv)
 {
     control_set_bits(RELAY_STARTING);
     config_init(argc, argv);
     initproctitle(argc, argv);
-
-    int success = 0;
-    int pid_fd = create_pid_file(GLOBAL.config);
-    if (pid_fd == -1) {
-	FATAL("Failed to create pid_file");
-    } else {
-	success = serve(GLOBAL.config);
-	if (!remove_pid_file(GLOBAL.config, pid_fd)) {
-	    WARN("Failed to remove pid_file %s", GLOBAL.config->pid_file);
-	}
-    }
-
+    int success = serve(GLOBAL.config);
     config_destroy(GLOBAL.config);
     GLOBAL.config = NULL;
     if (!success) {
@@ -642,7 +707,6 @@ int main(int argc, char **argv)
 	 * If the syslog was already closed, also stderr was already closed. */
 	WARN("Failed");
     }
-
     destroy_proctitle();
     closelog();
     return success;

@@ -22,7 +22,7 @@ void config_destroy(config_t * config)
     free(config->config_save_root);
     free(config->spill_root);
     free(config->config_file);
-    free(config->pid_file);
+    free(config->lock_file);
     free(config);
 }
 
@@ -39,7 +39,7 @@ void config_set_defaults(config_t * config)
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
     config->server_socket_sndbuf_bytes = DEFAULT_SERVER_SOCKET_SNDBUF_BYTES;
 
-    config->pid_file = strdup(DEFAULT_PID_FILE);
+    config->lock_file = strdup(DEFAULT_LOCK_FILE);
 
     config->config_save_root = strdup(DEFAULT_CONFIG_SAVE_ROOT);
 
@@ -191,7 +191,7 @@ static int config_valid_options(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_sndbuf_bytes, invalid);
 
-    CONFIG_VALID_STR(config, is_non_empty_string, pid_file, invalid);
+    CONFIG_VALID_STR(config, is_non_empty_string, lock_file, invalid);
 
     CONFIG_VALID_DIRECTORY(config, config_save_root, invalid);
 
@@ -302,7 +302,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 		TRY_NUM_OPT(server_socket_rcvbuf_bytes, copy, p);
 		TRY_NUM_OPT(server_socket_sndbuf_bytes, copy, p);
 
-		TRY_STR_OPT(pid_file, copy, p);
+		TRY_STR_OPT(lock_file, copy, p);
 
 		TRY_STR_OPT(config_save_root, copy, p);
 
@@ -348,7 +348,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
     CONFIG_NUM_VCATF(server_socket_sndbuf_bytes);
 
-    CONFIG_STR_VCATF(pid_file);
+    CONFIG_STR_VCATF(lock_file);
 
     CONFIG_STR_VCATF(config_save_root);
 
@@ -621,9 +621,9 @@ int config_reload(config_t * config, const char *file)
     IF_NUM_OPT_CHANGED(server_socket_sndbuf_bytes, config, new_config);
 
     if (control_is(RELAY_STARTING)) {
-	IF_STR_OPT_CHANGED(pid_file, config, new_config);
+	IF_STR_OPT_CHANGED(lock_file, config, new_config);
     } else {
-	WARN("Changing pid_file has no effect (has effect only on startup)");
+	WARN("Changing lock_file has no effect (has effect only on startup)");
     }
 
     IF_STR_OPT_CHANGED(config_save_root, config, new_config);
