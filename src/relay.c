@@ -522,7 +522,7 @@ static int serve(config_t * config)
 {
     if (config->daemonize) {
 	if (daemonize()) {
-	    printf("%s: daemonized, pid %d (%s)\n", OUR_NAME, getpid(), config->lock_file);
+	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
 	} else {
 	    FATAL("Failed to daemonize");
 	    return 0;
@@ -537,7 +537,7 @@ static int serve(config_t * config)
 	/* Now the standard file descriptors are closed,
 	 * only the syslog is available. */
     } else {
-	printf("%s: running, pid %d (%s)\n", OUR_NAME, getpid(), config->lock_file);
+	printf("%s: running, pid %d\n", OUR_NAME, getpid());
     }
 
     int lock_fd = highlander(config);
