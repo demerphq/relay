@@ -528,9 +528,9 @@ static int serve(config_t * config)
 	    return 0;
 	}
 
-	WARN("Closing std fds");
+	WARN("Closing standard fds");
 	if (!close_std_fds()) {
-	    FATAL("Failed to close std fds");	/* We might not see stderr of this... */
+	    FATAL("Failed to close standard fds");	/* We might not see stderr of this... */
 	    return 0;
 	}
 
