@@ -18,5 +18,9 @@ relay_socket_t *open_output_socket_eventually(struct worker_base *base)
 	}
     }
 
+    if (RELAY_ATOMIC_READ(base->stopping)) {
+	WARN("Stopping, not opening sockets");
+    }
+
     return sck;
 }
