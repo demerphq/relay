@@ -8,6 +8,18 @@
 
 typedef uint64_t stats_count_t;
 
+typedef struct {
+    double rate;
+    stats_count_t prev;
+} rate_t;
+
+typedef struct {
+    rate_t sent;
+    rate_t received;
+    rate_t spilled;
+    double decay_sec;
+} rates_t;
+
 struct stats_basic_counters {
     volatile stats_count_t received_count;	/* number of items we have received */
     volatile stats_count_t sent_count;	/* number of items we have sent */
@@ -21,6 +33,10 @@ struct stats_basic_counters {
     volatile stats_count_t tcp_connections;	/* current number of active inbound tcp connections */
 };
 typedef struct stats_basic_counters stats_basic_counters_t;
+
+void rates_init(rates_t * rate, double decay_sec);
+
+void update_rates(rates_t * rates, const stats_basic_counters_t * totals, long since);
 
 /* Increments the recents and the totals by the counters *and* then
  * decrements the counters by their own values.  Effectively this

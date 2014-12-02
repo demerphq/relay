@@ -20,14 +20,46 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 	    socket_worker_t *w;
 	    int worker_id = 0;
 	    TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
+		/* This is so ugly. */
 		if (!fixed_buffer_vcatf(buf,
-					" [%d] freq %.1fs sent %lu/%lu spilled %lu/%lu disk %lu/%lu disk_error %lu/%lu",
-					++worker_id,
-					(double) config->graphite.send_interval_millisec / 1000,
+					" [%d] freq %.1fs ",
+					++worker_id, (double) config->graphite.send_interval_millisec / 1000))
+		    break;
+		if (!fixed_buffer_vcatf(buf,
+					"received %lu/%lu ",
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.received_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.received_count)))
+		    break;
+		if (!fixed_buffer_vcatf(buf,
+					"%d:%d:%d ",
+					(int) w->rates[0].received.rate,
+					(int) w->rates[1].received.rate, (int) w->rates[2].received.rate))
+		    break;
+
+		if (!fixed_buffer_vcatf(buf,
+					"sent %lu/%lu ",
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.sent_count),
-					(unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.sent_count)))
+		    break;
+		if (!fixed_buffer_vcatf(buf,
+					"%d:%d:%d ",
+					(int) w->rates[0].sent.rate,
+					(int) w->rates[1].sent.rate, (int) w->rates[2].sent.rate))
+		    break;
+
+		if (!fixed_buffer_vcatf(buf,
+					"spilled %lu/%lu ",
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.spilled_count),
-					(unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.spilled_count)))
+		    break;
+		if (!fixed_buffer_vcatf(buf,
+					"%d:%d:%d ",
+					(int) w->rates[0].spilled.rate,
+					(int) w->rates[1].spilled.rate, (int) w->rates[2].spilled.rate))
+		    break;
+
+		if (!fixed_buffer_vcatf(buf,
+					"disk %lu/%lu disk_error %lu/%lu",
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.disk_count),
 					(unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.disk_error_count),

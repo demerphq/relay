@@ -12,7 +12,6 @@
 #include "string_util.h"
 #include "timer.h"
 #include "socket_util.h"
-#include "socket_worker.h"
 #include "socket_worker_pool.h"
 
 #define EXPECTED_HEADER_SIZE sizeof(blob_size_t)
@@ -23,7 +22,7 @@ struct tcp_client {
     uint32_t pos;
 };
 
-#define PROCESS_STATUS_BUF_LEN 256
+#define PROCESS_STATUS_BUF_LEN 1024
 
 static void sig_handler(int signum);
 static void stop_listener(pthread_t server_tid);
@@ -605,9 +604,7 @@ static int serve(config_t * config)
 	    control_unset_bits(RELAY_RELOADING);
 	}
 
-	update_process_status(process_status_buffer,
-			      config,
-			      RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
+	update_process_status(process_status_buffer, config, RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
 			      RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
 
 	sleep(1);
@@ -619,10 +616,9 @@ static int serve(config_t * config)
 	}
     }
 
-    update_process_status(process_status_buffer,
-			  config,
-			  RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
+    update_process_status(process_status_buffer, config, RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
 			  RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
+
     SAY("%s", process_status_buffer->data);
     fixed_buffer_destroy(process_status_buffer);
 

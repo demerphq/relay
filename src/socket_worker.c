@@ -273,7 +273,12 @@ void *socket_worker_thread(void *arg)
 
     int join_err;
 
+#define RATE_UPDATE_PERIOD 15
+    time_t last_rate_update = 0;
+
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
+	time_t now = time(NULL);
+
 	if (!sck) {
 	    SAY("Opening forwarding socket");
 	    sck = open_output_socket_eventually(&self->base);
@@ -281,6 +286,14 @@ void *socket_worker_thread(void *arg)
 		FATAL_ERRNO("Failed to open forwarding socket");
 		break;
 	    }
+	}
+
+	long since_rate_update = now - last_rate_update;
+	if (since_rate_update >= RATE_UPDATE_PERIOD) {
+	    last_rate_update = now;
+	    update_rates(&self->rates[0], &self->totals, since_rate_update);
+	    update_rates(&self->rates[1], &self->totals, since_rate_update);
+	    update_rates(&self->rates[2], &self->totals, since_rate_update);
 	}
 
 	/* if we dont have anything in our local queue we need to hijack the main one */
@@ -388,6 +401,14 @@ socket_worker_t *socket_worker_create(const char *arg, const config_t * config)
     disk_writer->counters = &worker->counters;
     disk_writer->recents = &worker->recents;
     disk_writer->totals = &worker->totals;
+
+#define DECAY_1MIN 60
+#define DECAY_5MIN (5 * DECAY_1MIN)
+#define DECAY_15MIN (15 * DECAY_1MIN)
+
+    rates_init(&worker->rates[0], DECAY_1MIN);
+    rates_init(&worker->rates[1], DECAY_5MIN);
+    rates_init(&worker->rates[2], DECAY_15MIN);
 
     LOCK_INIT(&worker->lock);
 

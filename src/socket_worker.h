@@ -8,6 +8,8 @@
 #include "stats.h"
 #include "worker_base.h"
 
+#define RATE_COUNT 3
+
 struct socket_worker {
     struct worker_base base;
 
@@ -20,6 +22,9 @@ struct socket_worker {
     stats_basic_counters_t totals;
 
     volatile uint32_t exists;
+
+    rates_t rates[RATE_COUNT];
+
     disk_writer_t *disk_writer;
 
      TAILQ_ENTRY(socket_worker) entries;

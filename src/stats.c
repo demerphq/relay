@@ -1,5 +1,29 @@
 #include "stats.h"
 
+#include <math.h>
+#include <string.h>
+
+void rates_init(rates_t * rates, double decay_sec)
+{
+    memset(rates, 0, sizeof(rates_t));
+    rates->decay_sec = decay_sec;
+}
+
+void update_rates(rates_t * rates, const stats_basic_counters_t * totals, long since)
+{
+    double freq = 1.0 / since;
+    double decay = exp(-since / rates->decay_sec);
+    double received_since = (totals->received_count - rates->received.prev) * freq;
+    double sent_since = (totals->sent_count - rates->sent.prev) * freq;
+    double spilled_since = (totals->spilled_count - rates->spilled.prev) * freq;
+    rates->received.rate = (1.0 - decay) * received_since + decay * rates->received.rate;
+    rates->sent.rate = (1.0 - decay) * sent_since + decay * rates->sent.rate;
+    rates->spilled.rate = (1.0 - decay) * spilled_since + decay * rates->spilled.rate;
+    rates->received.prev = totals->received_count;
+    rates->sent.prev = totals->sent_count;
+    rates->spilled.prev = totals->spilled_count;
+}
+
 void accumulate_and_clear_stats(stats_basic_counters_t * counters, stats_basic_counters_t * recents,
 				stats_basic_counters_t * totals)
 {

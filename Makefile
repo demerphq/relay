@@ -39,6 +39,8 @@ CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fn
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
 
+LIBS = -lm
+
 SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/socket_worker.c src/socket_util.c src/string_util.c src/config.c \
 	src/timer.c src/socket_worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c src/global.c src/daemonize.c src/worker_util.c
 
@@ -50,35 +52,35 @@ all:	gcc clang
 
 gcc:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) -o bin/$(RELAY) $(SRC)
+	$(GCC) $(CFLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
 
 gcc.asan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY) $(SRC)
+	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
 
 gcc.tsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/$(RELAY) $(SRC)
+	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/$(RELAY) $(SRC) $(LIBS)
 
 gcc.ubsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/$(RELAY) $(SRC)
+	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
 
 clang:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) -o bin/$(RELAY_CLANG) $(SRC)
+	$(CLANG) $(CFLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
 
 clang.asan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
+	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
 
 clang.msan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
+	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
 
 clang.tsan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC)
+	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
