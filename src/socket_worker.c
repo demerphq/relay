@@ -245,7 +245,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
     get_time(&send_end_time);
 
     if (spilled) {
-	WARN("Wrote %lu items which were over spill threshold", (unsigned long) spilled);
+	if (config->spill_enabled) {
+	    WARN("Wrote %lu items which were over spill threshold", (unsigned long) spilled);
+	} else {
+	    WARN("Spill disabled: DROPPED %lu items which were over spill threshold", (unsigned long) spilled);
+	}
     }
 
     /* this assumes end_time >= start_time */

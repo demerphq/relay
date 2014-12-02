@@ -82,6 +82,10 @@ static int write_blob_to_disk(disk_writer_t * self, blob_t * b)
     if (!setup_for_epoch(self, BLOB_RECEIVED_TIME(b).tv_sec))
 	return 0;
 
+    const config_t *config = self->base.config;
+    if (!config->spill_enabled)	/* Sanity check. */
+	return 0;
+
     /* TODO: there should be some sort of monitoring/alerting for low disk space:
      * I left this running for half an hour (with a load testing client) and it filled
      * my /tmp disk (/tmp/tcp_localhost_9003/....)  Whether the monitoring belongs
@@ -113,7 +117,10 @@ void *disk_writer_thread(void *arg)
 	WARN("Spill path creation failed");
 	return NULL;
     }
-    SAY("disk writer started using path '%s' for files", self->spill_path);
+    SAY("Disk writer started using path '%s' for files", self->spill_path);
+
+    const config_t *config = self->base.config;
+    SAY("Disk spill is %s", config->spill_enabled ? "enabled" : "DISABLED");
 
     queue_t private_queue;
     queue_t *main_queue = &self->queue;
@@ -129,7 +136,9 @@ void *disk_writer_thread(void *arg)
 
 	if (b == NULL) {
 	    if (done_work) {
-		SAY("cleared disk queue of %d items", done_work);
+		if (config->spill_enabled) {
+		    SAY("Cleared disk queue of %d items", done_work);
+		}
 		done_work = 0;
 	    }
 
@@ -138,14 +147,14 @@ void *disk_writer_thread(void *arg)
 		/* nothing to do and we have been asked to exit, so break from the loop */
 		break;
 	    } else {
-		worker_wait_millisec(self->base.config->polling_interval_millisec);
+		worker_wait_millisec(config->polling_interval_millisec);
 	    }
 	} else {
 	    int failed = 0;
 
 	    do {
 		done_work++;
-		if (!write_blob_to_disk(self, b)) {
+		if (config->spill_enabled && !write_blob_to_disk(self, b)) {
 		    FATAL("Failed to write blob to disk");
 		    failed = 1;
 		    break;
@@ -162,22 +171,26 @@ void *disk_writer_thread(void *arg)
     }
 
     if (control_is(RELAY_STOPPING)) {
-	SAY("Disk writer stopping, trying disk flush");
-	queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock);
-	b = private_queue.head;
-	size_t wrote = 0;
-	if (b) {
-	    SAY("Disk flush starting");
-	    do {
-		write_blob_to_disk(self, b);
-		wrote += b->ref->data.size;
-		blob_destroy(queue_shift_nolock(&private_queue));
+	if (config->spill_enabled) {
+	    SAY("Disk writer stopping, trying disk flush");
+	    queue_hijack(main_queue, &private_queue, &GLOBAL.pool.lock);
+	    b = private_queue.head;
+	    size_t wrote = 0;
+	    if (b) {
+		SAY("Disk flush starting");
+		do {
+		    write_blob_to_disk(self, b);
+		    wrote += b->ref->data.size;
+		    blob_destroy(queue_shift_nolock(&private_queue));
+		}
+		while ((b = private_queue.head) != NULL);
+	    } else {
+		SAY("Nothing to disk flush");
 	    }
-	    while ((b = private_queue.head) != NULL);
+	    SAY("Disk flush wrote %zd bytes", wrote);
 	} else {
-	    SAY("Nothing to disk flush");
+	    SAY("Disk writer stopping, spill disabled, skipping disk flush");
 	}
-	SAY("Disk flush wrote %zd bytes", wrote);
     }
 
     accumulate_and_clear_stats(self->counters, self->recents, self->totals);
