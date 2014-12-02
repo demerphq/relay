@@ -43,6 +43,7 @@ void config_set_defaults(config_t * config)
 
     config->config_save_root = strdup(DEFAULT_CONFIG_SAVE_ROOT);
 
+    config->spill_enabled = DEFAULT_SPILL_ENABLED;
     config->spill_millisec = DEFAULT_SPILL_MILLISEC;
     config->spill_root = strdup(DEFAULT_SPILL_ROOT);
 
@@ -306,6 +307,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 
 		TRY_STR_OPT(config_save_root, copy, p);
 
+		TRY_NUM_OPT(spill_enabled, copy, p);
 		TRY_STR_OPT(spill_root, copy, p);
 		TRY_NUM_OPT(spill_millisec, copy, p);
 
@@ -352,6 +354,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
 
     CONFIG_STR_VCATF(config_save_root);
 
+    CONFIG_NUM_VCATF(spill_enabled);
     CONFIG_STR_VCATF(spill_root);
     CONFIG_NUM_VCATF(spill_millisec);
 
@@ -628,6 +631,7 @@ int config_reload(config_t * config, const char *file)
 
     IF_STR_OPT_CHANGED(config_save_root, config, new_config);
 
+    IF_NUM_OPT_CHANGED(spill_enabled, config, new_config);
     IF_STR_OPT_CHANGED(spill_root, config, new_config);
     IF_NUM_OPT_CHANGED(spill_millisec, config, new_config);
 

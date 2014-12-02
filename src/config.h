@@ -64,6 +64,9 @@ struct config {
 
     uint32_t max_pps;		/* XXX unused */
 
+    /* if disabled, we will just drop packets
+     * we cannot send out in time. DANGER. */
+    int spill_enabled;
     /* root directory for where we write failed sends,
      * and "spilled" data */
     char *spill_root;
@@ -112,6 +115,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT
 #define DEFAULT_CONFIG_SAVE_ROOT "/var/run/event-relay"
+#endif
+
+#ifndef DEFAULT_SPILL_ENABLED
+#define DEFAULT_SPILL_ENABLED 1
 #endif
 
 #ifndef DEFAULT_SPILL_MILLISEC
