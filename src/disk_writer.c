@@ -71,7 +71,7 @@ static int setup_for_epoch(disk_writer_t * self, time_t blob_epoch)
     return 1;
 }
 
-/* write a blob to disk */
+/* Write a blob to disk, or drop it, depending on config->spill_enabled. */
 static int write_blob_to_disk(disk_writer_t * self, blob_t * b)
 {
     if (BLOB_REF_PTR(b) == NULL) {

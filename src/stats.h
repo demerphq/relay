@@ -17,6 +17,7 @@ typedef struct {
     rate_t sent;
     rate_t received;
     rate_t spilled;
+    rate_t dropped;
     double decay_sec;
 } rates_t;
 
@@ -25,6 +26,7 @@ struct stats_basic_counters {
     volatile stats_count_t sent_count;	/* number of items we have sent */
     volatile stats_count_t partial_count;	/* number of items we have spilled */
     volatile stats_count_t spilled_count;	/* number of items we have spilled */
+    volatile stats_count_t dropped_count;	/* number of items we have dropped */
     volatile stats_count_t error_count;	/* number of items that had an error */
     volatile stats_count_t disk_count;	/* number of items we have written to disk */
     volatile stats_count_t disk_error_count;	/* number of items we failed to write to disk properly */

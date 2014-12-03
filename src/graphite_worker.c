@@ -121,6 +121,7 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
 	STATS_VCATF(sent);
 	STATS_VCATF(partial);
 	STATS_VCATF(spilled);
+	STATS_VCATF(dropped);
 	STATS_VCATF(error);
 	STATS_VCATF(disk);
 	STATS_VCATF(disk_error);

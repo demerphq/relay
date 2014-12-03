@@ -16,7 +16,8 @@
 #include "timer.h"
 #include "worker_util.h"
 
-/* if a worker failed to send we need to write the item to the disk */
+/* If a worker failed to send we need to write the item to the disk.
+ * Or, if config has disabled spilling, the write phase will just drop them. */
 static void enqueue_queue_for_disk_writing(socket_worker_t * worker, queue_t * q)
 {
     queue_append_tail(&worker->disk_writer->queue, q, &worker->lock);
@@ -38,18 +39,24 @@ static void cork(relay_socket_t * s, int flag)
 #endif
 }
 
-static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queue, queue_t * spill_queue,
-				  uint64_t spill_microsec, struct timeval *now)
+/* Peels off all the blobs which have been in the input queue for longer
+ * than the spill limit, move them to the spill queue, and enqueue
+ * them for eventual spilling or dropping.
+ *
+ * Note that the "spill queue" is used either for actual spilling (to the disk)
+ * or dropping.
+ *
+ * Returns the number of (eventually) spilled (if spill enabled) or
+ * dropped (if spill disabled) items. */
+static stats_count_t spill_by_age(socket_worker_t * self, int spill_enabled, queue_t * private_queue,
+				  queue_t * spill_queue, uint64_t spill_microsec, struct timeval *now)
 {
-    /* Peel off all the blobs which have been in the queue
-     * for longer than the spill limit, move them to the
-     * spill queue, and enqueue them for spilling. */
-
     blob_t *cur_blob = private_queue->head;
 
     if (!cur_blob)
 	return 0;
 
+    /* If spill is disabled, this really counts the dropped packets. */
     stats_count_t spilled = 0;
 
     if (elapsed_usec(&BLOB_RECEIVED_TIME(cur_blob), now) >= spill_microsec) {
@@ -67,7 +74,11 @@ static stats_count_t spill_by_age(socket_worker_t * self, queue_t * private_queu
 
 	spilled += spill_queue->count;
 
-	RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
+	if (spill_enabled) {
+	    RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
+	} else {
+	    RELAY_ATOMIC_INCREMENT(self->counters.dropped_count, spill_queue->count);
+	}
 
 	enqueue_queue_for_disk_writing(self, spill_queue);
     }
@@ -96,8 +107,6 @@ static stats_count_t spill_all(socket_worker_t * self, queue_t * private_queue, 
     BLOB_NEXT_set(cur_blob, NULL);
 
     spilled += spill_queue->count;
-
-    RELAY_ATOMIC_INCREMENT(self->counters.spilled_count, spill_queue->count);
 
     enqueue_queue_for_disk_writing(self, spill_queue);
 
@@ -154,7 +163,7 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
     while (private_queue->head != NULL) {
 	get_time(&now);
 
-	spilled += spill_by_age(self, private_queue, spill_queue, spill_microsec, &now);
+	spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
 
 	cur_blob = private_queue->head;
 	if (!cur_blob)
@@ -337,14 +346,16 @@ void *socket_worker_thread(void *arg)
 	SAY("Socket worker stopping, trying forwarding flush");
 	stats_count_t old_sent = self->totals.sent_count;
 	stats_count_t old_spilled = self->totals.spilled_count;
+	stats_count_t old_dropped = self->totals.dropped_count;
 	if (sck) {
 	    ssize_t wrote = 0;
 	    if (!process_queue(self, sck, &private_queue, &spill_queue, &wrote)) {
 		WARN_ERRNO("Forwarding flush failed");
 	    }
 	    accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
-	    SAY("Forwarding flush forwarded %zd bytes in %lu events, spilled %lu events",
-		wrote, self->totals.sent_count - old_sent, self->totals.spilled_count - old_spilled);
+	    SAY("Forwarding flush forwarded %zd bytes in %lu events, spilled %lu events, dropped %lu events ",
+		wrote, self->totals.sent_count - old_sent, self->totals.spilled_count - old_spilled,
+		self->totals.dropped_count - old_dropped);
 	} else {
 	    WARN("No forwarding socket to flush to");
 	}
@@ -355,11 +366,12 @@ void *socket_worker_thread(void *arg)
 	accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
     }
 
-    SAY("worker[%s] in its lifetime received %lu sent %lu spilled %lu",
+    SAY("worker[%s] in its lifetime received %lu sent %lu spilled %lu dropped %lu",
 	(sck ? sck->to_string : self->base.arg),
 	(unsigned long) RELAY_ATOMIC_READ(self->totals.received_count),
 	(unsigned long) RELAY_ATOMIC_READ(self->totals.sent_count),
-	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count));
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count),
+	(unsigned long) RELAY_ATOMIC_READ(self->totals.dropped_count));
 
     if (sck)
 	close(sck->socket);

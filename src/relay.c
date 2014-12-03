@@ -33,6 +33,7 @@ stats_basic_counters_t RECEIVED_STATS = {
     .sent_count = 0,		/* number of items we have sent */
     .partial_count = 0,		/* number of items we have spilled */
     .spilled_count = 0,		/* number of items we have spilled */
+    .dropped_count = 0,		/* number of items we have dropped */
     .error_count = 0,		/* number of items that had an error */
     .disk_count = 0,		/* number of items we have written to disk */
 

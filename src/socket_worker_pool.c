@@ -59,6 +59,17 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 		    break;
 
 		if (!fixed_buffer_vcatf(buf,
+					"dropped %lu/%lu ",
+					(unsigned long) RELAY_ATOMIC_READ(w->recents.dropped_count),
+					(unsigned long) RELAY_ATOMIC_READ(w->totals.dropped_count)))
+		    break;
+		if (!fixed_buffer_vcatf(buf,
+					"%d:%d:%d ",
+					(int) w->rates[0].dropped.rate,
+					(int) w->rates[1].dropped.rate, (int) w->rates[2].dropped.rate))
+		    break;
+
+		if (!fixed_buffer_vcatf(buf,
 					"disk %lu/%lu disk_error %lu/%lu",
 					(unsigned long) RELAY_ATOMIC_READ(w->recents.disk_count),
 					(unsigned long) RELAY_ATOMIC_READ(w->totals.disk_count),
