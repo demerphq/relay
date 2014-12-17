@@ -47,6 +47,8 @@ struct config {
 
     /* directory for the config saves */
     char *config_save_root;
+    /* if true, configs are saved */
+    int config_save;
 
     /* lock file, will contain pid */
     char *lock_file;
@@ -115,6 +117,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_CONFIG_SAVE_ROOT
 #define DEFAULT_CONFIG_SAVE_ROOT "/var/run/event-relay"
+#endif
+
+#ifndef DEFAULT_CONFIG_SAVE
+#define DEFAULT_CONFIG_SAVE 1
 #endif
 
 #ifndef DEFAULT_SPILL_ENABLED
