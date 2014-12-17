@@ -553,9 +553,8 @@ static int config_save(const config_t * config, time_t now)
     }						            \
   } while(0)
 
-int config_reload(config_t * config, const char *file)
+int config_reload(config_t * config, const char *file, time_t now)
 {
-    time_t now = time(NULL);
     int config_changed = 0;
 
     config->epoch_attempt = now;
@@ -688,9 +687,6 @@ int config_reload(config_t * config, const char *file)
     if (config_changed) {
 	config->generation++;
 	config->epoch_changed = now;
-	if (!config_save(config, now)) {
-	    WARN("Config save failed");
-	}
     }
     config->epoch_success = now;
 
@@ -736,6 +732,8 @@ int config_reload(config_t * config, const char *file)
 
 void config_init(int argc, char **argv)
 {
+    time_t now = time(NULL);
+
     GLOBAL.config = calloc_or_fatal(sizeof(config_t));
     if (GLOBAL.config == NULL)
 	return;
@@ -765,7 +763,7 @@ void config_init(int argc, char **argv)
 		if (opt) {
 		    if (val) {
 			if (STREQ(opt, "config_file"))
-			    config_reload(GLOBAL.config, val);
+			    config_reload(GLOBAL.config, val, now);
 		    } else {
 			FATAL("Option %s needs value", argv[argi]);
 		    }
@@ -802,6 +800,12 @@ void config_init(int argc, char **argv)
     if (!(config_options_valid && config_addresses_valid)) {
 	FATAL("Invalid initial configuration");
 	return;
+    }
+
+    if (GLOBAL.config->config_save) {
+	if (!config_save(GLOBAL.config, time(NULL))) {
+	    WARN("Config save failed");
+	}
     }
 
     closelog();

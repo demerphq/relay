@@ -155,7 +155,7 @@ typedef struct config config_t;
 #define DEFAULT_GRAPHITE_SLEEP_POLL_INTERVAL_MILLISEC 500
 #endif
 
-int config_reload(config_t * config, const char *file);
+int config_reload(config_t * config, const char *file, time_t now);
 void config_set_defaults(config_t * config);
 void config_init(int argc, char **argv);
 void config_die_args(int argc, char **argv);

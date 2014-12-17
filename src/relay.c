@@ -584,7 +584,7 @@ static int serve(config_t * config)
 	} else if (control & RELAY_RELOADING) {
 	    WARN("Reloading");
 	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
-	    if (config_reload(config, config->config_file)) {
+	    if (config_reload(config, config->config_file, time(NULL))) {
 		SAY("Reloading the listener and worker pool");
 		stop_listener(server_tid);
 		server_tid = setup_listener(config);
