@@ -550,7 +550,7 @@ static int serve(config_t * config)
 
     signal(SIGTERM, sig_handler);
     signal(SIGINT, sig_handler);
-    signal(SIGPIPE, sig_handler);
+    signal(SIGPIPE, SIG_IGN);
     signal(SIGHUP, sig_handler);
 
     GLOBAL.listener = calloc_or_fatal(sizeof(relay_socket_t));
