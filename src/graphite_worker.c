@@ -219,6 +219,12 @@ static void graphite_wait(graphite_worker_t * self, const struct graphite_config
 
 void *graphite_worker_thread(void *arg)
 {
+    // blocking all signals in threads is a good practise
+    // we let main thread receive all signals
+    sigset_t sigs_to_block;
+    sigfillset(&sigs_to_block);
+    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
+
     relay_socket_t *sck = NULL;
     graphite_worker_t *self = (graphite_worker_t *) arg;
     char stats_format[256];

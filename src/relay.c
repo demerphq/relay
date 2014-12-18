@@ -25,6 +25,7 @@ struct tcp_client {
 #define PROCESS_STATUS_BUF_LEN 1024
 
 static void sig_handler(int signum);
+static void block_all_signals_inside_thread();
 static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
 
@@ -69,6 +70,8 @@ static inline blob_t *buf_to_blob_enqueue(unsigned char *buf, size_t size)
 
 void *udp_server(void *arg)
 {
+    block_all_signals_inside_thread();
+
     relay_socket_t *s = (relay_socket_t *) arg;
 #ifdef PACKETS_PER_SECOND
     uint32_t packets = 0, prev_packets = 0;
@@ -311,6 +314,8 @@ static void tcp_context_close(tcp_server_context_t * ctxt)
 
 void *tcp_server(void *arg)
 {
+    block_all_signals_inside_thread();
+
     relay_socket_t *s = (relay_socket_t *) arg;
     tcp_server_context_t ctxt;
 
@@ -658,6 +663,15 @@ static void sig_handler(int signum)
     default:
 	WARN("Received unexpected signal %d, ignoring", signum);
     }
+}
+
+static void block_all_signals_inside_thread()
+{
+    // blocking all signals in threads is a good practise
+    // we let main thread receive all signals
+    sigset_t sigs_to_block;
+    sigfillset(&sigs_to_block);
+    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
 }
 
 static void stop_listener(pthread_t server_tid)
