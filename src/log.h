@@ -42,8 +42,8 @@
     {                                                                                                   \
         /* dump log record together with timestamp */                                                   \
         fprintf(stderr,                                                                                 \
-                "[%4.4s %s" DEBUG_FMT "] " fmt " [%s:%d] %s()\n",                                       \
-                "" #type, ts.str _DEBUG_ARGS, ## arg, __FILE__, __LINE__, __func__);                    \
+                "[%4.4s %s pid:%d" DEBUG_FMT "] " fmt " [%s:%d] %s()\n",                                \
+                "" #type, ts.str, getpid() _DEBUG_ARGS, ## arg, __FILE__, __LINE__, __func__);          \
     }                                                                                                   \
                                                                                                         \
     /* do not dump timestamp to syslog, it prevent syslog from deduping repeated messages */            \
