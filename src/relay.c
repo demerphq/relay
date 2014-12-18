@@ -425,7 +425,7 @@ static int highlander_blocking_lock(config_t * config)
 {
     SAY("Attempting lock file %s", config->lock_file);
 
-    int lockfd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    int lockfd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (lockfd == -1) {
 	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
 	return -1;
