@@ -127,6 +127,7 @@ void worker_pool_init_static(config_t * config)
 
     LOCK(&GLOBAL.pool.lock);
     GLOBAL.pool.n_workers = 0;
+    GLOBAL.pool.n_connected = 0;
     for (int i = 1; i < config->argc; i++) {
 	if (control_is(RELAY_STOPPING))
 	    break;

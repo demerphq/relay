@@ -113,6 +113,22 @@ static stats_count_t spill_all(socket_worker_t * self, queue_t * private_queue, 
     return spilled;
 }
 
+static void connected_inc()
+{
+    LOCK(&GLOBAL.pool.lock);
+    GLOBAL.pool.n_connected++;
+    SAY("Connected %d", GLOBAL.pool.n_connected);
+    UNLOCK(&GLOBAL.pool.lock);
+}
+
+static void connected_dec()
+{
+    LOCK(&GLOBAL.pool.lock);
+    GLOBAL.pool.n_connected--;
+    SAY("Connected %d", GLOBAL.pool.n_connected);
+    UNLOCK(&GLOBAL.pool.lock);
+}
+
 static void peek_send(relay_socket_t * sck, const void *data, ssize_t blob_left, ssize_t sent)
 {
     int saverrno = errno;
@@ -299,6 +315,7 @@ void *socket_worker_thread(void *arg)
 		FATAL_ERRNO("Failed to open forwarding socket");
 		break;
 	    }
+	    connected_inc();
 	}
 
 	long since_rate_update = now - last_rate_update;
@@ -336,6 +353,7 @@ void *socket_worker_thread(void *arg)
 		WARN("Closing forwarding socket");
 		close(sck->socket);
 		sck = NULL;
+		connected_dec();
 	    }
 	}
 
@@ -373,8 +391,10 @@ void *socket_worker_thread(void *arg)
 	(unsigned long) RELAY_ATOMIC_READ(self->totals.spilled_count),
 	(unsigned long) RELAY_ATOMIC_READ(self->totals.dropped_count));
 
-    if (sck)
+    if (sck) {
 	close(sck->socket);
+	connected_dec();
+    }
 
     /* we are done so shut down our "pet" disk worker, and then exit with a message */
     RELAY_ATOMIC_OR(self->disk_writer->base.stopping, WORKER_STOPPING);

@@ -10,7 +10,7 @@ struct socket_worker_pool {
     TAILQ_HEAD(, socket_worker) workers;
     LOCK_T lock;
     int n_workers;
-
+    int n_connected;
 };
 typedef struct socket_worker_pool socket_worker_pool_t;
 
