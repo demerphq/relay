@@ -46,6 +46,7 @@ void config_set_defaults(config_t * config)
 
     config->spill_enabled = DEFAULT_SPILL_ENABLED;
     config->spill_millisec = DEFAULT_SPILL_MILLISEC;
+    config->spill_grace_millisec = DEFAULT_SPILL_GRACE_MILLISEC;
     config->spill_root = strdup(DEFAULT_SPILL_ROOT);
 
     config->graphite.dest_addr = strdup(DEFAULT_GRAPHITE_DEST_ADDR);
@@ -199,6 +200,7 @@ static int config_valid_options(config_t * config)
 
     CONFIG_VALID_DIRECTORY(config, spill_root, invalid);
     CONFIG_VALID_NUM(config, is_valid_millisec, spill_millisec, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, spill_grace_millisec, invalid);
 
     CONFIG_VALID_SOCKETIZE(config, IPPROTO_TCP, RELAY_CONN_IS_OUTBOUND, "graphite worker", graphite.dest_addr, invalid);
     CONFIG_VALID_STR(config, is_valid_graphite_target, graphite.path_root, invalid);
@@ -312,6 +314,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 		TRY_NUM_OPT(spill_enabled, copy, p);
 		TRY_STR_OPT(spill_root, copy, p);
 		TRY_NUM_OPT(spill_millisec, copy, p);
+		TRY_NUM_OPT(spill_grace_millisec, copy, p);
 
 		TRY_STR_OPT(graphite.dest_addr, copy, p);
 		TRY_STR_OPT(graphite.path_root, copy, p);
@@ -360,6 +363,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     CONFIG_NUM_VCATF(spill_enabled);
     CONFIG_STR_VCATF(spill_root);
     CONFIG_NUM_VCATF(spill_millisec);
+    CONFIG_NUM_VCATF(spill_grace_millisec);
 
     CONFIG_STR_VCATF(graphite.dest_addr);
     CONFIG_STR_VCATF(graphite.path_root);
@@ -637,6 +641,7 @@ int config_reload(config_t * config, const char *file, time_t now)
     IF_NUM_OPT_CHANGED(spill_enabled, config, new_config);
     IF_STR_OPT_CHANGED(spill_root, config, new_config);
     IF_NUM_OPT_CHANGED(spill_millisec, config, new_config);
+    IF_NUM_OPT_CHANGED(spill_grace_millisec, config, new_config);
 
     IF_STR_OPT_CHANGED(graphite.dest_addr, config, new_config);
     IF_STR_OPT_CHANGED(graphite.path_root, config, new_config);

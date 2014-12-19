@@ -67,12 +67,22 @@ struct config {
     uint32_t max_pps;		/* XXX unused */
 
     /* if disabled, we will just drop packets
-     * we cannot send out in time. DANGER. */
+     * we cannot send out in time (spill_millisec,
+     * see also spill_grace_millisec)
+     * DANGER DANGER DANGER */
     int spill_enabled;
+
     /* root directory for where we write failed sends,
      * and "spilled" data */
     char *spill_root;
-    uint32_t spill_millisec;	/* should be more than tcp send timeout */
+
+    /* packets older than this are spilled/dropped,
+     * should be more than tcp send timeout */
+    uint32_t spill_millisec;
+
+    /* the spill logic forgives this much if the socket backends are
+     * not present, but once this much has passed, the spill/drop engages. */
+    uint32_t spill_grace_millisec;
 
     struct graphite_config graphite;
 };
@@ -129,6 +139,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SPILL_MILLISEC
 #define DEFAULT_SPILL_MILLISEC 3000
+#endif
+
+#ifndef DEFAULT_SPILL_GRACE_MILLISEC
+#define DEFAULT_SPILL_GRACE_MILLISEC (60 * 1000)
 #endif
 
 #ifndef DEFAULT_SPILL_ROOT
