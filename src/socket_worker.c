@@ -129,6 +129,15 @@ static void connected_dec()
     UNLOCK(&GLOBAL.pool.lock);
 }
 
+static int connected_all()
+{
+    int ret;
+    LOCK(&GLOBAL.pool.lock);
+    ret = GLOBAL.pool.n_connected == GLOBAL.pool.n_workers;
+    UNLOCK(&GLOBAL.pool.lock);
+    return ret;
+}
+
 static void peek_send(relay_socket_t * sck, const void *data, ssize_t blob_left, ssize_t sent)
 {
     int saverrno = errno;
@@ -179,7 +188,11 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
     while (private_queue->head != NULL) {
 	get_time(&now);
 
-	spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
+	/* If not all the socket backends are present, do not spill/drop.
+	 * This is a bit crude, better rules/heuristics welcome. */
+	if (!connected_all()) {
+	    spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
+	}
 
 	cur_blob = private_queue->head;
 	if (!cur_blob)
