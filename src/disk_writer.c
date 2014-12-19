@@ -11,7 +11,7 @@
  */
 static int recreate_spill_path(char *dir)
 {
-    if (mkdir(dir, 0750) == -1 && errno != EEXIST) {
+    if (mkdir(dir, 0755) == -1 && errno != EEXIST) {
 	FATAL_ERRNO("mkdir of %s failed", dir);
 	return 0;
     }
