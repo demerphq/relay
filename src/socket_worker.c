@@ -192,8 +192,8 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
     while (private_queue->head != NULL) {
 	get_time(&now);
 
-	/* If not all the socket backends are present, do not spill/drop.
-	 * This is a bit crude, better rules/heuristics welcome. */
+	/* While not all the socket backends are present, for a configured maximum time,
+	 * do not spill/drop. This is a bit crude, better rules/heuristics welcome. */
 	if (!connected_all()) {
 	    if (in_grace_period == 0) {
 		in_grace_period = 1;
@@ -201,10 +201,18 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 		SAY("Spill/drop grace period of %d millisec started", config->spill_grace_millisec);
 	    }
 	    if (elapsed_usec(&grace_period_start, &now) >= grace_microsec) {
-		SAY("Spill/drop grace period of %d millisec expired", config->spill_grace_millisec);
 		in_grace_period = 0;
-		spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
+		SAY("Spill/drop grace period of %d millisec expired", config->spill_grace_millisec);
 	    }
+	} else {
+	    if (in_grace_period) {
+		SAY("Spill/drop grace period of %d millisec canceled", config->spill_grace_millisec);
+	    }
+	    in_grace_period = 0;
+	}
+
+	if (in_grace_period == 0) {
+	    spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
 	}
 
 	cur_blob = private_queue->head;
