@@ -513,7 +513,6 @@ static int config_save(const config_t * config, time_t now)
 	if (wrote < 0 || wrote >= room) {
 	    WARN("Failed to build config save name into %s from %s", config->config_save_root, config->config_file);
 	    return 0;
-
 	}
 	int fd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
@@ -560,6 +559,7 @@ static int config_save(const config_t * config, time_t now)
 int config_reload(config_t * config, const char *file, time_t now)
 {
     int config_changed = 0;
+    int first_config = config->generation == 0;
 
     config->epoch_attempt = now;
 
@@ -576,7 +576,7 @@ int config_reload(config_t * config, const char *file, time_t now)
 	return 0;
     }
 
-    if (config->generation == 0) {
+    if (first_config) {
 	SAY("Loading config file %s", config->config_file);
 	config_changed = 1;
     } else {
@@ -596,7 +596,7 @@ int config_reload(config_t * config, const char *file, time_t now)
 	return 0;
     }
 
-    if (config->generation == 0) {
+    if (first_config) {
 	SAY("Loaded config file %s", config->config_file);
 	SAY("Initial config");
     } else {
@@ -607,7 +607,7 @@ int config_reload(config_t * config, const char *file, time_t now)
     config_dump(new_config);
 
     if (!config_valid_options_and_optional_addresses(new_config)) {
-	if (config->generation == 0)
+	if (first_config)
 	    FATAL("Invalid initial configuration");
 	else
 	    WARN("Invalid new configuration, ignoring");
@@ -692,8 +692,7 @@ int config_reload(config_t * config, const char *file, time_t now)
     if (config_changed) {
 	config->generation++;
 	config->epoch_changed = now;
-
-	if (config->config_save && !config_save(config, time(NULL))) {
+	if (config->config_save && !first_config && !config_save(config, time(NULL))) {
 	    WARN("Config save failed");
 	}
     }
