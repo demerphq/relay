@@ -173,9 +173,13 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 
     const config_t *config = self->base.config;
     const uint64_t spill_microsec = 1000 * config->spill_millisec;
+    const uint64_t grace_microsec = 1000 * config->spill_grace_millisec;
 
     const struct sockaddr *dest_addr = (const struct sockaddr *) &sck->sa.in;
     socklen_t addr_len = sck->addrlen;
+
+    int in_grace_period = 0;
+    struct timeval grace_period_start;
 
     int failed = 0;
 
@@ -191,7 +195,16 @@ static int process_queue(socket_worker_t * self, relay_socket_t * sck, queue_t *
 	/* If not all the socket backends are present, do not spill/drop.
 	 * This is a bit crude, better rules/heuristics welcome. */
 	if (!connected_all()) {
-	    spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
+	    if (in_grace_period == 0) {
+		in_grace_period = 1;
+		get_time(&grace_period_start);
+		SAY("Spill/drop grace period of %d millisec started", config->spill_grace_millisec);
+	    }
+	    if (elapsed_usec(&grace_period_start, &now) >= grace_microsec) {
+		SAY("Spill/drop grace period of %d millisec expired", config->spill_grace_millisec);
+		in_grace_period = 0;
+		spilled += spill_by_age(self, config->spill_enabled, private_queue, spill_queue, spill_microsec, &now);
+	    }
 	}
 
 	cur_blob = private_queue->head;
