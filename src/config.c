@@ -693,9 +693,9 @@ int config_reload(config_t * config, const char *file, time_t now)
 	config->generation++;
 	config->epoch_changed = now;
 
-        if (config->config_save && !config_save(config, time(NULL))) {
-            WARN("Config save failed");
-        }
+	if (config->config_save && !config_save(config, time(NULL))) {
+	    WARN("Config save failed");
+	}
     }
     config->epoch_success = now;
 
