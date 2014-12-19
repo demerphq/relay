@@ -142,7 +142,7 @@ typedef struct config config_t;
 #endif
 
 #ifndef DEFAULT_SPILL_GRACE_MILLISEC
-#define DEFAULT_SPILL_GRACE_MILLISEC (60 * 1000)
+#define DEFAULT_SPILL_GRACE_MILLISEC (20 * 1000)
 #endif
 
 #ifndef DEFAULT_SPILL_ROOT
