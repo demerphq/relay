@@ -687,6 +687,10 @@ int config_reload(config_t * config, const char *file, time_t now)
     if (config_changed) {
 	config->generation++;
 	config->epoch_changed = now;
+
+        if (config->config_save && !config_save(config, time(NULL))) {
+            WARN("Config save failed");
+        }
     }
     config->epoch_success = now;
 
