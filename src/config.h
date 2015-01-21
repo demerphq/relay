@@ -61,6 +61,9 @@ struct config {
     uint32_t polling_interval_millisec;
     uint32_t sleep_after_disaster_millisec;
 
+    /* the maximum wait between socket open attempts */
+    uint32_t max_socket_open_wait_millisec;
+
     uint32_t server_socket_rcvbuf_bytes;
     uint32_t server_socket_sndbuf_bytes;
 
@@ -117,6 +120,10 @@ typedef struct config config_t;
 
 #ifndef DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC
 #define DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC 100
+#endif
+
+#ifndef DEFAULT_MAX_SOCKET_OPEN_WAIT_MILLISEC
+#define DEFAULT_MAX_SOCKET_OPEN_WAIT_MILLISEC (60 * 1000)
 #endif
 
 #ifndef DEFAULT_LOCK_FILE

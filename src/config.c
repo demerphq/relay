@@ -38,6 +38,7 @@ void config_set_defaults(config_t * config)
     config->sleep_after_disaster_millisec = DEFAULT_SLEEP_AFTER_DISASTER_MILLISEC;
     config->server_socket_rcvbuf_bytes = DEFAULT_SERVER_SOCKET_RCVBUF_BYTES;
     config->server_socket_sndbuf_bytes = DEFAULT_SERVER_SOCKET_SNDBUF_BYTES;
+    config->max_socket_open_wait_millisec = DEFAULT_MAX_SOCKET_OPEN_WAIT_MILLISEC;
 
     config->lock_file = strdup(DEFAULT_LOCK_FILE);
 
@@ -193,6 +194,7 @@ static int config_valid_options(config_t * config)
     CONFIG_VALID_NUM(config, is_valid_millisec, sleep_after_disaster_millisec, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_rcvbuf_bytes, invalid);
     CONFIG_VALID_NUM(config, is_valid_buffer_size, server_socket_sndbuf_bytes, invalid);
+    CONFIG_VALID_NUM(config, is_valid_millisec, max_socket_open_wait_millisec, invalid);
 
     CONFIG_VALID_STR(config, is_non_empty_string, lock_file, invalid);
 
@@ -305,6 +307,7 @@ static int config_from_line(config_t * config, const char *line, char *copy, cha
 		TRY_NUM_OPT(sleep_after_disaster_millisec, copy, p);
 		TRY_NUM_OPT(server_socket_rcvbuf_bytes, copy, p);
 		TRY_NUM_OPT(server_socket_sndbuf_bytes, copy, p);
+		TRY_NUM_OPT(max_socket_open_wait_millisec, copy, p);
 
 		TRY_STR_OPT(lock_file, copy, p);
 
@@ -354,6 +357,7 @@ static int config_to_buffer(const config_t * config, fixed_buffer_t * buf)
     CONFIG_NUM_VCATF(sleep_after_disaster_millisec);
     CONFIG_NUM_VCATF(server_socket_rcvbuf_bytes);
     CONFIG_NUM_VCATF(server_socket_sndbuf_bytes);
+    CONFIG_NUM_VCATF(max_socket_open_wait_millisec);
 
     CONFIG_STR_VCATF(lock_file);
 
