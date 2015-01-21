@@ -117,7 +117,7 @@ static void connected_inc()
 {
     LOCK(&GLOBAL.pool.lock);
     GLOBAL.pool.n_connected++;
-    SAY("Connected %d", GLOBAL.pool.n_connected);
+    SAY("Connected count %d", GLOBAL.pool.n_connected);
     UNLOCK(&GLOBAL.pool.lock);
 }
 
@@ -125,7 +125,7 @@ static void connected_dec()
 {
     LOCK(&GLOBAL.pool.lock);
     GLOBAL.pool.n_connected--;
-    SAY("Connected %d", GLOBAL.pool.n_connected);
+    SAY("Connected count %d", GLOBAL.pool.n_connected);
     UNLOCK(&GLOBAL.pool.lock);
 }
 
