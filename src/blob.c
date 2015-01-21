@@ -28,6 +28,18 @@ void *calloc_or_fatal(size_t size)
     return ptr;
 }
 
+/* NOTE: only really handles allocs of up to 1<<32!
+ * Would need a way to "count leading zeros" on 64-bit. */
+static void inc_blob_total_sizes(size_t size)
+{
+    int bucket = size ? (32 - __builtin_clz((int) size - 1)) : 0;
+    if (bucket < 0 || bucket > (int) sizeof(GLOBAL.blob_total_sizes) / (int) sizeof(GLOBAL.blob_total_sizes[0])) {
+	return;			/* should die, really */
+    }
+    RELAY_ATOMIC_OR(GLOBAL.blob_total_ored_buckets, 1 << bucket);
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_sizes[bucket], 1);
+}
+
 /* blob= blob_new(size) - create a new empty blob with space for size bytes */
 INLINE blob_t *blob_new(size_t size)
 {
@@ -40,12 +52,17 @@ INLINE blob_t *blob_new(size_t size)
     BLOB_REF_PTR_set(b, malloc_or_fatal(refcnt_size));
     BLOB_REFCNT_set(b, 1);	/* overwritten in enqueue_blob_for_transmision */
     BLOB_BUF_SIZE_set(b, size);
+
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_count, 1);
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_bytes, sizeof(blob_t));
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_refcnt_bytes, refcnt_size);
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_count, 1);
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_bytes, sizeof(blob_t));
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_refcnt_bytes, refcnt_size);
+
+    inc_blob_total_sizes(sizeof(blob_t));
+    inc_blob_total_sizes(refcnt_size);
+
     (void) get_time(&BLOB_RECEIVED_TIME(b));
 
     return b;

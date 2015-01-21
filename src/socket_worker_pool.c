@@ -85,6 +85,22 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 	     RELAY_ATOMIC_READ(GLOBAL.blob_total_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_total_refcnt_bytes))) {
 	    break;
 	}
+	{
+	    int64_t buckets = RELAY_ATOMIC_READ(GLOBAL.blob_total_ored_buckets);
+	    if (buckets) {
+		if (!fixed_buffer_vcatf(buf, " buckets:", buckets)) {
+		    break;
+		}
+		for (int i = 0;
+		     buckets && i < (int) sizeof(GLOBAL.blob_total_sizes) / (int) sizeof(GLOBAL.blob_total_sizes[0]);
+		     i++, buckets >>= 1) {
+		    int64_t count = RELAY_ATOMIC_READ(GLOBAL.blob_total_sizes[i]);
+		    if (count > 0 && !fixed_buffer_vcatf(buf, " %d:%ld", i, count)) {
+			break;
+		    }
+		}
+	    }
+	}
     } while (0);
     UNLOCK(&GLOBAL.pool.lock);
     fixed_buffer_zero_terminate(buf);
