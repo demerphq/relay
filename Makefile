@@ -21,7 +21,6 @@ UBSAN_FLAGS=-fsanitize=undefined
 # Generic flags
 
 OPT_FLAGS=-O3
-DBG_FLAGS=-g
 
 # -Wconversion is still too noisy
 # -Wcast-align is useless with gcc on x86: it never warns.  Use it with clang.
@@ -34,7 +33,7 @@ OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO
 # OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE
 
 # Flags common to all compilers.
-CFLAGS=$(OPT_FLAGS) $(DBG_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
+CFLAGS=$(OPT_FLAGS) $(SAN_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
 
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
@@ -54,17 +53,21 @@ gcc:
 	mkdir -p bin
 	$(GCC) $(CFLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
 
+debug:	clean
+	make gcc OPT_FLAGS="-O0 -g"
+	make clang OPT_FLAGS="-O0 -g"
+
 gcc.asan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
+	make gcc OPT_FLAGS=-g SAN_FLAGS=$(ASAN_FLAGS)
 
 gcc.tsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(TSAN_FLAGS) -pie -fPIC -o bin/$(RELAY) $(SRC) $(LIBS)
+	make gcc OPT_FLAGS=-g SAN_FLAGS="$(TSAN_FLAGS) -pie -fPIC"
 
 gcc.ubsan:
 	mkdir -p bin
-	$(GCC) $(CFLAGS) $(UBSAN_FLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
+	make gcc OPT_FLAGS=-g SAN_FLAGS=$(UBSAN_FLAGS)
 
 clang:
 	mkdir -p bin
@@ -72,15 +75,15 @@ clang:
 
 clang.asan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(ASAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
+	make clang OPT_FLAGS=-g SAN_FLAGS=$(ASAN_FLAGS)
 
 clang.msan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(MSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
+	make clang OPT_FLAGS=-g SAN_FLAGS=$(MSAN_FLAGS)
 
 clang.tsan:
 	mkdir -p bin
-	$(CLANG) $(CFLAGS) $(TSAN_FLAGS) -o bin/$(RELAY_CLANG) $(SRC) $(LIBS)
+	make clang OPT_FLAGS=-g SAN_FLAGS=$(TSAN_FLAGS)
 
 indent:
 	indent -kr --line-length 120 src/*.[hc]
