@@ -78,6 +78,11 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 		    break;
 	    }
 	}
+	if (!fixed_buffer_vcatf(buf, " : active blob %ld bytes %ld refcnt_bytes %ld",
+				RELAY_ATOMIC_READ(GLOBAL.blob_count),
+				RELAY_ATOMIC_READ(GLOBAL.blob_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_refcnt_bytes))) {
+	    break;
+	}
     } while (0);
     UNLOCK(&GLOBAL.pool.lock);
     fixed_buffer_zero_terminate(buf);
