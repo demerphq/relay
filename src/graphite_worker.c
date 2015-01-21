@@ -255,10 +255,10 @@ void *graphite_worker_thread(void *arg)
 	}
 
 	if (!graphite_send(sck, buffer, &wrote)) {
-	    WARN("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
+	    WARN_ERRNO("Failed graphite send: tried %zd, wrote %zd bytes", buffer->used, wrote);
 	    close(sck->socket);
 	    sck = NULL;
-	    break;
+	    continue;
 	}
 
 	graphite_wait(self, graphite);
