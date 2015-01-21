@@ -241,17 +241,17 @@ void *graphite_worker_thread(void *arg)
     ssize_t wrote = 0;
 
     while (!RELAY_ATOMIC_READ(self->base.stopping)) {
+	if (!graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
+	    WARN("Failed graphite build");
+	    break;
+	}
+
 	if (!sck) {
 	    sck = open_output_socket_eventually(&self->base);
 	    if (sck == NULL) {
 		FATAL("Failed to get socket for graphite");
 		break;
 	    }
-	}
-
-	if (!graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
-	    WARN("Failed graphite build");
-	    break;
 	}
 
 	if (!graphite_send(sck, buffer, &wrote)) {
