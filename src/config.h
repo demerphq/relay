@@ -64,8 +64,6 @@ struct config {
     uint32_t server_socket_rcvbuf_bytes;
     uint32_t server_socket_sndbuf_bytes;
 
-    uint32_t max_pps;		/* XXX unused */
-
     /* if disabled, we will just drop packets
      * we cannot send out in time (spill_millisec,
      * see also spill_grace_millisec)
