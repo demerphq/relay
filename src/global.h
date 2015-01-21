@@ -13,9 +13,12 @@ struct relay_global {
     graphite_worker_t *graphite_worker;
     socket_worker_pool_t pool;
 
-    int64_t blob_count;
-    int64_t blob_bytes;
-    int64_t blob_refcnt_bytes;
+    int64_t blob_active_count;
+    int64_t blob_active_bytes;
+    int64_t blob_active_refcnt_bytes;
+    int64_t blob_total_count;
+    int64_t blob_total_bytes;
+    int64_t blob_total_refcnt_bytes;
 };
 typedef struct relay_global relay_global_t;
 

@@ -32,15 +32,20 @@ void *calloc_or_fatal(size_t size)
 INLINE blob_t *blob_new(size_t size)
 {
     blob_t *b;
+    size_t refcnt_size;
 
     b = malloc_or_fatal(sizeof(blob_t));
     BLOB_NEXT_set(b, NULL);
-    BLOB_REF_PTR_set(b, malloc_or_fatal(sizeof(refcnt_blob_t) + size));
+    refcnt_size = sizeof(refcnt_blob_t) + size;
+    BLOB_REF_PTR_set(b, malloc_or_fatal(refcnt_size));
     BLOB_REFCNT_set(b, 1);	/* overwritten in enqueue_blob_for_transmision */
     BLOB_BUF_SIZE_set(b, size);
-    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_count, 1);
-    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_bytes, sizeof(blob_t));
-    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_refcnt_bytes, sizeof(refcnt_blob_t) + size);
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_count, 1);
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_bytes, sizeof(blob_t));
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_refcnt_bytes, refcnt_size);
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_count, 1);
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_bytes, sizeof(blob_t));
+    RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_refcnt_bytes, refcnt_size);
     (void) get_time(&BLOB_RECEIVED_TIME(b));
 
     return b;
@@ -71,12 +76,12 @@ void blob_destroy(blob_t * b)
 	int32_t refcnt = RELAY_ATOMIC_DECREMENT(BLOB_REFCNT(b), 1);
 	if (refcnt <= 1) {
 	    /* we were the last owner so we can release it */
-	    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_refcnt_bytes, sizeof(refcnt_blob_t) + BLOB_BUF_SIZE(b));
+	    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_refcnt_bytes, sizeof(refcnt_blob_t) + BLOB_BUF_SIZE(b));
 	    free(BLOB_REF_PTR(b));
 	}
     }
-    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_bytes, sizeof(blob_t));
-    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_count, 1);
+    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_bytes, sizeof(blob_t));
+    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_count, 1);
     free(b);
 }
 

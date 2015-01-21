@@ -78,9 +78,11 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
 		    break;
 	    }
 	}
-	if (!fixed_buffer_vcatf(buf, " : active blob %ld bytes %ld refcnt_bytes %ld",
-				RELAY_ATOMIC_READ(GLOBAL.blob_count),
-				RELAY_ATOMIC_READ(GLOBAL.blob_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_refcnt_bytes))) {
+	if (!fixed_buffer_vcatf
+	    (buf, " : blob active %ld bytes %ld refcnt_bytes %ld total %ld bytes %ld refcnt_bytes %ld",
+	     RELAY_ATOMIC_READ(GLOBAL.blob_active_count), RELAY_ATOMIC_READ(GLOBAL.blob_active_bytes),
+	     RELAY_ATOMIC_READ(GLOBAL.blob_active_refcnt_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_total_count),
+	     RELAY_ATOMIC_READ(GLOBAL.blob_total_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_total_refcnt_bytes))) {
 	    break;
 	}
     } while (0);
@@ -109,7 +111,6 @@ int enqueue_blob_for_transmission(blob_t * b)
 	    to_enqueue = blob_clone_no_refcnt_inc(b);
 	}
 	queue_append_nolock(&w->queue, to_enqueue);
-
 	i++;
     }
     UNLOCK(&GLOBAL.pool.lock);
@@ -126,10 +127,8 @@ int enqueue_blob_for_transmission(blob_t * b)
 void worker_pool_init_static(config_t * config)
 {
     socket_worker_t *new_worker;
-
     TAILQ_INIT(&GLOBAL.pool.workers);
     LOCK_INIT(&GLOBAL.pool.lock);
-
     LOCK(&GLOBAL.pool.lock);
     GLOBAL.pool.n_workers = 0;
     GLOBAL.pool.n_connected = 0;
@@ -151,10 +150,7 @@ void worker_pool_reload_static(config_t * config)
     socket_worker_t *w;
     socket_worker_t *wtmp;
     int n_workers = 0;
-
-
     LOCK(&GLOBAL.pool.lock);
-
     /* clear the exists bit of each worker */
     TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
 	w->exists = 0;
@@ -181,9 +177,7 @@ void worker_pool_reload_static(config_t * config)
 	if (w->exists == 0) {
 	    TAILQ_REMOVE(&GLOBAL.pool.workers, w, entries);
 	    UNLOCK(&GLOBAL.pool.lock);
-
 	    socket_worker_destroy(w);	/*  might lock */
-
 	    LOCK(&GLOBAL.pool.lock);
 	} else {
 	    n_workers++;
@@ -201,9 +195,7 @@ void worker_pool_destroy_static(void)
     while ((w = TAILQ_FIRST(&GLOBAL.pool.workers)) != NULL) {
 	TAILQ_REMOVE(&GLOBAL.pool.workers, w, entries);
 	UNLOCK(&GLOBAL.pool.lock);
-
 	socket_worker_destroy(w);	/*  might lock */
-
 	LOCK(&GLOBAL.pool.lock);
     }
     UNLOCK(&GLOBAL.pool.lock);
