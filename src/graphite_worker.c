@@ -283,5 +283,9 @@ void *graphite_worker_thread(void *arg)
 	WARN("No graphite socket, not flushing");
     }
 
+    if (control_is_not(RELAY_STOPPING)) {
+	FATAL("graphite worker died");
+    }
+
     return NULL;
 }
