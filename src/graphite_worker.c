@@ -132,7 +132,11 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
 }
 
 static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, time_t this_epoch,
-			  char *stats_format, char *meminfo_format)
+			  char *stats_format, char *meminfo_format
+#ifndef HAS_MALLINFO
+                          __attribute__((unused))
+#endif
+)
 {
     /* Because of the POOL lock here we build up the full graphite send packet
      * in one buffer and send it using a single write() call.
