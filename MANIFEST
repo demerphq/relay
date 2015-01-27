@@ -20,9 +20,5 @@ src/worker.c                - worker process code, sending loops, etc
 src/worker.h                -   headers for worker.h
 test/chain.sh               - launch a chain of relays for testing
 test/send.pl                - send a test file via udp in a loop
-test/setup-config.sh        - ???
-test/setup.sh               - ???
 test/simple-listener.pl     - a simple TCP listener loop that processes sereal
-test/stat.sh                - ???
-test/stop.sh                - ???
 

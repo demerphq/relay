@@ -91,5 +91,3 @@ indent:
 clean:
 	rm -rf bin/$(basename $(RELAY))*.dSYM
 	rm -f bin/$(basename $(RELAY))* test/sock/*
-run:
-	cd test && ./setup.sh
