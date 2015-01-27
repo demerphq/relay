@@ -11,4 +11,4 @@ int daemonize();
  * Separated from daemonize so that the process can send its final messages. */
 int close_std_fds(void);
 
-#endif				/* #ifndef RELAY_DAEMONIZE_H */
+#endif                          /* #ifndef RELAY_DAEMONIZE_H */

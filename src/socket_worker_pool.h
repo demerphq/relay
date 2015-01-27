@@ -20,4 +20,4 @@ void worker_pool_destroy_static(void);
 int enqueue_blob_for_transmission(blob_t * b);
 void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_t received, stats_count_t tcp);
 
-#endif				/* #ifndef RELAY_SOCKET_WORKER_POOL_H */
+#endif                          /* #ifndef RELAY_SOCKET_WORKER_POOL_H */

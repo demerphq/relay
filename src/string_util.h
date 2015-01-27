@@ -21,7 +21,7 @@ void reverse_dotwise(char *str);
 typedef struct {
     ssize_t size;
     ssize_t used;
-    char data[0];		/* Data inlined with the header. */
+    char data[0];               /* Data inlined with the header. */
 } fixed_buffer_t;
 
 fixed_buffer_t *fixed_buffer_create(size_t size);
@@ -40,4 +40,4 @@ INLINE static void fixed_buffer_zero_terminate(fixed_buffer_t * buf)
 
 void fixed_buffer_destroy(fixed_buffer_t * buf);
 
-#endif				/* #ifndef RELAY_STRING_UTIL_H */
+#endif                          /* #ifndef RELAY_STRING_UTIL_H */

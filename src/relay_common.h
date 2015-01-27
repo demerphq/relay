@@ -52,4 +52,4 @@
 
 #define WORKER_STOPPING 1
 
-#endif				/* #ifndef RELAY_RELAY_COMMON_H */
+#endif                          /* #ifndef RELAY_RELAY_COMMON_H */

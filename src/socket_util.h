@@ -33,8 +33,8 @@
 
 struct relay_socket {
     union sa {
-	struct sockaddr_un un;
-	struct sockaddr_in in;
+        struct sockaddr_un un;
+        struct sockaddr_in in;
     } sa;
     int socket;
     int proto;
@@ -53,4 +53,4 @@ int open_socket(relay_socket_t * s, int flags, socklen_t snd, socklen_t rcv);
 
 int setnonblocking(int fd);
 
-#endif				/* #ifndef RELAY_SOCKET_UTIL_H */
+#endif                          /* #ifndef RELAY_SOCKET_UTIL_H */

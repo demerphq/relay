@@ -30,16 +30,16 @@ static void stop_listener(pthread_t server_tid);
 static void final_shutdown(pthread_t server_tid);
 
 stats_basic_counters_t RECEIVED_STATS = {
-    .received_count = 0,	/* number of items we have received */
-    .sent_count = 0,		/* number of items we have sent */
-    .partial_count = 0,		/* number of items we have spilled */
-    .spilled_count = 0,		/* number of items we have spilled */
-    .dropped_count = 0,		/* number of items we have dropped */
-    .error_count = 0,		/* number of items that had an error */
-    .disk_count = 0,		/* number of items we have written to disk */
+    .received_count = 0,        /* number of items we have received */
+    .sent_count = 0,            /* number of items we have sent */
+    .partial_count = 0,         /* number of items we have spilled */
+    .spilled_count = 0,         /* number of items we have spilled */
+    .dropped_count = 0,         /* number of items we have dropped */
+    .error_count = 0,           /* number of items that had an error */
+    .disk_count = 0,            /* number of items we have written to disk */
 
-    .send_elapsed_usec = 0,	/* elapsed time in microseconds that we spent sending data */
-    .tcp_connections = 0,	/* current number of active inbound tcp connections */
+    .send_elapsed_usec = 0,     /* elapsed time in microseconds that we spent sending data */
+    .tcp_connections = 0,       /* current number of active inbound tcp connections */
 };
 
 static void spawn(pthread_t * tid, void *(*func) (void *), void *arg, int type)
@@ -56,9 +56,9 @@ static inline blob_t *buf_to_blob_enqueue(unsigned char *buf, size_t size)
 {
     blob_t *b;
     if (size == 0) {
-	if (0)
-	    WARN("Received 0 byte packet, not forwarding.");
-	return NULL;
+        if (0)
+            WARN("Received 0 byte packet, not forwarding.");
+        return NULL;
     }
 
     RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.received_count, 1);
@@ -79,24 +79,24 @@ void *udp_server(void *arg)
 #endif
     unsigned char buf[MAX_CHUNK_SIZE];
     while (control_is_not(RELAY_STOPPING)) {
-	ssize_t received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
+        ssize_t received = recv(s->socket, buf, MAX_CHUNK_SIZE, 0);
 #ifdef PACKETS_PER_SECOND
-	if ((epoch = time(0)) != prev_epoch) {
-	    SAY("packets: %d", packets - prev_packets);
-	    prev_epoch = epoch;
-	    prev_packets = packets;
-	}
-	packets++;
+        if ((epoch = time(0)) != prev_epoch) {
+            SAY("packets: %d", packets - prev_packets);
+            prev_epoch = epoch;
+            prev_packets = packets;
+        }
+        packets++;
 #endif
-	if (received < 0) {
-	    WARN_ERRNO("recv failed");
-	    break;
-	}
-	buf_to_blob_enqueue(buf, received);
+        if (received < 0) {
+            WARN_ERRNO("recv failed");
+            break;
+        }
+        buf_to_blob_enqueue(buf, received);
     }
     if (control_is(RELAY_RELOADING)) {
-	/* Race condition, but might help in debugging */
-	WARN("udp server failed, but relay seemingly reloading");
+        /* Race condition, but might help in debugging */
+        WARN("udp server failed, but relay seemingly reloading");
     }
     pthread_exit(NULL);
 }
@@ -128,7 +128,7 @@ static void tcp_context_init(tcp_server_context_t * ctxt)
     /* Just the server socket. */
     ctxt->pfds = calloc_or_fatal(sizeof(struct pollfd));
     if (ctxt->pfds == NULL)
-	return;
+        return;
 
     /* tcp_add_fd() will set this right soon. */
     ctxt->pfds[0].fd = -1;
@@ -137,7 +137,7 @@ static void tcp_context_init(tcp_server_context_t * ctxt)
      * that looping over the contexts can have less special cases. */
     ctxt->clients = calloc_or_fatal(sizeof(struct tcp_client));
     if (ctxt->clients == NULL)
-	return;
+        return;
 
     ctxt->clients[0].buf = NULL;
     ctxt->clients[0].pos = 0;
@@ -163,8 +163,8 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 {
     int fd = accept(server_fd, NULL, NULL);
     if (fd == -1) {
-	WARN_ERRNO("accept");
-	return TCP_FAILURE;
+        WARN_ERRNO("accept");
+        return TCP_FAILURE;
     }
     RELAY_ATOMIC_INCREMENT(RECEIVED_STATS.tcp_connections, 1);
 
@@ -188,8 +188,8 @@ static int tcp_accept(tcp_server_context_t * ctxt, int server_fd)
 static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("Unexpected fd %d", (int) i);
-	return TCP_FAILURE;
+        WARN("Unexpected fd %d", (int) i);
+        return TCP_FAILURE;
     }
 
     struct tcp_client *client = &ctxt->clients[i];
@@ -198,57 +198,57 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
     ssize_t try_to_read = ASYNC_BUFFER_SIZE - (int) client->pos;
 
     if (try_to_read <= 0) {
-	WARN("Invalid length: %zd, pos: %u", try_to_read, client->pos);
-	return TCP_FAILURE;
+        WARN("Invalid length: %zd, pos: %u", try_to_read, client->pos);
+        return TCP_FAILURE;
     }
 
     ssize_t received = recv(ctxt->pfds[i].fd, client->buf + client->pos, try_to_read, 0);
     if (received <= 0) {
-	if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-	    return TCP_SUCCESS;
+        if (received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return TCP_SUCCESS;
 
-	return TCP_FAILURE;
+        return TCP_FAILURE;
     }
 
     client->pos += received;
 
     /* NOTE: the flow control of this loop is somewhat unusual. */
     for (;;) {
-	/* Partial header: better to declare success and retry later. */
-	if (client->pos < EXPECTED_HEADER_SIZE)
-	    return TCP_SUCCESS;
+        /* Partial header: better to declare success and retry later. */
+        if (client->pos < EXPECTED_HEADER_SIZE)
+            return TCP_SUCCESS;
 
-	blob_size_t expected_packet_size = EXPECTED_PACKET_SIZE(client);
+        blob_size_t expected_packet_size = EXPECTED_PACKET_SIZE(client);
 
-	if (expected_packet_size > MAX_CHUNK_SIZE) {
-	    WARN("received frame (%d) > MAX_CHUNK_SIZE (%d)", expected_packet_size, MAX_CHUNK_SIZE);
-	    return TCP_FAILURE;
-	}
+        if (expected_packet_size > MAX_CHUNK_SIZE) {
+            WARN("received frame (%d) > MAX_CHUNK_SIZE (%d)", expected_packet_size, MAX_CHUNK_SIZE);
+            return TCP_FAILURE;
+        }
 
-	if (client->pos >= expected_packet_size + EXPECTED_HEADER_SIZE) {
-	    /* Since this packet came from a TCP connection, its first four
-	     * bytes are supposed to be the length, so let's skip them. */
-	    buf_to_blob_enqueue(client->buf + EXPECTED_HEADER_SIZE, expected_packet_size);
+        if (client->pos >= expected_packet_size + EXPECTED_HEADER_SIZE) {
+            /* Since this packet came from a TCP connection, its first four
+             * bytes are supposed to be the length, so let's skip them. */
+            buf_to_blob_enqueue(client->buf + EXPECTED_HEADER_SIZE, expected_packet_size);
 
-	    client->pos -= expected_packet_size + EXPECTED_HEADER_SIZE;
-	    if (client->pos > 0) {
-		/* [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                                                                     ^ pos(12)
-		 * after we remove the first packet + header it becomes:
-		 * [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                           ^ pos (5)
-		 * and then we copy from header + data, to position 0, 5 bytes
-		 *
-		 * [ h ] [ h ] [ h ] [ h ] [ D ]
-		 *                           ^ pos (5) */
+            client->pos -= expected_packet_size + EXPECTED_HEADER_SIZE;
+            if (client->pos > 0) {
+                /* [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+                 *                                                                     ^ pos(12)
+                 * after we remove the first packet + header it becomes:
+                 * [ h ] [ h ] [ h ] [ h ] [ D ] [ D ] [ D ] [ h ] [ h ] [ h ] [ h ] [ D ]
+                 *                           ^ pos (5)
+                 * and then we copy from header + data, to position 0, 5 bytes
+                 *
+                 * [ h ] [ h ] [ h ] [ h ] [ D ]
+                 *                           ^ pos (5) */
 
-		memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + expected_packet_size, client->pos);
-		if (client->pos >= EXPECTED_HEADER_SIZE)
-		    continue;	/* there is one more packet left in the buffer, consume it */
-	    }
-	}
+                memmove(client->buf, client->buf + EXPECTED_HEADER_SIZE + expected_packet_size, client->pos);
+                if (client->pos >= EXPECTED_HEADER_SIZE)
+                    continue;   /* there is one more packet left in the buffer, consume it */
+            }
+        }
 
-	return TCP_SUCCESS;
+        return TCP_SUCCESS;
     }
 }
 
@@ -256,8 +256,8 @@ static int tcp_read(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("Unexpected fd %d", (int) i);
-	return;
+        WARN("Unexpected fd %d", (int) i);
+        return;
     }
 
     /* We could pass in both client and i, but then there's danger of mismatch. */
@@ -279,8 +279,8 @@ static void tcp_client_close(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 {
     if (!(i < ctxt->nfds)) {
-	WARN("Unexpected fd %d", (int) i);
-	return;
+        WARN("Unexpected fd %d", (int) i);
+        return;
     }
 
     tcp_client_close(ctxt, i);
@@ -288,10 +288,10 @@ static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
     /* Remove the connection by shifting left
      * the connections coming after it. */
     {
-	nfds_t tail = ctxt->nfds - i - 1;
-	assert(tail < ctxt->nfds);
-	memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, tail * sizeof(struct pollfd));
-	memcpy(ctxt->clients + i, ctxt->clients + i + 1, tail * sizeof(struct tcp_client));
+        nfds_t tail = ctxt->nfds - i - 1;
+        assert(tail < ctxt->nfds);
+        memcpy(ctxt->pfds + i, ctxt->pfds + i + 1, tail * sizeof(struct pollfd));
+        memcpy(ctxt->clients + i, ctxt->clients + i + 1, tail * sizeof(struct tcp_client));
     }
 
     ctxt->nfds--;
@@ -302,12 +302,12 @@ static void tcp_client_remove(tcp_server_context_t * ctxt, nfds_t i)
 static void tcp_context_close(tcp_server_context_t * ctxt)
 {
     for (nfds_t i = 0; i < ctxt->nfds; i++) {
-	tcp_client_close(ctxt, i);
+        tcp_client_close(ctxt, i);
     }
     /* Release and reset. */
     free(ctxt->pfds);
     free(ctxt->clients);
-    ctxt->nfds = 0;		/* Cannot be -1 since nfds_t is unsigned. */
+    ctxt->nfds = 0;             /* Cannot be -1 since nfds_t is unsigned. */
     ctxt->pfds = NULL;
     ctxt->clients = NULL;
 }
@@ -326,32 +326,32 @@ void *tcp_server(void *arg)
     RELAY_ATOMIC_AND(RECEIVED_STATS.tcp_connections, 0);
 
     for (;;) {
-	int rc = poll(ctxt.pfds, ctxt.nfds, s->polling_interval_millisec);
-	if (rc == -1) {
-	    if (errno == EINTR)
-		continue;
-	    WARN_ERRNO("poll");
-	    goto out;
-	} else {
-	    for (nfds_t i = 0; i < ctxt.nfds; i++) {
-		if (!ctxt.pfds[i].revents)
-		    continue;
-		if (ctxt.pfds[i].fd == s->socket) {
-		    if (!tcp_accept(&ctxt, s->socket))
-			goto out;
-		} else {
-		    if (!tcp_read(&ctxt, i))
-			tcp_client_remove(&ctxt, i);
-		}
-	    }
-	}
+        int rc = poll(ctxt.pfds, ctxt.nfds, s->polling_interval_millisec);
+        if (rc == -1) {
+            if (errno == EINTR)
+                continue;
+            WARN_ERRNO("poll");
+            goto out;
+        } else {
+            for (nfds_t i = 0; i < ctxt.nfds; i++) {
+                if (!ctxt.pfds[i].revents)
+                    continue;
+                if (ctxt.pfds[i].fd == s->socket) {
+                    if (!tcp_accept(&ctxt, s->socket))
+                        goto out;
+                } else {
+                    if (!tcp_read(&ctxt, i))
+                        tcp_client_remove(&ctxt, i);
+                }
+            }
+        }
     }
 
   out:
     tcp_context_close(&ctxt);
     if (control_is(RELAY_RELOADING)) {
-	/* Race condition, but might help in debugging */
-	WARN("tcp server failed, but relay seemingly reloading");
+        /* Race condition, but might help in debugging */
+        WARN("tcp server failed, but relay seemingly reloading");
     }
     pthread_exit(NULL);
 }
@@ -361,9 +361,9 @@ pthread_t setup_listener(config_t * config)
     pthread_t server_tid = 0;
 
     if (config == NULL || config->argv == NULL || GLOBAL.listener == NULL
-	|| !socketize(config->argv[0], GLOBAL.listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
-	FATAL("Failed to socketize listener");
-	return 0;
+        || !socketize(config->argv[0], GLOBAL.listener, IPPROTO_UDP, RELAY_CONN_IS_INBOUND, "listener")) {
+        FATAL("Failed to socketize listener");
+        return 0;
     }
 
     GLOBAL.listener->polling_interval_millisec = config->polling_interval_millisec;
@@ -371,17 +371,17 @@ pthread_t setup_listener(config_t * config)
     /* must open the socket BEFORE we create the worker pool */
     open_socket(GLOBAL.listener, DO_BIND | DO_REUSEADDR |
 #ifdef SO_REUSEPORT
-		(GLOBAL.listener->proto == IPPROTO_TCP ? DO_REUSEPORT : 0) |
+                (GLOBAL.listener->proto == IPPROTO_TCP ? DO_REUSEPORT : 0) |
 #endif
-		DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
+                DO_EPOLLFD, 0, config->server_socket_rcvbuf_bytes);
 
     /* create worker pool /after/ we open the socket, otherwise we
      * might leak worker threads. */
 
     if (GLOBAL.listener->proto == IPPROTO_UDP)
-	spawn(&server_tid, udp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
+        spawn(&server_tid, udp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
     else
-	spawn(&server_tid, tcp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
+        spawn(&server_tid, tcp_server, GLOBAL.listener, PTHREAD_CREATE_JOINABLE);
 
     return server_tid;
 }
@@ -400,17 +400,17 @@ static struct graphite_config *graphite_config_clone(const struct graphite_confi
 static int graphite_config_changed(const struct graphite_config *old_config, const struct graphite_config *new_config)
 {
     return
-	STRNE(old_config->dest_addr, new_config->dest_addr) ||
-	STRNE(old_config->path_root, new_config->path_root) ||
-	old_config->send_interval_millisec != new_config->send_interval_millisec ||
-	old_config->sleep_poll_interval_millisec != new_config->sleep_poll_interval_millisec;
+        STRNE(old_config->dest_addr, new_config->dest_addr) ||
+        STRNE(old_config->path_root, new_config->path_root) ||
+        old_config->send_interval_millisec != new_config->send_interval_millisec ||
+        old_config->sleep_poll_interval_millisec != new_config->sleep_poll_interval_millisec;
 }
 
 static void graphite_config_destroy(struct graphite_config *config)
 {
     if (config == NULL || config->dest_addr == NULL || config->path_root == NULL) {
-	WARN("Invalid config");
-	return;
+        WARN("Invalid config");
+        return;
     }
     free(config->dest_addr);
     free(config->path_root);
@@ -427,8 +427,8 @@ static int highlander_blocking_lock(config_t * config)
 
     int lockfd = open(config->lock_file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (lockfd == -1) {
-	WARN_ERRNO("Failed to open lock file %s", config->lock_file);
-	return -1;
+        WARN_ERRNO("Failed to open lock file %s", config->lock_file);
+        return -1;
     }
 
     /* Using flock() instead of fcntl(F_SETLKW) because of nasty
@@ -442,31 +442,31 @@ static int highlander_blocking_lock(config_t * config)
      *
      * flock() on the other hand is inherited across forks. */
     if (flock(lockfd, LOCK_EX) == -1) {
-	/* Under normal circumstances this never returns -1, since
-	 * we block until we succeed.  This *can* fail, however,
-	 * for example by being interrupted by signals. */
-	WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
-	return -1;
+        /* Under normal circumstances this never returns -1, since
+         * we block until we succeed.  This *can* fail, however,
+         * for example by being interrupted by signals. */
+        WARN_ERRNO("Failed to lock the lock file %s", config->lock_file);
+        return -1;
     } else {
-	SAY("Locked %s", config->lock_file);
+        SAY("Locked %s", config->lock_file);
 
-	/* Write in our pid to the lock file. */
-	char pidbuf[16];
-	int wrote = snprintf(pidbuf, sizeof(pidbuf), "%d\n", getpid());
-	if (wrote < 0 || wrote >= (int) sizeof(pidbuf)) {
-	    WARN_ERRNO("Failed to build pid buffer");
-	} else {
-	    if (write(lockfd, pidbuf, wrote) != wrote) {
-		WARN_ERRNO("Failed to write pid to %s", config->lock_file);
-		return -1;
-	    } else {
-		if (fsync(lockfd) != 0) {
-		    WARN_ERRNO("Failed to fsync %s", config->lock_file);
-		    return -1;
-		}
-	    }
-	    /* Do not close() the fd, you'll lose the lock. */
-	}
+        /* Write in our pid to the lock file. */
+        char pidbuf[16];
+        int wrote = snprintf(pidbuf, sizeof(pidbuf), "%d\n", getpid());
+        if (wrote < 0 || wrote >= (int) sizeof(pidbuf)) {
+            WARN_ERRNO("Failed to build pid buffer");
+        } else {
+            if (write(lockfd, pidbuf, wrote) != wrote) {
+                WARN_ERRNO("Failed to write pid to %s", config->lock_file);
+                return -1;
+            } else {
+                if (fsync(lockfd) != 0) {
+                    WARN_ERRNO("Failed to fsync %s", config->lock_file);
+                    return -1;
+                }
+            }
+            /* Do not close() the fd, you'll lose the lock. */
+        }
     }
 
     return lockfd;
@@ -478,8 +478,8 @@ static int highlander_blocking_lock(config_t * config)
 static int highlander(config_t * config)
 {
     if (config->lock_file == NULL) {
-	FATAL("NULL lock_file");
-	return -1;
+        FATAL("NULL lock_file");
+        return -1;
     }
 
     char buf[PATH_MAX];
@@ -487,8 +487,8 @@ static int highlander(config_t * config)
 
     wrote = snprintf(buf, sizeof(buf), "locking %s", config->lock_file);
     if (wrote < 0 || wrote >= (int) sizeof(buf)) {
-	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
-	return -1;
+        WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+        return -1;
     }
     setproctitle(buf);
 
@@ -498,15 +498,15 @@ static int highlander(config_t * config)
     /* Note that buf is reused here, and used later. */
     wrote = snprintf(buf, sizeof(buf), "%s.wait.%d", config->lock_file, getpid());
     if (wrote < 0 || wrote >= (int) sizeof(buf)) {
-	WARN_ERRNO("Failed to build buf for %s", config->lock_file);
-	return -1;
+        WARN_ERRNO("Failed to build buf for %s", config->lock_file);
+        return -1;
     }
 
     SAY("Creating wait file %s", buf);
     int waitfd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
     if (waitfd == -1) {
-	WARN_ERRNO("Failed to open wait file %s", buf);
-	return -1;
+        WARN_ERRNO("Failed to open wait file %s", buf);
+        return -1;
     }
 
     int lockfd = highlander_blocking_lock(config);
@@ -514,10 +514,10 @@ static int highlander(config_t * config)
     /* Remove our "waiting ticket". */
     SAY("Removing wait file %s", buf);
     if (close(waitfd)) {
-	WARN_ERRNO("Failed to close wait fd for %s", buf);
+        WARN_ERRNO("Failed to close wait fd for %s", buf);
     }
     if (unlink(buf)) {
-	WARN_ERRNO("Failed to unlink wait file %s", buf);
+        WARN_ERRNO("Failed to unlink wait file %s", buf);
     }
 
     return lockfd;
@@ -526,29 +526,29 @@ static int highlander(config_t * config)
 static int serve(config_t * config)
 {
     if (config->daemonize) {
-	if (daemonize()) {
-	    printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
-	} else {
-	    FATAL("Failed to daemonize");
-	    return 0;
-	}
+        if (daemonize()) {
+            printf("%s: daemonized, pid %d\n", OUR_NAME, getpid());
+        } else {
+            FATAL("Failed to daemonize");
+            return 0;
+        }
 
-	WARN("Closing standard fds");
-	if (!close_std_fds()) {
-	    FATAL("Failed to close standard fds");	/* We might not see stderr of this... */
-	    return 0;
-	}
+        WARN("Closing standard fds");
+        if (!close_std_fds()) {
+            FATAL("Failed to close standard fds");      /* We might not see stderr of this... */
+            return 0;
+        }
 
-	/* Now the standard file descriptors are closed,
-	 * only the syslog is available. */
+        /* Now the standard file descriptors are closed,
+         * only the syslog is available. */
     } else {
-	printf("%s: running, pid %d\n", OUR_NAME, getpid());
+        printf("%s: running, pid %d\n", OUR_NAME, getpid());
     }
 
     int lock_fd = highlander(config);
     if (lock_fd == -1) {
-	WARN("Failed to become the highlander");
-	return 0;
+        WARN("Failed to become the highlander");
+        return 0;
     }
 
     setproctitle("starting");
@@ -560,7 +560,7 @@ static int serve(config_t * config)
 
     GLOBAL.listener = calloc_or_fatal(sizeof(relay_socket_t));
     if (GLOBAL.listener == NULL)
-	return EXIT_FAILURE;
+        return EXIT_FAILURE;
 
     pthread_t server_tid = 0;
 
@@ -582,54 +582,54 @@ static int serve(config_t * config)
     setproctitle("running");
 
     for (;;) {
-	uint32_t control = control_get_bits();
-	if (control & RELAY_STOPPING) {
-	    WARN("Stopping");
-	    break;
-	} else if (control & RELAY_RELOADING) {
-	    WARN("Reloading");
-	    struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
-	    if (config_reload(config, config->config_file, time(NULL))) {
-		SAY("Reloading the listener and worker pool");
-		stop_listener(server_tid);
-		server_tid = setup_listener(config);
-		worker_pool_reload_static(config);
-		SAY("Reloaded the listener and worker pool");
-		if (graphite_config_changed(old_graphite_config, &config->graphite)) {
-		    SAY("Graphite config changed, reloading the graphite worker");
-		    graphite_worker_destroy(GLOBAL.graphite_worker);
-		    GLOBAL.graphite_worker = graphite_worker_create(config);
-		    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread,
-				   GLOBAL.graphite_worker);
-		    SAY("Reloaded the graphite worker");
-		} else {
-		    SAY("Graphite config unchanged, not reloading the graphite worker");
-		}
-	    }
-	    graphite_config_destroy(old_graphite_config);
-	    control_unset_bits(RELAY_RELOADING);
-	}
+        uint32_t control = control_get_bits();
+        if (control & RELAY_STOPPING) {
+            WARN("Stopping");
+            break;
+        } else if (control & RELAY_RELOADING) {
+            WARN("Reloading");
+            struct graphite_config *old_graphite_config = graphite_config_clone(&config->graphite);
+            if (config_reload(config, config->config_file, time(NULL))) {
+                SAY("Reloading the listener and worker pool");
+                stop_listener(server_tid);
+                server_tid = setup_listener(config);
+                worker_pool_reload_static(config);
+                SAY("Reloaded the listener and worker pool");
+                if (graphite_config_changed(old_graphite_config, &config->graphite)) {
+                    SAY("Graphite config changed, reloading the graphite worker");
+                    graphite_worker_destroy(GLOBAL.graphite_worker);
+                    GLOBAL.graphite_worker = graphite_worker_create(config);
+                    pthread_create(&GLOBAL.graphite_worker->base.tid, NULL, graphite_worker_thread,
+                                   GLOBAL.graphite_worker);
+                    SAY("Reloaded the graphite worker");
+                } else {
+                    SAY("Graphite config unchanged, not reloading the graphite worker");
+                }
+            }
+            graphite_config_destroy(old_graphite_config);
+            control_unset_bits(RELAY_RELOADING);
+        }
 
-	update_process_status(process_status_buffer, config, RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
-			      RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
+        update_process_status(process_status_buffer, config, RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
+                              RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
 
-	sleep(1);
+        sleep(1);
 
-	time_t now = time(NULL);
-	if (now - last_alive >= ALIVE_PERIOD) {
-	    SAY("%s", process_status_buffer->data);
-	    last_alive = now;
-	}
+        time_t now = time(NULL);
+        if (now - last_alive >= ALIVE_PERIOD) {
+            SAY("%s", process_status_buffer->data);
+            last_alive = now;
+        }
     }
 
     update_process_status(process_status_buffer, config, RELAY_ATOMIC_READ(RECEIVED_STATS.received_count),
-			  RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
+                          RELAY_ATOMIC_READ(RECEIVED_STATS.tcp_connections));
 
     SAY("%s", process_status_buffer->data);
     fixed_buffer_destroy(process_status_buffer);
 
     if (control_exit_code()) {
-	WARN("Stopping");
+        WARN("Stopping");
     }
 
     setproctitle("stopping");
@@ -638,11 +638,11 @@ static int serve(config_t * config)
 
     SAY("Unlocking %s", config->lock_file);
     if (close(lock_fd) == -1) {
-	WARN("Failed to unbecome the highlander");
+        WARN("Failed to unbecome the highlander");
     }
 
     if (control_exit_code()) {
-	WARN("Failed");
+        WARN("Failed");
     }
 
     SAY("Bye");
@@ -654,14 +654,14 @@ static void sig_handler(int signum)
 {
     switch (signum) {
     case SIGHUP:
-	control_set_bits(RELAY_RELOADING);
-	break;
+        control_set_bits(RELAY_RELOADING);
+        break;
     case SIGTERM:
     case SIGINT:
-	control_set_bits(RELAY_STOPPING);
-	break;
+        control_set_bits(RELAY_STOPPING);
+        break;
     default:
-	WARN("Received unexpected signal %d, ignoring", signum);
+        WARN("Received unexpected signal %d, ignoring", signum);
     }
 }
 
@@ -677,16 +677,16 @@ static void block_all_signals_inside_thread()
 static void stop_listener(pthread_t server_tid)
 {
     if (GLOBAL.listener) {
-	shutdown(GLOBAL.listener->socket, SHUT_RDWR);
-	/* TODO: if the relay is interrupted rudely (^C), final_shutdown()
-	 * is called, which will call stop_listener(), and this close()
-	 * triggers the ire of the clang threadsanitizer, since the socket
-	 * was opened by a worker thread with a recv() in udp_server, but
-	 * the shutdown happens in the main thread. */
-	close(GLOBAL.listener->socket);
+        shutdown(GLOBAL.listener->socket, SHUT_RDWR);
+        /* TODO: if the relay is interrupted rudely (^C), final_shutdown()
+         * is called, which will call stop_listener(), and this close()
+         * triggers the ire of the clang threadsanitizer, since the socket
+         * was opened by a worker thread with a recv() in udp_server, but
+         * the shutdown happens in the main thread. */
+        close(GLOBAL.listener->socket);
     }
     if (server_tid)
-	pthread_join(server_tid, NULL);
+        pthread_join(server_tid, NULL);
 }
 
 static void final_shutdown(pthread_t server_tid)
@@ -698,7 +698,7 @@ static void final_shutdown(pthread_t server_tid)
 
     /* Stop socket workers and their disk writers. */
     worker_pool_destroy_static();
-    sleep(1);			/* TODO: should be O(#workers)+O(pending output) */
+    sleep(1);                   /* TODO: should be O(#workers)+O(pending output) */
 
     /* Stop graphite output. */
     graphite_worker_destroy(GLOBAL.graphite_worker);
@@ -714,9 +714,9 @@ int main(int argc, char **argv)
     config_destroy(GLOBAL.config);
     GLOBAL.config = NULL;
     if (!success) {
-	/* If the syslog was already closed, this will be going to /dev/null.
-	 * If the syslog was already closed, also stderr was already closed. */
-	WARN("Failed");
+        /* If the syslog was already closed, this will be going to /dev/null.
+         * If the syslog was already closed, also stderr was already closed. */
+        WARN("Failed");
     }
     destroy_proctitle();
     closelog();

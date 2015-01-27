@@ -43,4 +43,4 @@ static INLINE void worker_wait_millisec(unsigned int millisec)
     usleep(millisec * 1000);
 }
 
-#endif				/* #ifndef RELAY_SOCKET_WORKER_H */
+#endif                          /* #ifndef RELAY_SOCKET_WORKER_H */

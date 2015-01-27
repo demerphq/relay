@@ -10,7 +10,7 @@ void *realloc_or_fatal(void *p, size_t size)
 {
     p = realloc(p, size);
     if (!p)
-	FATAL("Unable to allocate %zu bytes", size);
+        FATAL("Unable to allocate %zu bytes", size);
     return p;
 }
 
@@ -34,7 +34,7 @@ static void inc_blob_total_sizes(size_t size)
 {
     int bucket = size ? (32 - __builtin_clz((int) size - 1)) : 0;
     if (bucket < 0 || bucket > (int) sizeof(GLOBAL.blob_total_sizes) / (int) sizeof(GLOBAL.blob_total_sizes[0])) {
-	return;			/* should die, really */
+        return;                 /* should die, really */
     }
     RELAY_ATOMIC_OR(GLOBAL.blob_total_ored_buckets, 1 << bucket);
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_total_sizes[bucket], 1);
@@ -50,7 +50,7 @@ INLINE blob_t *blob_new(size_t size)
     BLOB_NEXT_set(b, NULL);
     refcnt_size = sizeof(refcnt_blob_t) + size;
     BLOB_REF_PTR_set(b, malloc_or_fatal(refcnt_size));
-    BLOB_REFCNT_set(b, 1);	/* overwritten in enqueue_blob_for_transmision */
+    BLOB_REFCNT_set(b, 1);      /* overwritten in enqueue_blob_for_transmision */
     BLOB_BUF_SIZE_set(b, size);
 
     RELAY_ATOMIC_INCREMENT(GLOBAL.blob_active_count, 1);
@@ -90,12 +90,12 @@ INLINE blob_t *blob_clone_no_refcnt_inc(blob_t * b)
 void blob_destroy(blob_t * b)
 {
     if (BLOB_REF_PTR(b)) {
-	int32_t refcnt = RELAY_ATOMIC_DECREMENT(BLOB_REFCNT(b), 1);
-	if (refcnt <= 1) {
-	    /* we were the last owner so we can release it */
-	    RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_refcnt_bytes, sizeof(refcnt_blob_t) + BLOB_BUF_SIZE(b));
-	    free(BLOB_REF_PTR(b));
-	}
+        int32_t refcnt = RELAY_ATOMIC_DECREMENT(BLOB_REFCNT(b), 1);
+        if (refcnt <= 1) {
+            /* we were the last owner so we can release it */
+            RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_refcnt_bytes, sizeof(refcnt_blob_t) + BLOB_BUF_SIZE(b));
+            free(BLOB_REF_PTR(b));
+        }
     }
     RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_bytes, sizeof(blob_t));
     RELAY_ATOMIC_DECREMENT(GLOBAL.blob_active_count, 1);
@@ -107,9 +107,9 @@ void blob_destroy(blob_t * b)
 uint32_t queue_append_nolock(queue_t * q, blob_t * b)
 {
     if (q->head == NULL)
-	q->head = b;
+        q->head = b;
     else
-	BLOB_NEXT_set(q->tail, b);
+        BLOB_NEXT_set(q->tail, b);
 
     q->tail = b;
     BLOB_NEXT_set(b, NULL);
@@ -120,9 +120,9 @@ uint32_t queue_append_tail_nolock(queue_t * q, queue_t * tail)
 {
 
     if (q->head == NULL)
-	q->head = tail->head;
+        q->head = tail->head;
     else
-	BLOB_NEXT_set(q->tail, tail->head);
+        BLOB_NEXT_set(q->tail, tail->head);
 
     q->tail = tail->tail;
     q->count += tail->count;
@@ -157,11 +157,11 @@ blob_t *queue_shift_nolock(queue_t * q)
 {
     blob_t *b = q->head;
     if (b) {
-	if (BLOB_NEXT(b))
-	    q->head = BLOB_NEXT(b);
-	else
-	    q->head = q->tail = NULL;
-	q->count--;
+        if (BLOB_NEXT(b))
+            q->head = BLOB_NEXT(b);
+        else
+            q->head = q->tail = NULL;
+        q->count--;
     }
     return b;
 }

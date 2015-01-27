@@ -27,7 +27,7 @@ void update_rates(rates_t * rates, const stats_basic_counters_t * totals, long s
 }
 
 void accumulate_and_clear_stats(stats_basic_counters_t * counters, stats_basic_counters_t * recents,
-				stats_basic_counters_t * totals)
+                                stats_basic_counters_t * totals)
 {
     stats_count_t received_count = RELAY_ATOMIC_READ(counters->received_count);
     stats_count_t sent_count = RELAY_ATOMIC_READ(counters->sent_count);
@@ -50,15 +50,15 @@ void accumulate_and_clear_stats(stats_basic_counters_t * counters, stats_basic_c
     RELAY_ATOMIC_INCREMENT(recents->send_elapsed_usec, send_elapsed_usec);
 
     if (totals) {
-	RELAY_ATOMIC_INCREMENT(totals->received_count, received_count);
-	RELAY_ATOMIC_INCREMENT(totals->sent_count, sent_count);
-	RELAY_ATOMIC_INCREMENT(totals->partial_count, partial_count);
-	RELAY_ATOMIC_INCREMENT(totals->spilled_count, spilled_count);
-	RELAY_ATOMIC_INCREMENT(totals->dropped_count, dropped_count);
-	RELAY_ATOMIC_INCREMENT(totals->error_count, error_count);
-	RELAY_ATOMIC_INCREMENT(totals->disk_count, disk_count);
-	RELAY_ATOMIC_INCREMENT(totals->disk_error_count, disk_error_count);
-	RELAY_ATOMIC_INCREMENT(totals->send_elapsed_usec, send_elapsed_usec);
+        RELAY_ATOMIC_INCREMENT(totals->received_count, received_count);
+        RELAY_ATOMIC_INCREMENT(totals->sent_count, sent_count);
+        RELAY_ATOMIC_INCREMENT(totals->partial_count, partial_count);
+        RELAY_ATOMIC_INCREMENT(totals->spilled_count, spilled_count);
+        RELAY_ATOMIC_INCREMENT(totals->dropped_count, dropped_count);
+        RELAY_ATOMIC_INCREMENT(totals->error_count, error_count);
+        RELAY_ATOMIC_INCREMENT(totals->disk_count, disk_count);
+        RELAY_ATOMIC_INCREMENT(totals->disk_error_count, disk_error_count);
+        RELAY_ATOMIC_INCREMENT(totals->send_elapsed_usec, send_elapsed_usec);
     }
 
     RELAY_ATOMIC_DECREMENT(counters->received_count, received_count);

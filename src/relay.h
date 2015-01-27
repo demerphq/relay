@@ -10,4 +10,4 @@
 #include "relay_common.h"
 #include "socket_util.h"
 
-#endif				/* #ifndef RELAY_RELAY_H */
+#endif                          /* #ifndef RELAY_RELAY_H */

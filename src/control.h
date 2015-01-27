@@ -16,4 +16,4 @@ uint32_t control_is(uint32_t c);
 void control_exit(int rc);
 int control_exit_code(void);
 
-#endif				/* #ifndef RELAY_CONTROL_H */
+#endif                          /* #ifndef RELAY_CONTROL_H */

@@ -20,4 +20,4 @@ struct worker_base {
     volatile uint32_t stopping;
 };
 
-#endif				/* #ifndef RELAY_WORKER_BASE_H */
+#endif                          /* #ifndef RELAY_WORKER_BASE_H */
