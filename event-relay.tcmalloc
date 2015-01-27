@@ -1,0 +1,20 @@
+#!/bin/sh
+
+TCMALLOC_SO=/usr/lib64/libtcmalloc.so
+
+case $(ls $TCMALLOC_SO 2>/dev/null) in
+'')
+  TCMALLOC_SO=$(ls -r $TCMALLOC_SO.*|head -n 1)
+  ;;
+esac
+
+if [ -x "$TCMALLOC_SO" ]; then
+  (set -x; LD_PRELOAD=$TCMALLOC_SO exec event-relay "$@")
+else
+  echo "$0: Missing tcmalloc library: $TCMALLOC_SO"
+fi
+
+
+exit 1
+
+

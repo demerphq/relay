@@ -1,0 +1,20 @@
+#!/bin/sh
+
+JEMALLOC_SO=/usr/lib64/libjemalloc.so
+
+case $(ls $JEMALLOC_SO 2>/dev/null) in
+'')
+  JEMALLOC_SO=$(ls -r $JEMALLOC_SO.*|head -n 1)
+  ;;
+esac
+
+if [ -x "$JEMALLOC_SO" ]; then
+  (set -x; LD_PRELOAD=$JEMALLOC_SO exec event-relay "$@")
+else
+  echo "$0: Missing jemalloc library: $JEMALLOC_SO"
+fi
+
+
+exit 1
+
+
