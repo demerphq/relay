@@ -86,7 +86,7 @@ clang.tsan:
 	make clang OPT_FLAGS=-g SAN_FLAGS=$(TSAN_FLAGS)
 
 indent:
-	indent -kr --line-length 120 src/*.[hc]
+	sh indent.sh src/*.[hc]
 
 clean:
 	rm -rf bin/$(basename $(RELAY))*.dSYM
