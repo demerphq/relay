@@ -26,11 +26,17 @@ OPT_FLAGS=-O3
 # -Wcast-align is useless with gcc on x86: it never warns.  Use it with clang.
 WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align
 
-# Linux:
-OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO
+# Platform-specific flags.
 
-# OS X
-# OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+
+ifeq ($(uname_S),Linux)
+  OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO
+endif
+
+ifeq ($(uname_S),Darwin)
+  OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE
+endif
 
 # Flags common to all compilers.
 CFLAGS=$(OPT_FLAGS) $(SAN_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
