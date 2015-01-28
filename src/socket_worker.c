@@ -406,7 +406,8 @@ void *socket_worker_thread(void *arg)
             }
             accumulate_and_clear_stats(&self->counters, &self->recents, &self->totals);
             SAY("Forwarding flush forwarded %zd bytes in %llu events, spilled %llu events, dropped %llu events ",
-                wrote, (unsigned long long) (self->totals.sent_count - old_sent), (unsigned long long) (self->totals.spilled_count - old_spilled),
+                wrote, (unsigned long long) (self->totals.sent_count - old_sent),
+                (unsigned long long) (self->totals.spilled_count - old_spilled),
                 (unsigned long long) (self->totals.dropped_count - old_dropped));
         } else {
             WARN("No forwarding socket to flush to");
