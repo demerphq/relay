@@ -16,7 +16,7 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
             if (!fixed_buffer_vcatf(buf, "%s ", config->argv[i]))
                 break;
         }
-        if (fixed_buffer_vcatf(buf, "received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
+        if (fixed_buffer_vcatf(buf, " : received %lu tcp %lu", (unsigned long) received, (unsigned long) tcp)) {
             socket_worker_t *w;
             int worker_id = 0;
             TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
