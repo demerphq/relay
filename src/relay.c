@@ -551,7 +551,7 @@ static void malloc_detect(config_t * config)
         }
         fixed_buffer_destroy(buf);
     }
-    SAY("malloc_style: %d\n", config->malloc_style);
+    SAY("malloc_style: %d", config->malloc_style);
 }
 
 static int serve(config_t * config)
