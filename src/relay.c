@@ -551,7 +551,8 @@ static void malloc_detect(config_t * config)
         }
         fixed_buffer_destroy(buf);
     }
-    SAY("malloc_style: %d", config->malloc_style);
+    SAY("malloc_style: %s", config->malloc_style == SYSTEM_MALLOC ? "system" :
+        config->malloc_style == JEMALLOC ? "jemalloc" : config->malloc_style == TCMALLOC ? "tcmalloc" : "unknown");
 }
 
 static int serve(config_t * config)
