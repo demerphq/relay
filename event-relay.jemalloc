@@ -2,8 +2,15 @@
 
 JEMALLOC_SO=$(ls /usr/lib64/libjemalloc.so* | sort -t. -rn -k +3 -k +4 -k +5 | head -n 1)
 
+if [ -x bin/event-relay ]; then
+  EVENT_RELAY=bin/event-relay # for devel
+else
+  EVENT_RELAY=event-relay # from PATH
+fi
+echo "$0: Using $EVENT_RELAY"
+
 if [ -x "$JEMALLOC_SO" ]; then
-  (set -x; LD_PRELOAD=$JEMALLOC_SO exec event-relay "$@")
+  (set -x; LD_PRELOAD=$JEMALLOC_SO exec $EVENT_RELAY "$@")
 else
   echo "$0: Missing jemalloc library: $JEMALLOC_SO"
 fi

@@ -2,8 +2,15 @@
 
 TCMALLOC_SO=$(ls /usr/lib64/libtcmalloc.so* | sort -t. -rn -k +3 -k +4 -k +5 | head -n 1)
 
+if [ -x bin/event-relay ]; then
+  EVENT_RELAY=bin/event-relay # for devel
+else
+  EVENT_RELAY=event-relay # from PATH
+fi
+echo "$0: Using $EVENT_RELAY"
+
 if [ -x "$TCMALLOC_SO" ]; then
-  (set -x; LD_PRELOAD=$TCMALLOC_SO exec event-relay "$@")
+  (set -x; LD_PRELOAD=$TCMALLOC_SO exec $EVENT_RELAY "$@")
 else
   echo "$0: Missing tcmalloc library: $TCMALLOC_SO"
 fi
