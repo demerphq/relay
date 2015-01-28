@@ -28,6 +28,12 @@ struct graphite_config {
     uint32_t sleep_poll_interval_millisec;
 };
 
+enum {
+    SYSTEM_MALLOC = 0,
+    JEMALLOC = 1,
+    TCMALLOC = 2
+};
+
 struct config {
     /* original argc/argv, or synthesized from config file */
     int argc;
@@ -44,6 +50,9 @@ struct config {
     /* if zero, stay in foreground.  otherwise fork twice and
      * do the other usual daemony things. */
     int daemonize;
+
+    /* which kind of malloc we seem to be using */
+    int malloc_style;
 
     /* directory for the config saves */
     char *config_save_root;

@@ -523,6 +523,37 @@ static int highlander(config_t * config)
     return lockfd;
 }
 
+static void malloc_detect(config_t * config)
+{
+    config->malloc_style = SYSTEM_MALLOC;
+
+    fixed_buffer_t *buf = fixed_buffer_create(256);
+    if (buf) {
+        fixed_buffer_vcatf(buf, "lsof -p %d", getpid());
+        fixed_buffer_zero_terminate(buf);
+        FILE *lsof = popen(buf->data, "r");
+        if (lsof) {
+            while (fgets(buf->data, buf->size, lsof)) {
+                char *p = strstr(buf->data, "malloc.so");
+                /* The 75 comes from the lsof output format.
+                 * It probably could be a few bytes more. */
+                if (p && p - buf->data > 75) {
+                    if (p[-6] == '/' && p[-5] == 'l' && p[-4] == 'i' && p[-3] == 'b') {
+                        if (p[-2] == 'j' && p[-1] == 'e') {
+                            config->malloc_style = JEMALLOC;
+                        } else if (p[-2] == 't' && p[-1] == 'c') {
+                            config->malloc_style = TCMALLOC;
+                        }
+                    }
+                }
+            }
+            fclose(lsof);
+        }
+        fixed_buffer_destroy(buf);
+    }
+    SAY("malloc_style: %d\n", config->malloc_style);
+}
+
 static int serve(config_t * config)
 {
     if (config->daemonize) {
@@ -574,6 +605,8 @@ static int serve(config_t * config)
     /* Every ALIVE_PERIOD second show the process status line also with syslog(). */
 #define ALIVE_PERIOD 60
     time_t last_alive = 0;
+
+    malloc_detect(GLOBAL.config);
 
     control_set_bits(RELAY_RUNNING);
 
