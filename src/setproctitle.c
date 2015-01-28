@@ -102,7 +102,10 @@ void setproctitle(const char *txt)
         i = argv_lth - 2;
         buf[i] = '\0';
     }
+#if 0
+    /* This memset() seems to anger tcmalloc. */
     memset(argv0[0], '\0', argv_lth);   /* clear the memory area */
+#endif
     strcpy(argv0[0], buf);
 
     argv0[1] = NULL;
