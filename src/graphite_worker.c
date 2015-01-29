@@ -149,6 +149,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
     fixed_buffer_reset(buffer);
 
+    const config_t *config = self->base.config;
+
     socket_worker_t *w;
     TAILQ_FOREACH(w, &GLOBAL.pool.workers, entries) {
         if (!graphite_build_worker(self, w, buffer, this_epoch, stats_format)) {
@@ -159,42 +161,43 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     UNLOCK(&GLOBAL.pool.lock);
 
 #ifdef HAVE_MALLINFO
-    /* get memory details */
-    struct mallinfo meminfo = mallinfo();
+    if (config->malloc_style == SYSTEM_MALLOC) {
+        /* get memory details */
+        struct mallinfo meminfo = mallinfo();
 
-    /* No need to keep reformatting root, "mallinfo", and epoch. */
-    int wrote =
-        snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data, this_epoch);
-    if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
-        WARN("Failed to initialize meminfo format: %s", stats_format);
-        return 0;
-    }
+        /* No need to keep reformatting root, "mallinfo", and epoch. */
+        int wrote =
+            snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data, this_epoch);
+        if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
+            WARN("Failed to initialize meminfo format: %s", stats_format);
+            return 0;
+        }
 
-    do {
+        do {
 #define MEMINFO_VCATF_LABEL_VALUE(label, value) \
-	if (!fixed_buffer_vcatf(buffer, meminfo_format, label, value)) return 0
+            if (!fixed_buffer_vcatf(buffer, meminfo_format, label, value)) return 0
 #define MEMINFO_VCATF(name) MEMINFO_VCATF_LABEL_VALUE(#name, meminfo.name)
-        MEMINFO_VCATF(arena);
-        MEMINFO_VCATF(ordblks);
-        MEMINFO_VCATF(smblks);
-        MEMINFO_VCATF(hblks);
-        MEMINFO_VCATF(hblkhd);
-        MEMINFO_VCATF(usmblks);
-        MEMINFO_VCATF(fsmblks);
-        MEMINFO_VCATF(uordblks);
-        MEMINFO_VCATF(fordblks);
-        MEMINFO_VCATF(keepcost);
-        MEMINFO_VCATF_LABEL_VALUE("total_from_system", meminfo.arena + meminfo.hblkhd);
-        MEMINFO_VCATF_LABEL_VALUE("total_in_use", meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd);
-        MEMINFO_VCATF_LABEL_VALUE("total_free_in_process", meminfo.fordblks + meminfo.fsmblks);
-    } while (0);
+            MEMINFO_VCATF(arena);
+            MEMINFO_VCATF(ordblks);
+            MEMINFO_VCATF(smblks);
+            MEMINFO_VCATF(hblks);
+            MEMINFO_VCATF(hblkhd);
+            MEMINFO_VCATF(usmblks);
+            MEMINFO_VCATF(fsmblks);
+            MEMINFO_VCATF(uordblks);
+            MEMINFO_VCATF(fordblks);
+            MEMINFO_VCATF(keepcost);
+            MEMINFO_VCATF_LABEL_VALUE("total_from_system", meminfo.arena + meminfo.hblkhd);
+            MEMINFO_VCATF_LABEL_VALUE("total_in_use", meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd);
+            MEMINFO_VCATF_LABEL_VALUE("total_free_in_process", meminfo.fordblks + meminfo.fsmblks);
+        } while (0);
+    }
 #endif                          /* #ifdef HAVE_MALLINFO */
 
 #ifdef HAVE_PROC_SELF_STATM
     {
         FILE *statm = fopen("/proc/self/statm", "r");
         if (statm) {
-            const config_t *config = self->base.config;
             int found = 0;
             char buf[128];
             if (fgets(buf, sizeof(buf), statm)) {
