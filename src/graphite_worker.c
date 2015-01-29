@@ -188,7 +188,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
         MEMINFO_VCATF_LABEL_VALUE("total_in_use", meminfo.uordblks + meminfo.usmblks + meminfo.hblkhd);
         MEMINFO_VCATF_LABEL_VALUE("total_free_in_process", meminfo.fordblks + meminfo.fsmblks);
     } while (0);
-#endif
+#endif                          /* #ifdef HAVE_MALLINFO */
 
     return 1;
 }
