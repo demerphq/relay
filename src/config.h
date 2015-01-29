@@ -53,6 +53,8 @@ struct config {
 
     /* which kind of malloc we seem to be using */
     int malloc_style;
+    /* our pagesize in bytes */
+    long pagesize;
 
     /* directory for the config saves */
     char *config_save_root;

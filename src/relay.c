@@ -2,6 +2,7 @@
 
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "control.h"
@@ -610,6 +611,9 @@ static int serve(config_t * config)
     time_t last_alive = 0;
 
     malloc_detect(GLOBAL.config);
+
+    GLOBAL.config->pagesize = sysconf(_SC_PAGESIZE);
+    SAY("pagesize: %ld", GLOBAL.config->pagesize);
 
     control_set_bits(RELAY_RUNNING);
 
