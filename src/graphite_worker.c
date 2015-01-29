@@ -190,6 +190,39 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     } while (0);
 #endif                          /* #ifdef HAVE_MALLINFO */
 
+#ifdef HAVE_PROC_SELF_STATM
+    {
+        FILE *statm = fopen("/proc/self/statm", "r");
+        if (statm) {
+            const config_t *config = self->base.config;
+            int found = 0;
+            char buf[128];
+            if (fgets(buf, sizeof(buf), statm)) {
+                char *s = buf, *endp;
+                long size = -1, rss = -1;
+                size = strtol(s, &endp, 10);
+                if (*endp == ' ') {
+                    s = endp + 1;
+                    rss = strtol(s, &endp, 10);
+                }
+                if (size > 0 && rss > 0) {
+                    size *= config->pagesize / 1024;
+                    rss *= config->pagesize / 1024;
+                    fixed_buffer_vcatf(buffer, "%s.statm.size %ld %lu\n", self->path_root->data, size, this_epoch);
+                    fixed_buffer_vcatf(buffer, "%s.statm.rss %ld %lu\n", self->path_root->data, rss, this_epoch);
+                    found = 1;
+                }
+            }
+            if (!found) {
+                WARN("Failed to find size and rss");
+            }
+            fclose(statm);
+        } else {
+            WARN_ERRNO("Failed to open /proc/self/statm");
+        }
+    }
+#endif
+
     return 1;
 }
 

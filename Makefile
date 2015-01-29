@@ -31,7 +31,7 @@ WARN_FLAGS=-Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wcast-al
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 ifeq ($(uname_S),Linux)
-  OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO
+  OS_FLAGS=-D_BSD_SOURCE -D_GNU_SOURCE -D_POSIX_SOURCE -DHAVE_MALLINFO -DHAVE_PROC_SELF_STATM
 endif
 
 ifeq ($(uname_S),Darwin)
