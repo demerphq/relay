@@ -548,6 +548,8 @@ static void malloc_detect(config_t * config)
                 }
             }
             fclose(lsof);
+        } else {
+            WARN_ERRNO("Failed to popen '%s'", buf->data)
         }
         fixed_buffer_destroy(buf);
     }
