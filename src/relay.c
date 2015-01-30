@@ -1,7 +1,6 @@
 #include "relay.h"
 
 #include <dlfcn.h>
-#include <jemalloc/jemalloc.h>
 #include <string.h>
 #include <sys/file.h>
 #include <sys/socket.h>
