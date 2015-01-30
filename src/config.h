@@ -44,8 +44,20 @@ struct malloc_config {
     /* the basename of the LD_PRELOADed malloc library */
     char *so_base;
 
-    /* dlopened handle to the malloc library */
+    /* dlopen-ed handle to the malloc library */
     void *so_handle;
+
+    /* jemalloc */
+    int jemalloc_stats;         /* zero if stats disabled */
+    int (*mallctlbymib) (const size_t, size_t, void *, size_t *, void *, size_t);
+    size_t mib_config_stats;
+    size_t miblen_config_stats;
+    size_t mib_stats_allocated;
+    size_t miblen_stats_allocated;
+    size_t mib_stats_active;
+    size_t miblen_stats_active;
+    size_t mib_stats_mapped;
+    size_t miblen_stats_mapped;
 };
 
 struct config {

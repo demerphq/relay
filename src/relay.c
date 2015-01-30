@@ -1,6 +1,7 @@
 #include "relay.h"
 
 #include <dlfcn.h>
+#include <jemalloc/jemalloc.h>
 #include <string.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -528,6 +529,8 @@ static int highlander(config_t * config)
 
 static void malloc_config(config_t * config)
 {
+    memset(&config->malloc, 0, sizeof(struct malloc_config));
+
     config->malloc.style = SYSTEM_MALLOC;
 
     config->malloc.so_base = NULL;
@@ -565,6 +568,32 @@ static void malloc_config(config_t * config)
         config->malloc.so_handle = dlopen(config->malloc.so_base, RTLD_LAZY);
         if (config->malloc.so_handle) {
             SAY("malloc library handle: %p", config->malloc.so_handle);
+            if (config->malloc.style == JEMALLOC) {
+                config->malloc.mallctlbymib = dlsym(config->malloc.so_handle, "mallctlbymib");
+                assert(config->malloc.mallctlbymib);
+
+                int (*nametomib) (const char *, size_t *, size_t *) =
+                    dlsym(config->malloc.so_handle, "mallctlnametomib");
+                assert(nametomib);
+                (*nametomib) ("config.stats", &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
+
+                unsigned char enabled;
+                size_t len;
+                (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated,
+                                                config->malloc.miblen_stats_allocated, &enabled, &len, NULL, 0);
+                config->malloc.jemalloc_stats = enabled;
+                if (config->malloc.jemalloc_stats) {
+                    (*nametomib) ("stats.allocated", &config->malloc.mib_stats_allocated,
+                                  &config->malloc.miblen_stats_allocated);
+                    (*nametomib) ("stats.active", &config->malloc.mib_stats_active,
+                                  &config->malloc.miblen_stats_active);
+                    (*nametomib) ("stats.mapped", &config->malloc.mib_stats_mapped,
+                                  &config->malloc.miblen_stats_mapped);
+                    SAY("jemalloc stats enabled");
+                } else {
+                    WARN("jemalloc stats DISABLED");
+                }
+            }
         } else {
             WARN("dlerror: %s (so_base %s)", dlerror(), config->malloc.so_base);
         }

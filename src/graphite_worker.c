@@ -226,6 +226,20 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     }
 #endif
 
+    if (config->malloc.style == JEMALLOC && config->malloc.jemalloc_stats) {
+        size_t val;
+        size_t len = 0;
+        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &val,
+                                        &len, NULL, 0);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_active, config->malloc.miblen_stats_active, &val,
+                                        &len, NULL, 0);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_mapped, config->malloc.miblen_stats_mapped, &val,
+                                        &len, NULL, 0);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+    }
+
     return 1;
 }
 
