@@ -166,9 +166,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
         struct mallinfo meminfo = mallinfo();
 
         /* No need to keep reformatting root, "mallinfo", and epoch. */
-        int wrote =
-            snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data,
-                     this_epoch);
+        int wrote = snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data,
+                             this_epoch);
         if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
             WARN("Failed to initialize meminfo format: %s", stats_format);
             return 0;
