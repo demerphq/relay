@@ -44,7 +44,7 @@ CFLAGS=$(OPT_FLAGS) $(SAN_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fn
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
 
-LIBS = -lm
+LIBS = -lm -ldl
 
 SRC=src/setproctitle.c src/stats.c src/control.c src/blob.c src/socket_worker.c src/socket_util.c src/string_util.c src/config.c \
 	src/timer.c src/socket_worker_pool.c src/disk_writer.c src/graphite_worker.c src/relay.c src/global.c src/daemonize.c src/worker_util.c

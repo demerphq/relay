@@ -1,5 +1,7 @@
 #include "relay.h"
 
+#include <dlfcn.h>
+#include <string.h>
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -528,37 +530,45 @@ static void malloc_config(config_t * config)
 {
     config->malloc.style = SYSTEM_MALLOC;
 
-    fixed_buffer_t *buf = fixed_buffer_create(256);
-    if (buf) {
-        fixed_buffer_vcatf(buf, "lsof -p %d", getpid());
-        fixed_buffer_zero_terminate(buf);
-        FILE *lsof = popen(buf->data, "r");
-        if (lsof) {
-            while (fgets(buf->data, buf->size, lsof)) {
-                char *p = strstr(buf->data, "malloc.so");
-                /* The 75 comes from the lsof output format.
-                 * It probably could be a few bytes more. */
-                if (p && p - buf->data > 75) {
-                    if (p[-6] == '/' && p[-5] == 'l' && p[-4] == 'i' && p[-3] == 'b') {
-                        if (p[-2] == 'j' && p[-1] == 'e') {
-                            config->malloc.style = JEMALLOC;
-                        } else if (p[-2] == 't' && p[-1] == 'c') {
-                            config->malloc.style = TCMALLOC;
-                        }
-                    }
-                }
-            }
-            fclose(lsof);
-        } else {
-            WARN_ERRNO("Failed to popen '%s'", buf->data)
+    config->malloc.so_base = NULL;
+
+    char *ld_preload = getenv("LD_PRELOAD");
+    if (ld_preload) {
+        const char *p = NULL;
+        if ((p = strstr(ld_preload, "/libjemalloc.so"))) {
+            assert(config->malloc.style == SYSTEM_MALLOC);
+            config->malloc.style = JEMALLOC;
         }
-        fixed_buffer_destroy(buf);
+        if ((p = strstr(ld_preload, "/libtcmalloc.so"))) {
+            assert(config->malloc.style == SYSTEM_MALLOC);
+            config->malloc.style = TCMALLOC;
+        }
+        if (p) {
+            const char *q = ++p;
+            while (*q && *q != ' ' && *q != ':')
+                q++;
+            config->malloc.so_base = malloc(q - p + 1);
+            memcpy(config->malloc.so_base, p, q - p);
+            config->malloc.so_base[q - p] = 0;
+        }
     }
+
     SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :
         config->malloc.style == JEMALLOC ? "jemalloc" : config->malloc.style == TCMALLOC ? "tcmalloc" : "unknown");
 
     config->malloc.pagesize = sysconf(_SC_PAGESIZE);
     SAY("pagesize: %ld", config->malloc.pagesize);
+
+    config->malloc.so_handle = NULL;
+
+    if (config->malloc.style == JEMALLOC || config->malloc.style == TCMALLOC) {
+        config->malloc.so_handle = dlopen(config->malloc.so_base, RTLD_LAZY);
+        if (config->malloc.so_handle) {
+            SAY("malloc library handle: %p", config->malloc.so_handle);
+        } else {
+            WARN("dlerror: %s (so_base %s)", dlerror(), config->malloc.so_base);
+        }
+    }
 }
 
 static int serve(config_t * config)

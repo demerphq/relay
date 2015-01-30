@@ -37,8 +37,15 @@ enum {
 struct malloc_config {
     /* which kind of malloc we seem to be using */
     int style;
+
     /* our pagesize in bytes */
     long pagesize;
+
+    /* the basename of the LD_PRELOADed malloc library */
+    char *so_base;
+
+    /* dlopened handle to the malloc library */
+    void *so_handle;
 };
 
 struct config {
