@@ -51,6 +51,9 @@ struct malloc_config {
     size_t miblen_stats_active;
     size_t mib_stats_mapped;
     size_t miblen_stats_mapped;
+
+    /* tcmalloc */
+    int (*get_numeric_property) (const char *, size_t *);
 };
 
 struct config {

@@ -563,6 +563,8 @@ static void malloc_config(config_t * config)
 
     if ((tc = dlsym(soh, "MallocExtension_GetNumericProperty"))) {      /* tcmalloc */
         config->malloc.style = TCMALLOC;
+
+        config->malloc.get_numeric_property = tc;
     }
 
     SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :

@@ -240,6 +240,14 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
         fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
     }
 
+    if (config->malloc.style == TCMALLOC && config->malloc.get_numeric_property) {
+        size_t val;
+        (*config->malloc.get_numeric_property) ("generic.current_allocated_bytes", &val);
+        fixed_buffer_vcatf(buffer, "%s.tcmalloc.allocated %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        (*config->malloc.get_numeric_property) ("generic.heap_size", &val);
+        fixed_buffer_vcatf(buffer, "%s.tcmalloc.heap %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+    }
+
     return 1;
 }
 
