@@ -533,27 +533,36 @@ static void malloc_config(config_t * config)
 
     config->malloc.style = SYSTEM_MALLOC;
 
-    config->malloc.so_base = NULL;
+    void *soh = dlopen(NULL, RTLD_LAZY);
+    assert(soh);
 
-    char *ld_preload = getenv("LD_PRELOAD");
-    if (ld_preload) {
-        const char *p = NULL;
-        if ((p = strstr(ld_preload, "/libjemalloc.so"))) {
-            assert(config->malloc.style == SYSTEM_MALLOC);
-            config->malloc.style = JEMALLOC;
+    int (*je) (const size_t, size_t, void *, size_t *, void *, size_t);
+    int (*tc) (const char *, size_t *);
+
+    if ((je = dlsym(soh, "mallctlbymib"))) {    /* jemalloc */
+        config->malloc.style = JEMALLOC;
+
+        int (*nametomib) (const char *, size_t *, size_t *) = dlsym(soh, "mallctlnametomib");
+        assert(nametomib);
+        (*nametomib) ("config.stats", &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
+
+        unsigned char enabled;
+        size_t len;
+        (*je) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &enabled, &len, NULL, 0);
+        if (enabled) {
+            config->malloc.mallctlbymib = je;
+            (*nametomib) ("stats.allocated", &config->malloc.mib_stats_allocated,
+                          &config->malloc.miblen_stats_allocated);
+            (*nametomib) ("stats.active", &config->malloc.mib_stats_active, &config->malloc.miblen_stats_active);
+            (*nametomib) ("stats.mapped", &config->malloc.mib_stats_mapped, &config->malloc.miblen_stats_mapped);
+            SAY("jemalloc stats enabled");
+        } else {
+            WARN("jemalloc stats DISABLED");
         }
-        if ((p = strstr(ld_preload, "/libtcmalloc.so"))) {
-            assert(config->malloc.style == SYSTEM_MALLOC);
-            config->malloc.style = TCMALLOC;
-        }
-        if (p) {
-            const char *q = ++p;
-            while (*q && *q != ' ' && *q != ':')
-                q++;
-            config->malloc.so_base = malloc(q - p + 1);
-            memcpy(config->malloc.so_base, p, q - p);
-            config->malloc.so_base[q - p] = 0;
-        }
+    }
+
+    if ((tc = dlsym(soh, "MallocExtension_GetNumericProperty"))) {      /* tcmalloc */
+        config->malloc.style = TCMALLOC;
     }
 
     SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :
@@ -561,43 +570,6 @@ static void malloc_config(config_t * config)
 
     config->malloc.pagesize = sysconf(_SC_PAGESIZE);
     SAY("pagesize: %ld", config->malloc.pagesize);
-
-    config->malloc.so_handle = NULL;
-
-    if (config->malloc.style == JEMALLOC || config->malloc.style == TCMALLOC) {
-        config->malloc.so_handle = dlopen(config->malloc.so_base, RTLD_LAZY);
-        if (config->malloc.so_handle) {
-            SAY("malloc library handle: %p", config->malloc.so_handle);
-            if (config->malloc.style == JEMALLOC) {
-                config->malloc.mallctlbymib = dlsym(config->malloc.so_handle, "mallctlbymib");
-                assert(config->malloc.mallctlbymib);
-
-                int (*nametomib) (const char *, size_t *, size_t *) =
-                    dlsym(config->malloc.so_handle, "mallctlnametomib");
-                assert(nametomib);
-                (*nametomib) ("config.stats", &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
-
-                unsigned char enabled;
-                size_t len;
-                (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated,
-                                                config->malloc.miblen_stats_allocated, &enabled, &len, NULL, 0);
-                config->malloc.jemalloc_stats = enabled;
-                if (config->malloc.jemalloc_stats) {
-                    (*nametomib) ("stats.allocated", &config->malloc.mib_stats_allocated,
-                                  &config->malloc.miblen_stats_allocated);
-                    (*nametomib) ("stats.active", &config->malloc.mib_stats_active,
-                                  &config->malloc.miblen_stats_active);
-                    (*nametomib) ("stats.mapped", &config->malloc.mib_stats_mapped,
-                                  &config->malloc.miblen_stats_mapped);
-                    SAY("jemalloc stats enabled");
-                } else {
-                    WARN("jemalloc stats DISABLED");
-                }
-            }
-        } else {
-            WARN("dlerror: %s (so_base %s)", dlerror(), config->malloc.so_base);
-        }
-    }
 }
 
 static int serve(config_t * config)

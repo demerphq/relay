@@ -226,7 +226,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     }
 #endif
 
-    if (config->malloc.style == JEMALLOC && config->malloc.jemalloc_stats) {
+    if (config->malloc.style == JEMALLOC && config->malloc.mallctlbymib) {
         size_t val;
         size_t len = 0;
         (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &val,

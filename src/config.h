@@ -41,14 +41,7 @@ struct malloc_config {
     /* our pagesize in bytes */
     long pagesize;
 
-    /* the basename of the LD_PRELOADed malloc library */
-    char *so_base;
-
-    /* dlopen-ed handle to the malloc library */
-    void *so_handle;
-
     /* jemalloc */
-    int jemalloc_stats;         /* zero if stats disabled */
     int (*mallctlbymib) (const size_t, size_t, void *, size_t *, void *, size_t);
     size_t mib_config_stats;
     size_t miblen_config_stats;

@@ -18,9 +18,6 @@ void config_destroy(config_t * config)
     for (int i = 0; i < config->argc; i++)
         free(config->argv[i]);
     free(config->argv);
-    free(config->malloc.so_base);
-    if (config->malloc.so_handle)
-        dlclose(config->malloc.so_handle);
     free(config->graphite.dest_addr);
     free(config->graphite.path_root);
     free(config->config_save_root);
