@@ -34,6 +34,13 @@ enum {
     TCMALLOC = 2
 };
 
+struct malloc_config {
+    /* which kind of malloc we seem to be using */
+    int style;
+    /* our pagesize in bytes */
+    long pagesize;
+};
+
 struct config {
     /* original argc/argv, or synthesized from config file */
     int argc;
@@ -51,10 +58,7 @@ struct config {
      * do the other usual daemony things. */
     int daemonize;
 
-    /* which kind of malloc we seem to be using */
-    int malloc_style;
-    /* our pagesize in bytes */
-    long pagesize;
+    struct malloc_config malloc;
 
     /* directory for the config saves */
     char *config_save_root;

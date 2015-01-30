@@ -161,13 +161,14 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     UNLOCK(&GLOBAL.pool.lock);
 
 #ifdef HAVE_MALLINFO
-    if (config->malloc_style == SYSTEM_MALLOC) {
+    if (config->malloc.style == SYSTEM_MALLOC) {
         /* get memory details */
         struct mallinfo meminfo = mallinfo();
 
         /* No need to keep reformatting root, "mallinfo", and epoch. */
         int wrote =
-            snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data, this_epoch);
+            snprintf(meminfo_format, FORMAT_BUFFER_SIZE, "%s.mallinfo.%%s %%d %lu\n", self->path_root->data,
+                     this_epoch);
         if (wrote < 0 || wrote >= FORMAT_BUFFER_SIZE) {
             WARN("Failed to initialize meminfo format: %s", stats_format);
             return 0;
@@ -209,8 +210,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
                     rss = strtol(s, &endp, 10);
                 }
                 if (size > 0 && rss > 0) {
-                    size *= config->pagesize / 1024;
-                    rss *= config->pagesize / 1024;
+                    size *= config->malloc.pagesize / 1024;
+                    rss *= config->malloc.pagesize / 1024;
                     fixed_buffer_vcatf(buffer, "%s.statm.size %ld %lu\n", self->path_root->data, size, this_epoch);
                     fixed_buffer_vcatf(buffer, "%s.statm.rss %ld %lu\n", self->path_root->data, rss, this_epoch);
                     found = 1;

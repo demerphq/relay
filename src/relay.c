@@ -524,9 +524,9 @@ static int highlander(config_t * config)
     return lockfd;
 }
 
-static void malloc_detect(config_t * config)
+static void malloc_config(config_t * config)
 {
-    config->malloc_style = SYSTEM_MALLOC;
+    config->malloc.style = SYSTEM_MALLOC;
 
     fixed_buffer_t *buf = fixed_buffer_create(256);
     if (buf) {
@@ -541,9 +541,9 @@ static void malloc_detect(config_t * config)
                 if (p && p - buf->data > 75) {
                     if (p[-6] == '/' && p[-5] == 'l' && p[-4] == 'i' && p[-3] == 'b') {
                         if (p[-2] == 'j' && p[-1] == 'e') {
-                            config->malloc_style = JEMALLOC;
+                            config->malloc.style = JEMALLOC;
                         } else if (p[-2] == 't' && p[-1] == 'c') {
-                            config->malloc_style = TCMALLOC;
+                            config->malloc.style = TCMALLOC;
                         }
                     }
                 }
@@ -554,8 +554,11 @@ static void malloc_detect(config_t * config)
         }
         fixed_buffer_destroy(buf);
     }
-    SAY("malloc_style: %s", config->malloc_style == SYSTEM_MALLOC ? "system" :
-        config->malloc_style == JEMALLOC ? "jemalloc" : config->malloc_style == TCMALLOC ? "tcmalloc" : "unknown");
+    SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :
+        config->malloc.style == JEMALLOC ? "jemalloc" : config->malloc.style == TCMALLOC ? "tcmalloc" : "unknown");
+
+    config->malloc.pagesize = sysconf(_SC_PAGESIZE);
+    SAY("pagesize: %ld", config->malloc.pagesize);
 }
 
 static int serve(config_t * config)
@@ -610,10 +613,7 @@ static int serve(config_t * config)
 #define ALIVE_PERIOD 60
     time_t last_alive = 0;
 
-    malloc_detect(GLOBAL.config);
-
-    GLOBAL.config->pagesize = sysconf(_SC_PAGESIZE);
-    SAY("pagesize: %ld", GLOBAL.config->pagesize);
+    malloc_config(GLOBAL.config);
 
     control_set_bits(RELAY_RUNNING);
 
