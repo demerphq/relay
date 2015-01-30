@@ -209,8 +209,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
                     rss = strtol(s, &endp, 10);
                 }
                 if (size > 0 && rss > 0) {
-                    size *= config->malloc.pagesize / 1024;
-                    rss *= config->malloc.pagesize / 1024;
+                    size *= config->malloc.pagesize;
+                    rss *= config->malloc.pagesize;
                     fixed_buffer_vcatf(buffer, "%s.statm.size %ld %lu\n", self->path_root->data, size, this_epoch);
                     fixed_buffer_vcatf(buffer, "%s.statm.rss %ld %lu\n", self->path_root->data, rss, this_epoch);
                     found = 1;
@@ -231,21 +231,21 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
         size_t len = 0;
         (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &val,
                                         &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
         (*config->malloc.mallctlbymib) (config->malloc.mib_stats_active, config->malloc.miblen_stats_active, &val,
                                         &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
         (*config->malloc.mallctlbymib) (config->malloc.mib_stats_mapped, config->malloc.miblen_stats_mapped, &val,
                                         &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
     }
 
     if (config->malloc.style == TCMALLOC && config->malloc.get_numeric_property) {
         size_t val;
         (*config->malloc.get_numeric_property) ("generic.current_allocated_bytes", &val);
-        fixed_buffer_vcatf(buffer, "%s.tcmalloc.allocated %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        fixed_buffer_vcatf(buffer, "%s.tcmalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
         (*config->malloc.get_numeric_property) ("generic.heap_size", &val);
-        fixed_buffer_vcatf(buffer, "%s.tcmalloc.heap %ld %lu\n", self->path_root->data, val / 1024, this_epoch);
+        fixed_buffer_vcatf(buffer, "%s.tcmalloc.heap %ld %lu\n", self->path_root->data, val, this_epoch);
     }
 
     return 1;
