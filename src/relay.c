@@ -535,35 +535,63 @@ static void malloc_config(config_t * config)
     void *soh = dlopen(NULL, RTLD_LAZY);
     assert(soh);
 
-    int (*je) (const size_t, size_t, void *, size_t *, void *, size_t);
-    int (*tc) (const char *, size_t *);
+    int (*jefp) (const size_t *, size_t, void *, size_t *, void *, size_t);
+    int (*tcfp) (const char *, size_t *);
 
-    if ((je = dlsym(soh, "mallctlbymib"))) {    /* jemalloc */
+    const char *jestats = "mallctlbymib";
+    if ((jefp = dlsym(soh, jestats))) { /* jemalloc */
+        int jerr;
+
         config->malloc.style = JEMALLOC;
 
-        int (*nametomib) (const char *, size_t *, size_t *) = dlsym(soh, "mallctlnametomib");
+        const char *nametomib = "mallctlnametomib";
+
+        int (*nametomibfp) (const char *, size_t *, size_t *) = dlsym(soh, nametomib);
         assert(nametomib);
-        (*nametomib) ("config.stats", &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
+        const char *config_stats = "config.stats";
+        config->malloc.miblen_config_stats = 2;
+        jerr = (*nametomibfp) (config_stats, &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
+        if (jerr) {
+            FATAL("%s %s: %s", nametomib, config_stats, strerror(jerr));
+        }
 
         unsigned char enabled;
-        size_t len;
-        (*je) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &enabled, &len, NULL, 0);
+        size_t len = sizeof(enabled);
+        jerr = (*jefp) (&config->malloc.mib_config_stats, config->malloc.miblen_config_stats, &enabled, &len, NULL, 0);
+        if (jerr) {
+            FATAL("%s %s: %s", jestats, config_stats, strerror(jerr));
+        }
         if (enabled) {
-            config->malloc.mallctlbymib = je;
-            (*nametomib) ("stats.allocated", &config->malloc.mib_stats_allocated,
-                          &config->malloc.miblen_stats_allocated);
-            (*nametomib) ("stats.active", &config->malloc.mib_stats_active, &config->malloc.miblen_stats_active);
-            (*nametomib) ("stats.mapped", &config->malloc.mib_stats_mapped, &config->malloc.miblen_stats_mapped);
+            config->malloc.mallctlbymib = jefp;
+            const char *stats_allocated = "stats.allocated";
+            config->malloc.miblen_stats_allocated = 2;
+            jerr = (*nametomibfp) (stats_allocated, &config->malloc.mib_stats_allocated,
+                                   &config->malloc.miblen_stats_allocated);
+            if (jerr) {
+                FATAL("%s %s: %s", nametomib, stats_allocated, strerror(jerr));
+            }
+            const char *stats_active = "stats.active";
+            config->malloc.miblen_stats_active = 2;
+            jerr = (*nametomibfp) (stats_active, &config->malloc.mib_stats_active, &config->malloc.miblen_stats_active);
+            if (jerr) {
+                FATAL("%s %s: %s", nametomib, stats_active, strerror(jerr));
+            }
+            const char *stats_mapped = "stats.mapped";
+            config->malloc.miblen_stats_mapped = 2;
+            jerr = (*nametomibfp) (stats_mapped, &config->malloc.mib_stats_mapped, &config->malloc.miblen_stats_mapped);
+            if (jerr) {
+                FATAL("%s %s: %s", nametomib, stats_mapped, strerror(jerr));
+            }
             SAY("jemalloc stats enabled");
         } else {
             WARN("jemalloc stats DISABLED");
         }
     }
 
-    if ((tc = dlsym(soh, "MallocExtension_GetNumericProperty"))) {      /* tcmalloc */
+    if ((tcfp = dlsym(soh, "MallocExtension_GetNumericProperty"))) {    /* tcmalloc */
         config->malloc.style = TCMALLOC;
 
-        config->malloc.get_numeric_property = tc;
+        config->malloc.get_numeric_property = tcfp;
     }
 
     SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :

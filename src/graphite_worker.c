@@ -228,16 +228,30 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
     if (config->malloc.style == JEMALLOC && config->malloc.mallctlbymib) {
         size_t val;
-        size_t len = 0;
-        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated, &val,
-                                        &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
-        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_active, config->malloc.miblen_stats_active, &val,
-                                        &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
-        (*config->malloc.mallctlbymib) (config->malloc.mib_stats_mapped, config->malloc.miblen_stats_mapped, &val,
-                                        &len, NULL, 0);
-        fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
+        size_t len;
+
+        /* mallctlbymib returns zero on success */
+
+        val = 0;
+        len = sizeof(val);
+        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated,
+                                            &val, &len, NULL, 0) == 0) {
+            fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
+        }
+
+        val = 0;
+        len = sizeof(val);
+        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_active, config->malloc.miblen_stats_active, &val,
+                                            &len, NULL, 0) == 0) {
+            fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
+        }
+
+        val = 0;
+        len = sizeof(val);
+        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_mapped, config->malloc.miblen_stats_mapped, &val,
+                                            &len, NULL, 0) == 0) {
+            fixed_buffer_vcatf(buffer, "%s.jemalloc.mapped %ld %lu\n", self->path_root->data, val, this_epoch);
+        }
     }
 
     if (config->malloc.style == TCMALLOC && config->malloc.get_numeric_property) {

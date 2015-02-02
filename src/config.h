@@ -42,7 +42,7 @@ struct malloc_config {
     long pagesize;
 
     /* jemalloc */
-    int (*mallctlbymib) (const size_t, size_t, void *, size_t *, void *, size_t);
+    int (*mallctlbymib) (const size_t *, size_t, void *, size_t *, void *, size_t);
     size_t mib_config_stats;
     size_t miblen_config_stats;
     size_t mib_stats_allocated;
