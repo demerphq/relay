@@ -79,7 +79,7 @@ void update_process_status(fixed_buffer_t * buf, config_t * config, stats_count_
             }
         }
         if (!fixed_buffer_vcatf
-            (buf, " : blob active %ld bytes %ld refcnt_bytes %ld total %ld bytes %ld refcnt_bytes %ld",
+            (buf, " : blobs active %ld bytes %ld refcnt_bytes %ld total %ld bytes %ld refcnt_bytes %ld",
              RELAY_ATOMIC_READ(GLOBAL.blob_active_count), RELAY_ATOMIC_READ(GLOBAL.blob_active_bytes),
              RELAY_ATOMIC_READ(GLOBAL.blob_active_refcnt_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_total_count),
              RELAY_ATOMIC_READ(GLOBAL.blob_total_bytes), RELAY_ATOMIC_READ(GLOBAL.blob_total_refcnt_bytes))) {
