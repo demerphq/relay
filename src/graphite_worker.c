@@ -160,6 +160,47 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
     }
     UNLOCK(&GLOBAL.pool.lock);
 
+    {
+        char blobs_format[256];
+        int wrote = snprintf(blobs_format, sizeof(blobs_format), "%s.blobs.%%s %%ld %lu\n", self->path_root->data,
+                             this_epoch);
+        if (wrote < 0 || wrote >= (int) sizeof(blobs_format)) {
+            WARN("Failed to initialize blobs format: %s", blobs_format);
+            return 0;
+        }
+
+        fixed_buffer_vcatf(buffer, blobs_format, "active_count", RELAY_ATOMIC_READ(GLOBAL.blob_active_count));
+        fixed_buffer_vcatf(buffer, blobs_format, "active.bytes", RELAY_ATOMIC_READ(GLOBAL.blob_active_bytes));
+        fixed_buffer_vcatf(buffer, blobs_format, "active_refcnt.bytes",
+                           RELAY_ATOMIC_READ(GLOBAL.blob_active_refcnt_bytes));
+        fixed_buffer_vcatf(buffer, blobs_format, "total.count", RELAY_ATOMIC_READ(GLOBAL.blob_total_count));
+        fixed_buffer_vcatf(buffer, blobs_format, "total.bytes", RELAY_ATOMIC_READ(GLOBAL.blob_total_bytes));
+        fixed_buffer_vcatf(buffer, blobs_format, "total_refcnt.bytes",
+                           RELAY_ATOMIC_READ(GLOBAL.blob_total_refcnt_bytes));
+
+        int64_t buckets = RELAY_ATOMIC_READ(GLOBAL.blob_total_ored_buckets);
+
+        if (buckets) {
+            char buckets_format[256];
+            wrote =
+                snprintf(buckets_format, sizeof(buckets_format), "%s.buckets.log2_%%d %%ld %lu\n", self->path_root->data,
+                         this_epoch);
+            if (wrote < 0 || wrote >= (int) sizeof(buckets_format)) {
+                WARN("Failed to initialize buckets format: %s", buckets_format);
+                return 0;
+            }
+
+            for (int i = 0;
+                 buckets && i < (int) sizeof(GLOBAL.blob_total_sizes) / (int) sizeof(GLOBAL.blob_total_sizes[0]);
+                 i++, buckets >>= 1) {
+                int64_t count = RELAY_ATOMIC_READ(GLOBAL.blob_total_sizes[i]);
+                if (count > 0) {
+                    fixed_buffer_vcatf(buffer, buckets_format, i, count);
+                }
+            }
+        }
+    }
+
 #ifdef HAVE_MALLINFO
     if (config->malloc.style == SYSTEM_MALLOC) {
         /* get memory details */
