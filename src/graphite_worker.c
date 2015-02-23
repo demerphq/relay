@@ -117,11 +117,34 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
     do {
 #define STATS_VCATF(name) \
 	if (!fixed_buffer_vcatf(buffer, stats_format, #name, recents.name##_count)) return 0
+#define STATS_LOADAVG_VCATF(name, ix, label) \
+	if (!fixed_buffer_vcatf(buffer, stats_format, #name ".loadavg_" #label, (unsigned long) w->rates[ix].name.rate)) return 0
         STATS_VCATF(received);
+
+        STATS_LOADAVG_VCATF(received, 0, 1);
+        STATS_LOADAVG_VCATF(received, 1, 5);
+        STATS_LOADAVG_VCATF(received, 2, 15);
+
         STATS_VCATF(sent);
+
+        STATS_LOADAVG_VCATF(sent, 0, 1);
+        STATS_LOADAVG_VCATF(sent, 1, 5);
+        STATS_LOADAVG_VCATF(sent, 2, 15);
+
         STATS_VCATF(partial);
+
         STATS_VCATF(spilled);
+
+        STATS_LOADAVG_VCATF(spilled, 0, 1);
+        STATS_LOADAVG_VCATF(spilled, 1, 5);
+        STATS_LOADAVG_VCATF(spilled, 2, 15);
+
         STATS_VCATF(dropped);
+
+        STATS_LOADAVG_VCATF(dropped, 0, 1);
+        STATS_LOADAVG_VCATF(dropped, 1, 5);
+        STATS_LOADAVG_VCATF(dropped, 2, 15);
+
         STATS_VCATF(error);
         STATS_VCATF(disk);
         STATS_VCATF(disk_error);
@@ -183,8 +206,8 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
         if (buckets) {
             char buckets_format[256];
             wrote =
-                snprintf(buckets_format, sizeof(buckets_format), "%s.buckets.log2_%%d %%ld %lu\n", self->path_root->data,
-                         this_epoch);
+                snprintf(buckets_format, sizeof(buckets_format), "%s.buckets.log2_%%d %%ld %lu\n",
+                         self->path_root->data, this_epoch);
             if (wrote < 0 || wrote >= (int) sizeof(buckets_format)) {
                 WARN("Failed to initialize buckets format: %s", buckets_format);
                 return 0;
