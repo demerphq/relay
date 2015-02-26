@@ -535,11 +535,12 @@ static void malloc_config(config_t * config)
     void *soh = dlopen(NULL, RTLD_LAZY);
     assert(soh);
 
-    int (*jefp) (const size_t *, size_t, void *, size_t *, void *, size_t);
-    int (*tcfp) (const char *, size_t *);
+    int (*je_mcm) (const size_t *, size_t, void *, size_t *, void *, size_t);
+    int (*tc_gnp) (const char *, size_t *);
+    void (*tc_hpd) (const char *);
 
     const char *jestats = "mallctlbymib";
-    if ((jefp = dlsym(soh, jestats))) { /* jemalloc */
+    if ((je_mcm = dlsym(soh, jestats))) {       /* jemalloc */
         int jerr;
 
         config->malloc.style = JEMALLOC;
@@ -547,7 +548,6 @@ static void malloc_config(config_t * config)
         const char *nametomib = "mallctlnametomib";
 
         int (*nametomibfp) (const char *, size_t *, size_t *) = dlsym(soh, nametomib);
-        assert(nametomib);
         const char *config_stats = "config.stats";
         config->malloc.miblen_config_stats = 2;
         jerr = (*nametomibfp) (config_stats, &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
@@ -557,12 +557,13 @@ static void malloc_config(config_t * config)
 
         unsigned char enabled;
         size_t len = sizeof(enabled);
-        jerr = (*jefp) (&config->malloc.mib_config_stats, config->malloc.miblen_config_stats, &enabled, &len, NULL, 0);
+        jerr =
+            (*je_mcm) (&config->malloc.mib_config_stats, config->malloc.miblen_config_stats, &enabled, &len, NULL, 0);
         if (jerr) {
             FATAL("%s %s: %s", jestats, config_stats, strerror(jerr));
         }
         if (enabled) {
-            config->malloc.mallctlbymib = jefp;
+            config->malloc.mallctlbymib = je_mcm;
             const char *stats_allocated = "stats.allocated";
             config->malloc.miblen_stats_allocated = 2;
             jerr = (*nametomibfp) (stats_allocated, &config->malloc.mib_stats_allocated,
@@ -588,10 +589,16 @@ static void malloc_config(config_t * config)
         }
     }
 
-    if ((tcfp = dlsym(soh, "MallocExtension_GetNumericProperty"))) {    /* tcmalloc */
+    if ((tc_gnp = dlsym(soh, "MallocExtension_GetNumericProperty"))) {  /* tcmalloc */
         config->malloc.style = TCMALLOC;
 
-        config->malloc.get_numeric_property = tcfp;
+        config->malloc.get_numeric_property = tc_gnp;
+    }
+
+    if ((tc_hpd = dlsym(soh, "HeapProfilerDump"))) {    /* tcmalloc */
+        config->malloc.style = TCMALLOC;
+
+        config->malloc.heap_profiler_dump = tc_hpd;
     }
 
     SAY("malloc_style: %s", config->malloc.style == SYSTEM_MALLOC ? "system" :
