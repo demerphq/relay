@@ -54,6 +54,7 @@ struct malloc_config {
 
     /* tcmalloc */
     int (*get_numeric_property) (const char *, size_t *);
+    void (*heap_profiler_dump) (const char *);
 };
 
 struct config {
