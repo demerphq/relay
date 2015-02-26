@@ -12,7 +12,8 @@ fi
 echo "$0: Using $EVENT_RELAY"
 
 if [ -x "$TCMALLOC_SO" ]; then
-  (set -x; LD_PRELOAD=$TCMALLOC_SO exec $EVENT_RELAY "$@")
+  set -x
+  LD_PRELOAD=$TCMALLOC_SO exec $EVENT_RELAY "$@"
 else
   echo "$0: Missing tcmalloc library: $TCMALLOC_SO"
 fi

@@ -12,7 +12,8 @@ fi
 echo "$0: Using $EVENT_RELAY"
 
 if [ -x "$JEMALLOC_SO" ]; then
-  (set -x; LD_PRELOAD=$JEMALLOC_SO exec $EVENT_RELAY "$@")
+  set -x
+  LD_PRELOAD=$JEMALLOC_SO exec $EVENT_RELAY "$@"
 else
   echo "$0: Missing jemalloc library: $JEMALLOC_SO"
 fi
