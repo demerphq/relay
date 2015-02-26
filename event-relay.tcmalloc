@@ -4,6 +4,8 @@ TCMALLOC_SO=$(ls /usr/lib64/libtcmalloc.so* | sort -t. -rn -k +3 -k +4 -k +5 | h
 
 if [ -x bin/event-relay ]; then
   EVENT_RELAY=bin/event-relay # for devel
+elif [ SUPERVISOR_ENABLED ]; then
+  EVENT_RELAY=/usr/local/bin/event-relay # for supervisord
 else
   EVENT_RELAY=event-relay # from PATH
 fi
