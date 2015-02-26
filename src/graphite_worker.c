@@ -320,10 +320,22 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 
     if (config->malloc.style == TCMALLOC && config->malloc.get_numeric_property) {
         size_t val;
-        (*config->malloc.get_numeric_property) ("generic.current_allocated_bytes", &val);
-        fixed_buffer_vcatf(buffer, "%s.tcmalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
-        (*config->malloc.get_numeric_property) ("generic.heap_size", &val);
-        fixed_buffer_vcatf(buffer, "%s.tcmalloc.heap %ld %lu\n", self->path_root->data, val, this_epoch);
+        const char *prop[] = {
+            "generic.current_allocated_bytes",
+            "generic.heap_size",
+            "tcmalloc.pageheap_free_bytes",
+            "tcmalloc.pageheap_unmapped_bytes",
+            "tcmalloc.max_total_thread_cache_bytes",
+            "tcmalloc.current_total_thread_cache_bytes",
+        };
+        for (int i = 0; i < (int) (sizeof(prop) / sizeof(const char *)); i++) {
+            if ((*config->malloc.get_numeric_property) (prop[i], &val)) {;
+                const char *dot = strchr(prop[i], '.');
+                if (dot) {
+                    fixed_buffer_vcatf(buffer, "%s.tcmalloc%s %ld %lu\n", self->path_root->data, dot, val, this_epoch);
+                }
+            }
+        }
     }
 
     return 1;
