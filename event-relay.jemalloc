@@ -13,7 +13,16 @@ echo "$0: Using $EVENT_RELAY"
 
 if [ -x "$JEMALLOC_SO" ]; then
   set -x
-  LD_PRELOAD=$JEMALLOC_SO exec $EVENT_RELAY "$@"
+  # The heap profile dumps will be $prof_prefix.pid.$seq.[iuf].heap
+  # i: interval
+  # u: gdump
+  # f: final
+  # The (allocation activity) interval is in lg2, 26 means 64MB.
+  #
+  # Try to keep rough similarity with event-relay.tcmalloc
+  LD_PRELOAD=$JEMALLOC_SO \
+    MALLOC_CONF=prof_prefix:/var/run/event-relay/jemalloc,lg_prof_interval:26,prof_gdump:true,prof_final:true,prof_leak:true \
+    exec $EVENT_RELAY "$@"
 else
   echo "$0: Missing jemalloc library: $JEMALLOC_SO"
 fi

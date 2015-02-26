@@ -13,7 +13,18 @@ echo "$0: Using $EVENT_RELAY"
 
 if [ -x "$TCMALLOC_SO" ]; then
   set -x
-  LD_PRELOAD=$TCMALLOC_SO exec $EVENT_RELAY "$@"
+  # The heap profile dumps will be $HEAP_PROFILE.$seq.heap
+  # Both INTERVALs are set to 64MB (the defaults would be 1GB and 100MB)
+  #
+  # Note: one can enable either heap profiling or heap checking,
+  # but not both at the same time.
+  #
+  # Try to keep rough similarity with event-relay.jemalloc
+  LD_PRELOAD=$TCMALLOC_SO \
+    HEAPPROFILE=/var/run/event-relay/tcmalloc \
+    HEAP_PROFILE_INUSE_ALLOCATION_INTERVAL=67108864 \
+    HEAP_PROFILE_INUSE_INTERVAL=67108864 \
+    exec $EVENT_RELAY "$@"
 else
   echo "$0: Missing tcmalloc library: $TCMALLOC_SO"
 fi
