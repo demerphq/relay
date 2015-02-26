@@ -549,40 +549,52 @@ static void malloc_config(config_t * config)
 
         int (*nametomibfp) (const char *, size_t *, size_t *) = dlsym(soh, nametomib);
         const char *config_stats = "config.stats";
-        config->malloc.miblen_config_stats = 2;
-        jerr = (*nametomibfp) (config_stats, &config->malloc.mib_config_stats, &config->malloc.miblen_config_stats);
+        size_t config_stats_offset;
+        size_t config_stats_count = 2;
+        jerr = (*nametomibfp) (config_stats, &config_stats_offset, &config_stats_count);
         if (jerr) {
             FATAL("%s %s: %s", nametomib, config_stats, strerror(jerr));
         }
 
         unsigned char enabled;
         size_t len = sizeof(enabled);
-        jerr =
-            (*je_mcm) (&config->malloc.mib_config_stats, config->malloc.miblen_config_stats, &enabled, &len, NULL, 0);
+        jerr = (*je_mcm) (&config_stats_offset, config_stats_count, &enabled, &len, NULL, 0);
         if (jerr) {
             FATAL("%s %s: %s", jestats, config_stats, strerror(jerr));
         }
         if (enabled) {
             config->malloc.mallctlbymib = je_mcm;
-            const char *stats_allocated = "stats.allocated";
-            config->malloc.miblen_stats_allocated = 2;
-            jerr = (*nametomibfp) (stats_allocated, &config->malloc.mib_stats_allocated,
-                                   &config->malloc.miblen_stats_allocated);
-            if (jerr) {
-                FATAL("%s %s: %s", nametomib, stats_allocated, strerror(jerr));
+
+            const char *const stats[] = {
+                "stats.allocated",
+                "stats.active",
+                "stats.mapped",
+                "stats.chunks.current",
+                "stats.chunks.total",
+                "stats.chunks.high",
+                "stats.huge.allocated",
+                "stats.huge.nmalloc",
+                "stats.huge.ndalloc",
+            };
+
+            config->malloc.stats_mib_count = (int) (sizeof(stats) / sizeof(stats[0]));
+            config->malloc.stats_mib = malloc_or_fatal(config->malloc.stats_mib_count * sizeof(struct mib_config));
+
+            for (int i = 0; i < (int) config->malloc.stats_mib_count; i++) {
+                config->malloc.stats_mib[i].name = stats[i];
+
+                config->malloc.stats_mib[i].count = 1;
+                for (const char *dot = stats[i]; (dot = strchr(dot, '.')); config->malloc.stats_mib[i].count++) {
+                    dot++;
+                }
+
+                config->malloc.stats_mib[i].mib = malloc_or_fatal(config->malloc.stats_mib[i].count * sizeof(size_t));
+                jerr = (*nametomibfp) (stats[i], config->malloc.stats_mib[i].mib, &config->malloc.stats_mib[i].count);
+                if (jerr) {
+                    FATAL("%s %s: %s", nametomib, stats[i], strerror(jerr));
+                }
             }
-            const char *stats_active = "stats.active";
-            config->malloc.miblen_stats_active = 2;
-            jerr = (*nametomibfp) (stats_active, &config->malloc.mib_stats_active, &config->malloc.miblen_stats_active);
-            if (jerr) {
-                FATAL("%s %s: %s", nametomib, stats_active, strerror(jerr));
-            }
-            const char *stats_mapped = "stats.mapped";
-            config->malloc.miblen_stats_mapped = 2;
-            jerr = (*nametomibfp) (stats_mapped, &config->malloc.mib_stats_mapped, &config->malloc.miblen_stats_mapped);
-            if (jerr) {
-                FATAL("%s %s: %s", nametomib, stats_mapped, strerror(jerr));
-            }
+
             SAY("jemalloc stats enabled");
         } else {
             WARN("jemalloc stats DISABLED");

@@ -24,6 +24,10 @@ void config_destroy(config_t * config)
     free(config->spill_root);
     free(config->config_file);
     free(config->lock_file);
+    for (int i = 0; i < (int) config->malloc.stats_mib_count; i++) {
+        free(config->malloc.stats_mib[i].mib);
+    }
+    free(config->malloc.stats_mib);
     free(config);
 }
 
