@@ -34,6 +34,12 @@ enum {
     TCMALLOC = 2
 };
 
+struct mib_config {
+    const char *name;
+    size_t *mib;
+    size_t count;               /* the number of elements */
+};
+
 struct malloc_config {
     /* which kind of malloc we seem to be using */
     int style;
@@ -43,14 +49,9 @@ struct malloc_config {
 
     /* jemalloc */
     int (*mallctlbymib) (const size_t *, size_t, void *, size_t *, void *, size_t);
-    size_t mib_config_stats;
-    size_t miblen_config_stats;
-    size_t mib_stats_allocated;
-    size_t miblen_stats_allocated;
-    size_t mib_stats_active;
-    size_t miblen_stats_active;
-    size_t mib_stats_mapped;
-    size_t miblen_stats_mapped;
+
+    size_t stats_mib_count;
+    struct mib_config *stats_mib;
 
     /* tcmalloc */
     int (*get_numeric_property) (const char *, size_t *);

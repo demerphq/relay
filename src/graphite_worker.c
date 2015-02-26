@@ -4,6 +4,8 @@
 #include <malloc.h>
 #endif
 
+#include <inttypes.h>
+
 #include "global.h"
 #include "log.h"
 #include "relay_threads.h"
@@ -291,36 +293,18 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
 #endif
 
     if (config->malloc.style == JEMALLOC && config->malloc.mallctlbymib) {
-        size_t val;
-        size_t len;
-
-        /* mallctlbymib returns zero on success */
-
-        val = 0;
-        len = sizeof(val);
-        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_allocated, config->malloc.miblen_stats_allocated,
-                                            &val, &len, NULL, 0) == 0) {
-            fixed_buffer_vcatf(buffer, "%s.jemalloc.allocated %ld %lu\n", self->path_root->data, val, this_epoch);
-        }
-
-        val = 0;
-        len = sizeof(val);
-        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_active, config->malloc.miblen_stats_active, &val,
-                                            &len, NULL, 0) == 0) {
-            fixed_buffer_vcatf(buffer, "%s.jemalloc.active %ld %lu\n", self->path_root->data, val, this_epoch);
-        }
-
-        val = 0;
-        len = sizeof(val);
-        if ((*config->malloc.mallctlbymib) (&config->malloc.mib_stats_mapped, config->malloc.miblen_stats_mapped, &val,
-                                            &len, NULL, 0) == 0) {
-            fixed_buffer_vcatf(buffer, "%s.jemalloc.mapped %ld %lu\n", self->path_root->data, val, this_epoch);
+        for (int i = 0; i < (int) config->malloc.stats_mib_count; i++) {
+            size_t val = 0;
+            size_t len = sizeof(val);
+            if ((*config->malloc.mallctlbymib) (config->malloc.stats_mib[i].mib, config->malloc.stats_mib[i].count, &val, &len, NULL, 0) == 0) {        /* zero on success */
+                fixed_buffer_vcatf(buffer, "%s.jemalloc.%s %zd %lu\n", self->path_root->data,
+                                   config->malloc.stats_mib[i].name, val, this_epoch);
+            }
         }
     }
 
     if (config->malloc.style == TCMALLOC && config->malloc.get_numeric_property) {
-        size_t val;
-        const char *prop[] = {
+        static const char *prop[] = {
             "generic.current_allocated_bytes",
             "generic.heap_size",
             "tcmalloc.pageheap_free_bytes",
@@ -329,6 +313,7 @@ static int graphite_build(graphite_worker_t * self, fixed_buffer_t * buffer, tim
             "tcmalloc.current_total_thread_cache_bytes",
         };
         for (int i = 0; i < (int) (sizeof(prop) / sizeof(const char *)); i++) {
+            size_t val = 0;
             if ((*config->malloc.get_numeric_property) (prop[i], &val)) {;
                 const char *dot = strchr(prop[i], '.');
                 if (dot) {
