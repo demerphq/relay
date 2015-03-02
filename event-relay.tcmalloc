@@ -22,7 +22,7 @@ if [ -x "$TCMALLOC_SO" ]; then
   # Try to keep rough similarity with event-relay.jemalloc
   LD_PRELOAD=$TCMALLOC_SO \
     HEAPPROFILE=/var/run/event-relay/tcmalloc \
-    HEAP_PROFILE_INUSE_ALLOCATION_INTERVAL=67108864 \
+    HEAP_PROFILE_ALLOCATION_INTERVAL=67108864 \
     HEAP_PROFILE_INUSE_INTERVAL=67108864 \
     exec $EVENT_RELAY "$@"
 else
