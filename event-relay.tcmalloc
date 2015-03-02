@@ -14,7 +14,9 @@ echo "$0: Using $EVENT_RELAY"
 if [ -x "$TCMALLOC_SO" ]; then
   set -x
   # The heap profile dumps will be $HEAP_PROFILE.$seq.heap
-  # Both INTERVALs are set to 64MB (the defaults would be 1GB and 100MB)
+  # Both the allocation interval and inuse interval are set to 64MB
+  # (the defaults would be 1GB and 100MB)
+  # The time interval is set to 15 minutes.
   #
   # Note: one can enable either heap profiling or heap checking,
   # but not both at the same time.
@@ -24,6 +26,7 @@ if [ -x "$TCMALLOC_SO" ]; then
     HEAPPROFILE=/var/run/event-relay/tcmalloc \
     HEAP_PROFILE_ALLOCATION_INTERVAL=67108864 \
     HEAP_PROFILE_INUSE_INTERVAL=67108864 \
+    HEAP_PROFILE_TIME_INTERVAL=900 \
     exec $EVENT_RELAY "$@"
 else
   echo "$0: Missing tcmalloc library: $TCMALLOC_SO"
