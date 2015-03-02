@@ -39,7 +39,7 @@ ifeq ($(uname_S),Darwin)
 endif
 
 # Flags common to all compilers.
-CFLAGS=$(OPT_FLAGS) $(SAN_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -pthread -std=c99 -fno-omit-frame-pointer
+CFLAGS=$(OPT_FLAGS) $(SAN_FLAGS) $(WARN_FLAGS) $(OS_FLAGS) -g -pthread -std=c99 -fno-omit-frame-pointer
 
 GCC_FLAGS=$(CFLAGS)
 CLANG_FLAGS=$(CFLAGS)
@@ -60,20 +60,20 @@ gcc:
 	$(GCC) $(CFLAGS) -o bin/$(RELAY) $(SRC) $(LIBS)
 
 debug:	clean
-	make gcc OPT_FLAGS="-O0 -g"
-	make clang OPT_FLAGS="-O0 -g"
+	make gcc OPT_FLAGS="-O0"
+	make clang OPT_FLAGS="-O0"
 
 gcc.asan:
 	mkdir -p bin
-	make gcc OPT_FLAGS=-g SAN_FLAGS=$(ASAN_FLAGS)
+	make gcc OPT_FLAGS= SAN_FLAGS=$(ASAN_FLAGS)
 
 gcc.tsan:
 	mkdir -p bin
-	make gcc OPT_FLAGS=-g SAN_FLAGS="$(TSAN_FLAGS) -pie -fPIC"
+	make gcc OPT_FLAGS= SAN_FLAGS="$(TSAN_FLAGS) -pie -fPIC"
 
 gcc.ubsan:
 	mkdir -p bin
-	make gcc OPT_FLAGS=-g SAN_FLAGS=$(UBSAN_FLAGS)
+	make gcc OPT_FLAGS= SAN_FLAGS=$(UBSAN_FLAGS)
 
 clang:
 	mkdir -p bin
@@ -81,15 +81,15 @@ clang:
 
 clang.asan:
 	mkdir -p bin
-	make clang OPT_FLAGS=-g SAN_FLAGS=$(ASAN_FLAGS)
+	make clang OPT_FLAGS= SAN_FLAGS=$(ASAN_FLAGS)
 
 clang.msan:
 	mkdir -p bin
-	make clang OPT_FLAGS=-g SAN_FLAGS=$(MSAN_FLAGS)
+	make clang OPT_FLAGS= SAN_FLAGS=$(MSAN_FLAGS)
 
 clang.tsan:
 	mkdir -p bin
-	make clang OPT_FLAGS=-g SAN_FLAGS=$(TSAN_FLAGS)
+	make clang OPT_FLAGS= SAN_FLAGS=$(TSAN_FLAGS)
 
 indent:
 	sh indent.sh src/*.[hc]
