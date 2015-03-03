@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TCMALLOC_SO=$(ls /usr/lib64/libtcmalloc.so* | sort -t. -rn -k +3 -k +4 -k +5 | head -n 1)
+TCMALLOC_SO=$(ls /usr/lib64/libtcmalloc.so*  /usr/lib/libtcmalloc.so.* 2>/dev/null | sort -t. -rn -k +3 -k +4 -k +5 | head -n 1)
 
 if [ -x bin/event-relay ]; then
   EVENT_RELAY=bin/event-relay # for devel
