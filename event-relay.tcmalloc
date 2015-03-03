@@ -11,7 +11,7 @@ else
 fi
 echo "$0: Using $EVENT_RELAY"
 
-if [ -x "$TCMALLOC_SO" ]; then
+if [ -e "$TCMALLOC_SO" ]; then
   set -x
   # The heap profile dumps will be $HEAP_PROFILE.$seq.heap
   # Both the allocation interval and inuse interval are set to 64MB
