@@ -11,7 +11,7 @@ else
 fi
 echo "$0: Using $EVENT_RELAY"
 
-if [ -x "$JEMALLOC_SO" ]; then
+if [ -e "$JEMALLOC_SO" ]; then
   set -x
   # The heap profile dumps will be $prof_prefix.pid.$seq.[iuf].heap
   # i: interval
