@@ -618,6 +618,8 @@ static void malloc_config(config_t * config)
 
     config->malloc.pagesize = sysconf(_SC_PAGESIZE);
     SAY("pagesize: %ld", config->malloc.pagesize);
+
+    dlclose(soh);
 }
 
 static int serve(config_t * config)
