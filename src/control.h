@@ -13,6 +13,8 @@ void control_unset_bits(uint32_t c);
 uint32_t control_get_bits(void);
 uint32_t control_is_not(uint32_t c);
 uint32_t control_is(uint32_t c);
+uint32_t control_is_not_one_of(uint32_t c);
+uint32_t control_is_one_of(uint32_t c);
 void control_exit(int rc);
 int control_exit_code(void);
 

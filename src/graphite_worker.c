@@ -402,7 +402,7 @@ void *graphite_worker_thread(void *arg)
     }
 
     if (sck) {
-        if (control_is(RELAY_STOPPING)) {
+        if (control_is_one_of(RELAY_STOPPING | RELAY_RELOADING)) {
             /* Try to flush. */
             SAY("Graphite worker stopping, trying graphite flush");
             if (graphite_build(self, buffer, time(NULL), stats_format, meminfo)) {
@@ -420,7 +420,7 @@ void *graphite_worker_thread(void *arg)
         WARN("No graphite socket, not flushing");
     }
 
-    if (control_is_not(RELAY_STOPPING)) {
+    if (control_is_not_one_of(RELAY_STOPPING | RELAY_RELOADING)) {
         FATAL("graphite worker died");
     }
 

@@ -32,6 +32,18 @@ uint32_t control_is(uint32_t c)
     return (v & c) == c;
 }
 
+uint32_t control_is_not_one_of(uint32_t c)
+{
+    uint32_t v = RELAY_ATOMIC_READ(GLOBAL.control);
+    return (v & c) == 0;
+}
+
+uint32_t control_is_one_of(uint32_t c)
+{
+    uint32_t v = RELAY_ATOMIC_READ(GLOBAL.control);
+    return (v & c) != 0;
+}
+
 void control_exit(int rc)
 {
     uint32_t c = control_get_bits();
