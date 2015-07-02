@@ -20,7 +20,7 @@ typedef uint32_t blob_size_t;
  * (3) after recv() the size would need swapping from little-endian.
  */
 #if !(defined(__x86_64__) || defined(__x86__))
-# error "not x86, code needs porting"
+#error "not x86, code needs porting"
 #endif
 
 /* this structure is shared between different threads */

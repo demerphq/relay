@@ -12,7 +12,7 @@
 #include "setproctitle.h"
 
 #ifndef SPT_BUFSIZE
-# define SPT_BUFSIZE     2048
+#define SPT_BUFSIZE     2048
 #endif
 
 extern char **environ;
