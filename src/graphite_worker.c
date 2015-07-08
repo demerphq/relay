@@ -118,7 +118,7 @@ static int graphite_build_worker(graphite_worker_t * self, socket_worker_t * w, 
 
     do {
 #define STATS_VCATF(name) \
-	if (!fixed_buffer_vcatf(buffer, stats_format, #name, recents.name##_count)) return 0
+	if (!fixed_buffer_vcatf(buffer, stats_format, #name ".count", recents.name##_count)) return 0
 #define STATS_LOADAVG_VCATF(name, ix, label) \
 	if (!fixed_buffer_vcatf(buffer, stats_format, #name ".loadavg_" #label, (unsigned long) w->rates[ix].name.rate)) return 0
         STATS_VCATF(received);
